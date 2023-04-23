@@ -1,0 +1,22 @@
+# Simple Build Tool
+target/
+/lib_managed/
+/src_managed/
+/project/boot/
+.history
+.cache
+### Scala template
+*.class
+*.log
+
+# sbt specific
+/.lib/
+/dist/*
+/project/plugins/project/
+/.bsp/
+
+# IDEA specific
+/.idea/
+
+# EVE specific
+/sde/
