@@ -7,7 +7,10 @@ lazy val `sde-reader` = project
   .in(file("sde-reader"))
   .settings(commonSettings, Seq(libraryDependencies ++= snakeyaml ++ zio ++ `zio-test`))
 
-
+lazy val `static-db` = project
+  .in(file("static-db"))
+  .settings(commonSettings, Seq(libraryDependencies ++= zio ++ `zio-test`))
+  .dependsOn(`sde-reader`)
 
 lazy val protocol =
   crossProject(JSPlatform, JVMPlatform)

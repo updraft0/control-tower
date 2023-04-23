@@ -11,8 +11,6 @@ enum SignatureType:
 
 sealed trait SignatureDetails
 
-
-
 /** Single wormhole signature
   */
 case class Signature(id: SignatureId, `type`: SignatureType, note: String, createdAt: Instant, updatedAt: Instant)

@@ -1,12 +1,10 @@
 package org.updraft0.controltower.sde
 
-import org.snakeyaml.engine.v2.api.LoadSettings
-
-import java.nio.file.Path
 import zio.*
 import zio.stream.*
 
-import java.io.{BufferedInputStream, ByteArrayInputStream, File, FileInputStream, IOException}
+import java.io.*
+import java.nio.file.Path
 import java.util.zip as jzip
 
 object zip:
@@ -19,9 +17,7 @@ object zip:
   def readEntries(path: Path): ZStream[Any, Error, ZipEntry] =
     ZStream
       .scoped(zipInputStream((path.toFile)))
-      .flatMap(zis =>
-        ZStream.repeatZIOOption(nextOrFail(zis.getNextEntry)).zip(ZStream.repeat(zis))
-      )
+      .flatMap(zis => ZStream.repeatZIOOption(nextOrFail(zis.getNextEntry)).zip(ZStream.repeat(zis)))
       .mapZIO(toEntry.tupled)
       .mapError {
         case ioe: IOException => Error.IOError(ioe)
@@ -37,9 +33,7 @@ object zip:
   private def toEntry(entry: jzip.ZipEntry, zis: jzip.ZipInputStream) = {
     ZIO
       .attempt(zis.readNBytes(entry.getSize.toInt))
-      .flatMap(bytes =>
-        ZIO.attempt(ZipEntry(entry.getName, entry.getSize, entry.isDirectory, bytes))
-      )
+      .flatMap(bytes => ZIO.attempt(ZipEntry(entry.getName, entry.getSize, entry.isDirectory, bytes)))
   }
 
   private def nextOrFail[A](action: => A): ZIO[Any, Option[Throwable], A] =
