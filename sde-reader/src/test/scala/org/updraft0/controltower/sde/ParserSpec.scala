@@ -29,13 +29,13 @@ object ParserSpec extends ZIOSpecDefault {
             |""".stripMargin
 
         for
-          yamlObj <- SDEParser.parseYaml[String](yamlString)
-          region  <- SDEParser.parseRegion("a-region", yamlObj)
+          yamlObj <- parser.parseYaml[String](yamlString)
+          region  <- parser.parseRegion("a-region", yamlObj)
         yield assertTrue(
-          region == Region(
+          region == ExportedData.Region(
             id = 10000033,
             nameId = 267744,
-            name = "a-region",
+            tag = "a-region",
             wormholeClass = Some(WormholeClass.Hi),
             factionId = Some(500001)
           )
@@ -61,14 +61,14 @@ object ParserSpec extends ZIOSpecDefault {
                      |""".stripMargin
 
         for
-          yamlObj       <- SDEParser.parseYaml[String](yaml)
-          constellation <- SDEParser.parseConstellation("a-region", "a-constellation", yamlObj)
+          yamlObj       <- parser.parseYaml[String](yaml)
+          constellation <- parser.parseConstellation("a-region", "a-constellation", yamlObj)
         yield assertTrue(
-          constellation == Constellation(
+          constellation == ExportedData.Constellation(
             id = 21000017,
             nameId = 268650,
-            name = "a-constellation",
-            region = "a-region"
+            tag = "a-constellation",
+            regionTag = "a-region"
           )
         )
       },
@@ -477,13 +477,13 @@ object ParserSpec extends ZIOSpecDefault {
             |""".stripMargin
 
         for
-          yamlObj     <- SDEParser.parseYaml[String](yaml)
-          solarSystem <- SDEParser.parseSolarSystem("a-region", "a-constellation", "a-system", yamlObj)
+          yamlObj     <- parser.parseYaml[String](yaml)
+          solarSystem <- parser.parseSolarSystem("a-region", "a-constellation", "a-system", yamlObj)
         yield assertTrue(
-          solarSystem == SolarSystem(
-            name = "a-system",
-            constellation = "a-constellation",
-            region = "a-region",
+          solarSystem == ExportedData.SolarSystem(
+            tag = "a-system",
+            constellationTag = "a-constellation",
+            regionTag = "a-region",
             id = 30000194,
             nameId = 269151,
             star = Some(
@@ -569,13 +569,15 @@ object ParserSpec extends ZIOSpecDefault {
             |""".stripMargin
 
         for
-          yamlObj         <- SDEParser.parseYaml[Integer](yaml)
-          stationServices <- SDEParser.parseStationServices(yamlObj)
+          yamlObj         <- parser.parseYaml[Integer](yaml)
+          stationServices <- parser.parseStationServices(yamlObj)
         yield assertTrue(
-          stationServices == Vector(
-            StationService(id = 1, nameEn = "Bounty Missions"),
-            StationService(id = 2, nameEn = "Assassination Missions"),
-            StationService(id = 3, nameEn = "Courier Missions")
+          stationServices == ExportedData.StationServices(
+            Vector(
+              StationService(id = 1, nameEn = "Bounty Missions"),
+              StationService(id = 2, nameEn = "Assassination Missions"),
+              StationService(id = 3, nameEn = "Courier Missions")
+            )
           )
         )
       },
@@ -583,20 +585,26 @@ object ParserSpec extends ZIOSpecDefault {
         val yaml = """
             |-   itemID: 0
             |    itemName: (none)
+            |    groupID: 2
             |-   itemID: 1
             |    itemName: EVE System
+            |    groupID: 2
             |""".stripMargin
 
         for
-          yamlArr   <- SDEParser.parseYamlArray(yaml)
-          itemNames <- SDEParser.parseItemNames(yamlArr)
+          yamlArr   <- parser.parseYamlArray(yaml)
+          itemNames <- parser.parseUniqueNames(yamlArr)
         yield assertTrue(
-          itemNames == Vector(
-            ItemName(id = 0, name = "(none)"),
-            ItemName(id = 1, name = "EVE System")
+          itemNames == ExportedData.UniqueNames(
+            Vector(
+              UniqueName(itemId = 0, groupId = 2, name = "(none)"),
+              UniqueName(itemId = 1, groupId = 2, name = "EVE System")
+            )
           )
         )
       }
+      // TODO: categoryID
+      // TODO: typeID
     ).provideSomeShared(YAML.layer)
 
 }

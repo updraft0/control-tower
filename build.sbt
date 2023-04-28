@@ -7,9 +7,12 @@ lazy val `sde-reader` = project
   .in(file("sde-reader"))
   .settings(commonSettings, Seq(libraryDependencies ++= snakeyaml ++ zio ++ `zio-test`))
 
-lazy val `static-db` = project
-  .in(file("static-db"))
-  .settings(commonSettings, Seq(libraryDependencies ++= zio ++ `zio-test`))
+lazy val db = project
+  .in(file("db"))
+  .settings(commonSettings, Seq(
+    libraryDependencies ++= flyway ++ quill ++ sqlite,
+    libraryDependencies ++= zio ++ `zio-test`
+  ))
   .dependsOn(`sde-reader`)
 
 lazy val protocol =
@@ -23,5 +26,5 @@ lazy val server = Project(id = "yyy-server", base = file("server"))
     Seq(
     )
   )
-  .dependsOn(protocol.jvm)
+  .dependsOn(protocol.jvm, db)
   .aggregate(protocol.jvm)

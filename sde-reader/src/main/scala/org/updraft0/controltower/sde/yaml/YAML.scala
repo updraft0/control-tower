@@ -1,9 +1,16 @@
 package org.updraft0.controltower.sde.yaml
 
-import org.snakeyaml.engine.v2.api.{Load, LoadSettings}
-import zio.*
+import org.snakeyaml.engine.v2.api.{ConstructNode, Load, LoadSettings}
+import org.snakeyaml.engine.v2.constructor.ConstructYamlNull
+import org.snakeyaml.engine.v2.constructor.core.{ConstructYamlCoreBool, ConstructYamlCoreInt}
+import org.snakeyaml.engine.v2.constructor.json.{ConstructYamlJsonBool, ConstructYamlJsonFloat, ConstructYamlJsonInt}
+import org.snakeyaml.engine.v2.nodes
+import org.snakeyaml.engine.v2.nodes.Tag
+import org.snakeyaml.engine.v2.resolver.ModifiedFloatSchema
+import org.snakeyaml.engine.v2.schema.{FailsafeSchema, Schema}
+import zio.{Tag as _, *}
 
-import java.util as ju
+import java.util
 import scala.jdk.CollectionConverters.*
 
 enum Error:
@@ -15,37 +22,39 @@ enum Error:
 
 object YAML:
 
-  def layer: ZLayer[Any, Nothing, Load] =
-    ZLayer.fromZIO(ZIO.succeed(new Load(LoadSettings.builder().build())))
+  def layer: ZLayer[Any, Nothing, LoadSettings] =
+    ZLayer.fromZIO(
+      ZIO.succeed(LoadSettings.builder().setSchema(ModifiedFloatSchema).setCodePointLimit(Int.MaxValue).build())
+    )
 
-  def cursor[K <: KeyType](s: String): ZIO[Load, Error, Cursor[K]] =
+  def cursor[K <: KeyType](s: String): ZIO[LoadSettings, Error, Cursor[K]] =
     parse(s).map(toCursor[K])
 
   def cursor[K <: KeyType](o: YamlObject[K]): UIO[Cursor[K]] = ZIO.succeed(toCursor(o))
 
-  def parse[K <: KeyType](bytes: Array[Byte]): ZIO[Load, Error, YamlObject[K]] =
+  def parse[K <: KeyType](bytes: Array[Byte]): ZIO[LoadSettings, Error, YamlObject[K]] =
     ZIO
       .attempt(new String(bytes))
       .mapError(Error.Parsing.apply)
       .flatMap(parse)
 
-  def parse[K <: KeyType](s: String): ZIO[Load, Error, YamlObject[K]] =
-    ZIO.serviceWithZIO(load =>
+  def parse[K <: KeyType](s: String): ZIO[LoadSettings, Error, YamlObject[K]] =
+    ZIO.serviceWithZIO(settings =>
       ZIO
-        .attempt(load.loadFromString(s).asInstanceOf[YamlObject[K]])
+        .attempt(new Load(settings).loadFromString(s).asInstanceOf[YamlObject[K]])
         .mapError(Error.Parsing.apply)
     )
 
-  def parseArray(bytes: Array[Byte]): ZIO[Load, Error, YamlArray] =
+  def parseArray(bytes: Array[Byte]): ZIO[LoadSettings, Error, YamlArray] =
     ZIO
       .attempt(new String(bytes))
       .mapError(Error.Parsing.apply)
       .flatMap(parseArray)
 
-  def parseArray(s: String): ZIO[Load, Error, YamlArray] =
-    ZIO.serviceWithZIO(load =>
+  def parseArray(s: String): ZIO[LoadSettings, Error, YamlArray] =
+    ZIO.serviceWithZIO(settings =>
       ZIO
-        .attempt(load.loadFromString(s).asInstanceOf[YamlArray])
+        .attempt(new Load(settings).loadFromString(s).asInstanceOf[YamlArray])
         .mapError(Error.Parsing.apply)
     )
 

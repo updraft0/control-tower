@@ -1,10 +1,110 @@
 package org.updraft0.controltower.sde
 
-// Minimal domain model needed to import routing-relevant information
-// Each record here is derivable from a single YAML file in the SDE
+/** Top-level objects that can be extracted from the SDE export directly (with no further processing)
+  */
+enum ExportedData:
+  /** @note
+    *   from `fsd/universe/<region>/region.staticdata`
+    */
+  case Region(id: Long, nameId: Long, tag: String, wormholeClass: Option[WormholeClass], factionId: Option[Long])
 
-type DomainTopLevel = Region | Constellation | SolarSystem | Vector[TypeId] | Vector[Station] | Vector[ItemName] |
-  Vector[StationService]
+  /** @note
+    *   from `fsd/universe/<region>/<constellation>/constellation.staticdata`
+    */
+  case Constellation(id: Long, nameId: Long, tag: String, regionTag: String)
+
+  /** @note
+    *   from `fsd/universe/<region>/<constellation>/<solarsystem>/solarsystem.staticdata`
+    */
+  case SolarSystem(
+      // identifiers
+      tag: String,
+      constellationTag: String,
+      regionTag: String,
+      // key parameters
+      id: Long,
+      nameId: Long,
+      star: Option[Star],
+      secondaryEffect: Option[WormholeEffect],
+      // planets + stargates
+      planets: Vector[Planet],
+      stargates: Vector[Stargate],
+      // security
+      securityClass: Option[String],
+      security: Option[Double],
+      // flags
+      border: Boolean,
+      corridor: Boolean,
+      fringe: Boolean,
+      hub: Boolean,
+      international: Boolean,
+      regional: Boolean
+  )
+
+  /** @note
+    *   from `fsd/categoryIDs.yaml`
+    */
+  case CategoryIds(value: Vector[CategoryId])
+
+  /** @note
+    *   from `fsd/groupIDs.yaml`
+    */
+  case GroupIds(value: Vector[GroupId])
+
+  /** @note
+    *   from `fsd/typeIDs.yaml`
+    */
+  case TypeIds(value: Vector[TypeId])
+
+  /** @note
+    *   from `fsd/stationServices.yaml`
+    */
+  case StationServices(value: Vector[StationService])
+
+  /** @note
+    *   from `bsd/staStations.yaml`
+    */
+  case Stations(value: Vector[Station])
+
+  /** @note
+    *   from `bsd/invUniqueNames.yaml`
+    */
+  case UniqueNames(value: Vector[UniqueName])
+
+  case DogmaAttributeCategories(value: Vector[DogmaAttributeCategory])
+
+// -- array types
+
+case class CategoryId(id: Long, nameEn: String, iconId: Option[Long])
+case class GroupId(id: Long, categoryId: Long, nameEn: String, iconId: Option[Long])
+case class TypeId(id: Long, nameEn: String, groupId: Long, descriptionEn: Option[String])
+case class UniqueName(itemId: Long, groupId: Int, name: String)
+case class Station(constellationId: Long, regionId: Long, solarSystemId: Long, name: String, corporationId: Long)
+case class StationService(id: Long, nameEn: String)
+
+// -- solar system
+
+case class NpcStation(id: Long, ownerId: Long, typeId: Long)
+case class PlanetMoon(id: Long, npcStations: Vector[NpcStation])
+case class PlanetAsteroidBelt(id: Long)
+
+case class Planet(
+    id: Long,
+    index: Int,
+    typeId: Long,
+    moons: Vector[PlanetMoon],
+    asteroidBelts: Vector[PlanetAsteroidBelt]
+)
+case class Star(id: Long, typeId: Long)
+case class Stargate(id: Long, destinationId: Long)
+
+// -- dogma
+
+case class DogmaAttributeCategory(id: Long, name: String, description: Option[String])
+
+// -- own mappings
+
+// TODO: this will probably have to be moved elsewhere...
 
 enum SpaceType:
   case Known
@@ -54,71 +154,3 @@ enum WormholeEffect(val typeId: Long):
   case Pulsar      extends WormholeEffect(30577)
   case Cataclysmic extends WormholeEffect(30670)
   case WolfRayet   extends WormholeEffect(30669)
-
-/*
- * from `fsd/universe/<region>/<constellation>/constellation.staticdata`
- */
-case class Constellation(id: Long, nameId: Long, name: String, region: String)
-
-/*
- * from `fsd/universe/<region>/region.staticdata`
- */
-case class Region(id: Long, nameId: Long, name: String, wormholeClass: Option[WormholeClass], factionId: Option[Long])
-
-/*
- * from `fsd/universe/<region>/<constellation>/<solarsystem>/solarsystem.staticdata`
- */
-case class SolarSystem(
-    // identifiers
-    name: String,
-    constellation: String,
-    region: String,
-    // key parameters
-    id: Long,
-    nameId: Long,
-    star: Option[Star],
-    secondaryEffect: Option[WormholeEffect],
-    // planets + stargates
-    planets: Vector[Planet],
-    stargates: Vector[Stargate],
-    // security
-    securityClass: Option[String],
-    security: Option[Double],
-    // flags
-    border: Boolean,
-    corridor: Boolean,
-    fringe: Boolean,
-    hub: Boolean,
-    international: Boolean,
-    regional: Boolean
-)
-
-case class NpcStation(id: Long, ownerId: Long, typeId: Long)
-case class PlanetMoon(id: Long, npcStations: Vector[NpcStation])
-case class PlanetAsteroidBelt(id: Long)
-
-case class Planet(
-    id: Long,
-    index: Int,
-    typeId: Long,
-    moons: Vector[PlanetMoon],
-    asteroidBelts: Vector[PlanetAsteroidBelt]
-)
-case class Star(id: Long, typeId: Long)
-case class Stargate(id: Long, destinationId: Long)
-
-/** from `fsd/typeIDs.yaml`
-  */
-case class TypeId(id: Long, descriptionEn: String, nameEn: String, groupId: Long, graphicId: Long)
-
-/** from `fsd/stationServices.yaml`
-  */
-case class StationService(id: Long, nameEn: String)
-
-/** from `bsd/staStations.yaml`
-  */
-case class Station(constellationId: Long, regionId: Long, solarSystemId: Long, name: String, corporationId: Long)
-
-/** from `bsd/invNames.yaml`
-  */
-case class ItemName(id: Long, name: String)

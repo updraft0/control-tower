@@ -4,8 +4,7 @@ package org.updraft0.controltower.sde.yaml
 
 import zio.*
 
-import java.lang as jl
-import java.util as ju
+import java.{lang as jl, util as ju}
 import scala.annotation.tailrec
 import scala.jdk.CollectionConverters.*
 
@@ -97,7 +96,7 @@ trait FromYaml[T]:
 given FromYaml[String] =
   case s: String => ZIO.succeed(s)
   case null      => ZIO.fail(Error.MissingValue("String"))
-  case other     => ZIO.fail(Error.InvalidType("String", other.getClass.getName))
+  case other     => ZIO.fail(Error.InvalidType(s"String $other" /* FIXME */, other.getClass.getName))
 
 given FromYaml[Int] =
   case i: jl.Integer => ZIO.succeed(i)
