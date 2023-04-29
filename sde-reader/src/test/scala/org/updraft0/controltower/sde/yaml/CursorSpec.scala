@@ -105,7 +105,24 @@ object CursorSpec extends ZIOSpecDefault:
            |""".stripMargin
 
         val getCoords = (_: Int, c: Cursor[String]) => c.downField("coords").as[Vector[Int]]
-        assertCursor(yaml, _.downField("planets").mapObject(getCoords), Map(1 -> Vector(1, 2, 3), 2 -> Vector(4, 5, 6)))
+        assertCursor(
+          yaml,
+          _.downField("planets").mapObject(getCoords).map(_.toMap),
+          Map(1 -> Vector(1, 2, 3), 2 -> Vector(4, 5, 6))
+        )
+      },
+      test("using mapObject preserves order of keys") {
+        val yaml = """
+            |a:
+            |  value: 1
+            |c:
+            |  value: 3
+            |d:
+            |  value: 2
+            |""".stripMargin
+
+        val getValues = (_: String, c: Cursor[String]) => c.downField("value").as[Int]
+        assertCursor(yaml, _.mapObject(getValues).map(_.toVector), Vector("a" -> 1, "c" -> 3, "d" -> 2))
       }
     ).provideSomeShared(YAML.layer)
 

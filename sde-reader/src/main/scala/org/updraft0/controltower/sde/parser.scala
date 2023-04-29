@@ -242,7 +242,7 @@ object parser:
       c: Cursor[_ <: KeyType],
       f: (Int, Cursor[String]) => YamlValue[T]
   ): YamlValue[Vector[T]] =
-    c.mapObject[Integer, String, T]((id, mc) => f(id, mc)).map(_.values.toVector)
+    c.mapObject[Integer, String, T]((id, mc) => f(id, mc)).map(_.map(_._2).toVector)
 
   private[sde] def parseYaml[K <: KeyType](bytes: Array[Byte]): ZIO[LoadSettings, Error, YamlObject[K]] =
     YAML.parse(bytes).mapError(Error.Yaml("Invalid YAML", "?", _))

@@ -7,10 +7,11 @@ import zio.*
 import java.{lang as jl, util as ju}
 import scala.annotation.tailrec
 import scala.jdk.CollectionConverters.*
+import scala.collection.mutable
 
 type YamlValue[T] = IO[Error, T]
 
-private[sde] type YamlObject[K <: KeyType] = ju.HashMap[K, AnyRef]
+private[sde] type YamlObject[K <: KeyType] = ju.LinkedHashMap[K, AnyRef]
 private[sde] type YamlArray                = ju.ArrayList[AnyRef]
 type KeyType                               = String | Integer
 
@@ -29,7 +30,7 @@ trait Cursor[K <: KeyType]:
   def mapArray[K2 <: KeyType, T](f: Cursor[K2] => YamlValue[T]): YamlValue[Vector[T]]
 
   // object ops
-  def mapObject[K2 <: KeyType, K3 <: KeyType, T](f: (K2, Cursor[K3]) => YamlValue[T]): YamlValue[Map[K2, T]]
+  def mapObject[K2 <: KeyType, K3 <: KeyType, T](f: (K2, Cursor[K3]) => YamlValue[T]): YamlValue[Iterable[(K2, T)]]
 
 private[yaml] case class ObjectCursor[K <: KeyType](v: YamlObject[K], path: Vector[K]) extends Cursor[K]:
   override def downField(name: K): Cursor[K] = copy(path = path.appended(name))
@@ -44,9 +45,10 @@ private[yaml] case class ObjectCursor[K <: KeyType](v: YamlObject[K], path: Vect
       .attempt(downObjectRaw(v, path))
       .mapError(ex => Error.Cursor(path, Error.Raw(ex)))
       .flatMap {
-        case null                  => ZIO.succeed(None)
-        case obj: ju.HashMap[_, _] => f(ObjectCursor[K](obj.asInstanceOf[YamlObject[K]], Vector.empty[K])).map(Some(_))
-        case other                 => ZIO.fail(Error.InvalidType("Optional(Object)", other.getClass.getName))
+        case null => ZIO.succeed(None)
+        case obj: ju.LinkedHashMap[_, _] =>
+          f(ObjectCursor[K](obj.asInstanceOf[YamlObject[K]], Vector.empty[K])).map(Some(_))
+        case other => ZIO.fail(Error.InvalidType("Optional(Object)", other.getClass.getName))
       }
       .mapError(Error.Cursor(path, _))
 
@@ -59,25 +61,28 @@ private[yaml] case class ObjectCursor[K <: KeyType](v: YamlObject[K], path: Vect
         case arr: ju.ArrayList[_] =>
           ZIO
             .foreach(arr.asScala) {
-              case obj: ju.HashMap[_, _] => f(ObjectCursor[K2](obj.asInstanceOf[YamlObject[K2]], Vector.empty[K2]))
-              case other                 => ZIO.fail(Error.InvalidType("Object", other.getClass.getName))
+              case obj: ju.LinkedHashMap[_, _] =>
+                f(ObjectCursor[K2](obj.asInstanceOf[YamlObject[K2]], Vector.empty[K2]))
+              case other => ZIO.fail(Error.InvalidType("Object", other.getClass.getName))
             }
             .mapBoth(Error.Cursor(path, _), _.toVector)
         case other => ZIO.fail(Error.Cursor(path, Error.InvalidType("Array", other.getClass.getName)))
       }
 
-  override def mapObject[K2 <: KeyType, K3 <: KeyType, T](f: (K2, Cursor[K3]) => YamlValue[T]): YamlValue[Map[K2, T]] =
+  override def mapObject[K2 <: KeyType, K3 <: KeyType, T](
+      f: (K2, Cursor[K3]) => YamlValue[T]
+  ): YamlValue[Iterable[(K2, T)]] =
     ZIO
       .attempt(downObjectRaw(v, path))
       .mapError(ex => Error.Cursor(path, Error.Raw(ex)))
       .flatMap {
         case null => ZIO.succeed(Map.empty[K2, T])
-        case map: ju.HashMap[_, _] =>
+        case map: ju.LinkedHashMap[_, _] =>
           ZIO
-            .foreach(map.asInstanceOf[YamlObject[K2]].asScala) { case (k, v: ju.HashMap[_, _]) =>
+            .foreach(asScala(map.asInstanceOf[YamlObject[K2]])) { case ((k, v: ju.LinkedHashMap[_, _])) =>
               f(k, ObjectCursor(v.asInstanceOf[YamlObject[K3]], Vector.empty)).map(fv => k -> fv)
             }
-            .mapBoth(Error.Cursor(path, _), _.toMap[K2, T])
+            .mapError(Error.Cursor(path, _))
         case other => ZIO.fail(Error.Cursor(path, Error.InvalidType("Object", other.getClass.getName)))
       }
 
@@ -89,6 +94,12 @@ private def downObjectRaw[K <: KeyType](v: AnyRef, path: Vector[K]): AnyRef =
     if (!map.containsKey(path.head)) null
     else downObjectRaw(map.get(path.head), path.tail)
   }
+
+// need to preserve order...
+private def asScala[K, V](jmap: ju.LinkedHashMap[K, V]): Vector[(K, V)] =
+  val res = mutable.ArrayBuffer.empty[(K, V)]
+  jmap.forEach((k, v) => res.addOne(k, v))
+  res.toVector
 
 trait FromYaml[T]:
   def from(yaml: AnyRef): YamlValue[T]

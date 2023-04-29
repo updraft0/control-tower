@@ -45,6 +45,8 @@ object Dependencies {
   )
 
   val `zio-test` = Seq(
-    "dev.zio" %% "zio-test" % Versions.zio % Test
+    "dev.zio" %% "zio-test" % Versions.zio % Test,
+    "dev.zio" %% "zio-test-sbt" % Versions.zio % Test,
+    "dev.zio" %% "zio-test-magnolia" % Versions.zio % Test
   )
 }
