@@ -3,13 +3,13 @@ import sbt._
 object Dependencies {
 
   object Versions {
-    val flyway       = "9.16.3"
-    val quill        = "4.6.0.1"
-    val snakeyaml    = "2.6"
-    val sqlite       = "3.41.2.1"
-    val tapir        = "1.2.12"
-    val zio          = "2.0.13"
-    val `zio-config` = "4.0.0-RC15"
+    val flyway        = "9.16.3"
+    val quill         = "4.6.0.1"
+    val snakeyaml     = "2.6"
+    val sqlite        = "3.41.2.1"
+    val tapir         = "1.2.12"
+    val zio           = "2.0.13"
+    val `zio-config`  = "4.0.0-RC15"
     val `zio-logging` = "2.1.12"
   }
 
@@ -45,8 +45,8 @@ object Dependencies {
   )
 
   val `zio-test` = Seq(
-    "dev.zio" %% "zio-test" % Versions.zio % Test,
-    "dev.zio" %% "zio-test-sbt" % Versions.zio % Test,
+    "dev.zio" %% "zio-test"          % Versions.zio % Test,
+    "dev.zio" %% "zio-test-sbt"      % Versions.zio % Test,
     "dev.zio" %% "zio-test-magnolia" % Versions.zio % Test
   )
 }

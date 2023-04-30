@@ -16,10 +16,14 @@ object sde:
   object schema:
     inline def constellation           = quote(querySchema[Constellation]("sde.constellation"))
     inline def dogmaAttributeCategory  = quote(querySchema[DogmaAttributeCategory]("sde.dogma_attribute_category"))
+    inline def dogmaAttributeType      = quote(querySchema[DogmaAttributeType]("sde.dogma_attribute_type"))
+    inline def faction                 = quote(querySchema[Faction]("sde.faction"))
     inline def itemCategory            = quote(querySchema[ItemCategory]("sde.item_category"))
+    inline def itemDogmaAttribute      = quote(querySchema[ItemDogmaAttribute]("sde.item_dogma_attribute"))
     inline def itemGroup               = quote(querySchema[ItemGroup]("sde.item_group"))
     inline def itemName                = quote(querySchema[ItemName]("sde.item_name"))
     inline def itemType                = quote(querySchema[ItemType]("sde.item_type"))
+    inline def npcCorporation          = quote(querySchema[NpcCorporation]("sde.npc_corporation"))
     inline def npcStation              = quote(querySchema[NpcStation]("sde.npc_station"))
     inline def region                  = quote(querySchema[Region]("sde.region"))
     inline def solarSystem             = quote(querySchema[SolarSystem]("sde.solar_system"))
@@ -49,8 +53,17 @@ object sde:
   def insertDogmaAttributeCategories(categories: Vector[DogmaAttributeCategory]): DbOperation[Long] =
     ctx.run(query.insertAll(schema.dogmaAttributeCategory, categories)).map(_.sum)
 
+  def insertDogmaAttributeTypes(types: Vector[DogmaAttributeType]): DbOperation[Long] =
+    ctx.run(query.insertAll(schema.dogmaAttributeType, types)).map(_.sum)
+
   def insertItemCategories(itemCategories: Vector[ItemCategory]): DbOperation[Long] =
     ctx.run(query.insertAll(schema.itemCategory, itemCategories)).map(_.sum)
+
+  def insertItemDogmaAttributes(attrs: Vector[ItemDogmaAttribute]): DbOperation[Long] =
+    ctx.run(query.insertAll(schema.itemDogmaAttribute, attrs)).map(_.sum)
+
+  def insertFactions(factions: Vector[Faction]): DbOperation[Long] =
+    ctx.run(query.insertAll(schema.faction, factions)).map(_.sum)
 
   def insertItemGroups(itemGroups: Vector[ItemGroup]): DbOperation[Long] =
     ctx.run(query.insertAll(schema.itemGroup, itemGroups)).map(_.sum)
@@ -60,6 +73,9 @@ object sde:
 
   def insertItemTypes(itemTypes: Vector[ItemType]): DbOperation[Long] =
     ctx.run(query.insertAll(schema.itemType, itemTypes)).map(_.sum)
+
+  def insertNpcCorporations(corps: Vector[NpcCorporation]): DbOperation[Long] =
+    ctx.run(query.insertAll(schema.npcCorporation, corps)).map(_.sum)
 
   def insertStationServices(services: Vector[StationService]): DbOperation[Long] =
     ctx.run(query.insertAll(schema.stationService, services)).map(_.sum)

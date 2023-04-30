@@ -602,9 +602,343 @@ object ParserSpec extends ZIOSpecDefault {
             )
           )
         )
+      },
+      test("can parse group ids") {
+        val yaml =
+          """
+            |0:
+            |    anchorable: false
+            |    anchored: false
+            |    categoryID: 0
+            |    fittableNonSingleton: false
+            |    name:
+            |        en: '#System'
+            |    published: false
+            |    useBasePrice: false
+            |12:
+            |    anchorable: false
+            |    anchored: false
+            |    categoryID: 2
+            |    fittableNonSingleton: false
+            |    iconID: 16
+            |    name:
+            |        en: Cargo Container
+            |    published: true
+            |    useBasePrice: true
+            |""".stripMargin
+
+        for
+          yamlObj  <- parser.parseYaml[Integer](yaml)
+          groupIds <- parser.parseGroupIds(yamlObj)
+        yield assertTrue(
+          groupIds == ExportedData.GroupIds(
+            Vector(
+              GroupId(0, 0, "#System", None),
+              GroupId(12, 2, "Cargo Container", Some(16))
+            )
+          )
+        )
+      },
+      test("can parse category ids") {
+        val yaml = """
+            |0:
+            |    name:
+            |        en: '#System'
+            |    published: false
+            |4:
+            |    iconID: 22
+            |    name:
+            |        en: Material
+            |    published: true
+            |""".stripMargin
+
+        for
+          yamlObj     <- parser.parseYaml[Integer](yaml)
+          categoryIds <- parser.parseCategoryIds(yamlObj)
+        yield assertTrue(
+          categoryIds == ExportedData.CategoryIds(
+            Vector(
+              CategoryId(id = 0, nameEn = "#System", iconId = None),
+              CategoryId(id = 4, nameEn = "Material", iconId = Some(22))
+            )
+          )
+        )
+      },
+      test("can parse factions") {
+        val yaml =
+          """
+            |500001:
+            |  corporationID: 1000035
+            |  descriptionID:
+            |    en: The Caldari State is ruled by several mega-corporations. There is no central
+            |      government to speak of - all territories within ...
+            |  iconID: 1439
+            |  memberRaces:
+            |  - 1
+            |  militiaCorporationID: 1000180
+            |  nameID:
+            |    en: Caldari State
+            |  shortDescriptionID:
+            |    en: 'In the Caldari State, there is no higher honor than bringing glory to one''s
+            |      corporation. '
+            |  sizeFactor: 5.0
+            |  solarSystemID: 30000145
+            |  uniqueName: true
+            |""".stripMargin
+
+        for
+          yamlObj  <- parser.parseYaml[Integer](yaml)
+          factions <- parser.parseFactions(yamlObj)
+        yield assertTrue(
+          factions == ExportedData.Factions(
+            Vector(
+              Faction(
+                id = 500001,
+                nameEn = "Caldari State",
+                corporationId = Some(1000035),
+                descriptionEn =
+                  "The Caldari State is ruled by several mega-corporations. There is no central government to speak of - all territories within ...",
+                shortDescriptionEn =
+                  Some("In the Caldari State, there is no higher honor than bringing glory to one's corporation. "),
+                iconId = 1439,
+                militiaCorporationId = Some(1000180),
+                memberRaces = Vector(1),
+                sizeFactor = 5.0,
+                solarSystemId = 30000145,
+                uniqueName = true
+              )
+            )
+          )
+        )
+      },
+      test("can parse npc corporations") {
+        val yaml =
+          """
+            |1000233:
+            |  ceoID: 3019549
+            |  deleted: false
+            |  descriptionID:
+            |    en: Expert Intervention is the latest business launched under the NOH megacorporation's
+            |      Expert brand, drawing on ...
+            |  enemyID: 1000233
+            |  extent: L
+            |  factionID: 500001
+            |  friendID: 1000233
+            |  hasPlayerPersonnelManager: false
+            |  iconID: 20996
+            |  initialPrice: 0
+            |  investors:
+            |    1000233: 0
+            |  mainActivityID: 5
+            |  memberLimit: -1
+            |  minSecurity: 0.0
+            |  minimumJoinStanding: 1
+            |  nameID:
+            |    en: Expert Intervention
+            |  publicShares: 0
+            |  raceID: 1
+            |  sendCharTerminationMessage: false
+            |  shares: 0
+            |  size: T
+            |  solarSystemID: 30000193
+            |  stationID: 60013144
+            |  taxRate: 0.0
+            |  tickerName: EXPIV
+            |  uniqueName: true
+            |""".stripMargin
+
+        for
+          yamlObj      <- parser.parseYaml[Integer](yaml)
+          corporations <- parser.parseNpcCorporations(yamlObj)
+        yield assertTrue(
+          corporations == ExportedData.NpcCorporations(
+            Vector(
+              NpcCorporation(
+                id = 1000233,
+                nameEn = "Expert Intervention",
+                allowedRaces = None,
+                ceoId = Some(3019549),
+                raceId = Some(1),
+                descriptionEn = Some(
+                  "Expert Intervention is the latest business launched under the NOH megacorporation's Expert brand, drawing on ..."
+                ),
+                factionId = Some(500001),
+                iconId = Some(20996),
+                solarSystemId = Some(30000193),
+                stationId = Some(60013144),
+                ticker = "EXPIV",
+                uniqueName = true
+              )
+            )
+          )
+        )
+      },
+      test("can parse dogma attribute categories") {
+        val yaml =
+          """
+            |22:
+            |  description: NPC Energy Neutralizing Attributes
+            |  name: EW - Energy Neutralizing
+            |23:
+            |  description: NPC Remote Electronic Counter Measures Attributes
+            |  name: EW - Remote Electronic Counter Measures
+            |24:
+            |  description: NPC Sensor Dampening Attributes
+            |  name: EW - Sensor Dampening
+            |""".stripMargin
+
+        for
+          yamlObj    <- parser.parseYaml[Integer](yaml)
+          categories <- parser.parseDogmaAttributeCategories(yamlObj)
+        yield assertTrue(
+          categories == ExportedData.DogmaAttributeCategories(
+            Vector(
+              DogmaAttributeCategory(22, "EW - Energy Neutralizing", Some("NPC Energy Neutralizing Attributes")),
+              DogmaAttributeCategory(
+                23,
+                "EW - Remote Electronic Counter Measures",
+                Some("NPC Remote Electronic Counter Measures Attributes")
+              ),
+              DogmaAttributeCategory(24, "EW - Sensor Dampening", Some("NPC Sensor Dampening Attributes"))
+            )
+          )
+        )
+      },
+      test("can parse dogma attributes") {
+        val yaml =
+          """
+            |633:
+            |  attributeID: 633
+            |  categoryID: 7
+            |  dataType: 4
+            |  defaultValue: 0.0
+            |  description: "Authoring has been moved to FSD\r\nThe ranking of the module within
+            |    its tech level"
+            |  displayNameID:
+            |    en: Meta Level
+            |  displayWhenZero: true
+            |  highIsGood: true
+            |  name: metaLevelOld
+            |  published: true
+            |  stackable: true
+            |  unitID: 140
+            |634:
+            |  attributeID: 634
+            |  categoryID: 9
+            |  dataType: 5
+            |  defaultValue: 3.0
+            |  description: Maximum "Thrust angle" for an object in Radians, 0 to pi (3.14).
+            |  highIsGood: true
+            |  iconID: 0
+            |  name: newAgility
+            |  published: false
+            |  stackable: true
+            |""".stripMargin
+
+        for
+          yamlObj    <- parser.parseYaml[Integer](yaml)
+          attributes <- parser.parseDogmaAttributes(yamlObj)
+        yield assertTrue(
+          attributes == ExportedData.DogmaAttributes(
+            Vector(
+              DogmaAttribute(
+                id = 633,
+                categoryId = Some(7),
+                dataType = 4,
+                name = "metaLevelOld",
+                description =
+                  Some("Authoring has been moved to FSD\r\nThe ranking of the module within its tech level"),
+                defaultValue = 0.0,
+                unitId = Some(140),
+                iconId = None
+              ),
+              DogmaAttribute(
+                id = 634,
+                categoryId = Some(9),
+                dataType = 5,
+                name = "newAgility",
+                description = Some("Maximum \"Thrust angle\" for an object in Radians, 0 to pi (3.14)."),
+                defaultValue = 3.0,
+                unitId = None,
+                iconId = Some(0)
+              )
+            )
+          )
+        )
+      },
+      test("can parse type ids") {
+        val yaml =
+          """
+            |4:
+            |    groupID: 4
+            |    name:
+            |        en: Constellation
+            |    portionSize: 1
+            |    published: false
+            |    volume: 1.0
+            |5:
+            |    groupID: 5
+            |    name:
+            |        en: Solar System
+            |    portionSize: 1
+            |    published: false
+            |    radius: 5000000000000.0
+            |    volume: 1.0
+            |""".stripMargin
+
+        for
+          yamlObj <- parser.parseYaml[Integer](yaml)
+          typeIds <- parser.parseTypeIds(yamlObj)
+        yield assertTrue(
+          typeIds == ExportedData.TypeIds(
+            Vector(
+              TypeId(4, "Constellation", 4, None),
+              TypeId(5, "Solar System", 5, None)
+            )
+          )
+        )
+      },
+      test("can parse type dogmas") {
+        val yaml =
+          """
+            |21558:
+            |  dogmaAttributes:
+            |  - attributeID: 1955
+            |    value: 9.0
+            |  dogmaEffects: []
+            |21559:
+            |  dogmaAttributes:
+            |  - attributeID: 6
+            |    value: 0.0
+            |  - attributeID: 9
+            |    value: 40.0
+            |  - attributeID: 30
+            |    value: 2475.0
+            |  - attributeID: 605
+            |    value: 376.0
+            |  - attributeID: 620
+            |    value: 40000.0
+            |  dogmaEffects:
+            |  - effectID: 12
+            |    isDefault: false
+            |""".stripMargin
+
+        for
+          yamlObj    <- parser.parseYaml[Integer](yaml)
+          typeDogmas <- parser.parseTypeDogmas(yamlObj)
+        yield assertTrue(
+          typeDogmas == ExportedData.TypeDogmas(
+            Vector(
+              TypeDogma(21558, Map(1955L -> 9.0), Map.empty),
+              TypeDogma(
+                id = 21559,
+                attributes = Map(6L -> 0.0, 9L -> 40.0, 30L -> 2475.0, 605L -> 376.0, 620L -> 40000.0),
+                effects = Map(12L -> false)
+              )
+            )
+          )
+        )
       }
-      // TODO: categoryID
-      // TODO: typeID
     ).provideSomeShared(YAML.layer)
 
 }

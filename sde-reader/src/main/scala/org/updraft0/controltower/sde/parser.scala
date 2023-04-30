@@ -28,10 +28,18 @@ object parser:
         parseYaml[Integer](bytes).flatMap(parseCategoryIds).asSome
       case "sde/fsd/dogmaAttributeCategories.yaml" =>
         parseYaml[Integer](bytes).flatMap(parseDogmaAttributeCategories).asSome
+      case "sde/fsd/dogmaAttributes.yaml" =>
+        parseYaml[Integer](bytes).flatMap(parseDogmaAttributes).asSome
+      case "sde/fsd/factions.yaml" =>
+        parseYaml[Integer](bytes).flatMap(parseFactions).asSome
+      case "sde/fsd/npcCorporations.yaml" =>
+        parseYaml[Integer](bytes).flatMap(parseNpcCorporations).asSome
       case "sde/fsd/groupIDs.yaml" =>
         parseYaml[Integer](bytes).flatMap(parseGroupIds).asSome
       case "sde/fsd/stationServices.yaml" =>
         parseYaml[Integer](bytes).flatMap(parseStationServices).asSome
+      case "sde/fsd/typeDogma.yaml" =>
+        parseYaml[Integer](bytes).flatMap(parseTypeDogmas).asSome
       case "sde/fsd/typeIDs.yaml" =>
         parseYaml[Integer](bytes).flatMap(parseTypeIds).asSome
       case RegionData(regionName) =>
@@ -61,6 +69,26 @@ object parser:
       description <- c.downField("description").as[Option[String]]
     yield DogmaAttributeCategory(id, name, description)
 
+  private[sde] def parseDogmaAttributes(yaml: YamlObject[Integer]): Parser[ExportedData.DogmaAttributes] =
+    YAML
+      .cursor[Integer](yaml)
+      .flatMap(parseIntKeyedMap(_, parseDogmaAttribute))
+      .mapBoth(
+        Error.Yaml("Failed to parse DogmaAttributes", "", _),
+        ExportedData.DogmaAttributes.apply
+      )
+
+  private def parseDogmaAttribute(id: Int, c: Cursor[String]): YamlValue[DogmaAttribute] =
+    for
+      categoryId   <- c.downField("categoryID").as[Option[Long]]
+      dataType     <- c.downField("dataType").as[Int]
+      name         <- c.downField("name").as[String]
+      description  <- c.downField("description").as[Option[String]]
+      defaultValue <- c.downField("defaultValue").as[Double]
+      unitId       <- c.downField("unitID").as[Option[Int]]
+      iconId       <- c.downField("iconID").as[Option[Long]]
+    yield DogmaAttribute(id.toLong, categoryId, dataType, name, description, defaultValue, unitId, iconId)
+
   private[sde] def parseCategoryIds(yaml: YamlObject[Integer]): Parser[ExportedData.CategoryIds] =
     YAML
       .cursor[Integer](yaml)
@@ -72,6 +100,38 @@ object parser:
       nameEn <- c.downField("name").downField("en").as[String]
       iconId <- c.downField("iconID").as[Option[Long]]
     yield CategoryId(id, nameEn, iconId)
+
+  private[sde] def parseFactions(yaml: YamlObject[Integer]): Parser[ExportedData.Factions] =
+    YAML
+      .cursor[Integer](yaml)
+      .flatMap(parseIntKeyedMap(_, parseFaction))
+      .mapBoth(Error.Yaml("Failed to parse Factions", "", _), ExportedData.Factions.apply)
+
+  private def parseFaction(id: Int, c: Cursor[String]): YamlValue[Faction] =
+    for
+      nameEn               <- c.downField("nameID").downField("en").as[String]
+      corporationId        <- c.downField("corporationID").as[Option[Long]]
+      descriptionEn        <- c.downField("descriptionID").downField("en").as[String]
+      shortDescriptionEn   <- c.downField("shortDescriptionID").downField("en").as[Option[String]]
+      iconId               <- c.downField("iconID").as[Long]
+      militiaCorporationId <- c.downField("militiaCorporationID").as[Option[Long]]
+      memberRaces          <- c.downField("memberRaces").as[Vector[Int]]
+      sizeFactor           <- c.downField("sizeFactor").as[Double]
+      solarSystemId        <- c.downField("solarSystemID").as[Long]
+      uniqueName           <- c.downField("uniqueName").as[Boolean]
+    yield Faction(
+      id = id.toLong,
+      nameEn = nameEn,
+      corporationId = corporationId,
+      descriptionEn = descriptionEn,
+      shortDescriptionEn = shortDescriptionEn,
+      iconId = iconId,
+      militiaCorporationId = militiaCorporationId,
+      memberRaces = memberRaces,
+      sizeFactor = sizeFactor,
+      solarSystemId = solarSystemId,
+      uniqueName = uniqueName
+    )
 
   private[sde] def parseGroupIds(yaml: YamlObject[Integer]): Parser[ExportedData.GroupIds] =
     YAML
@@ -85,6 +145,40 @@ object parser:
       nameEn     <- c.downField("name").downField("en").as[String]
       iconId     <- c.downField("iconID").as[Option[Long]]
     yield GroupId(id, categoryId, nameEn, iconId)
+
+  private[sde] def parseNpcCorporations(yaml: YamlObject[Integer]): Parser[ExportedData.NpcCorporations] =
+    YAML
+      .cursor[Integer](yaml)
+      .flatMap(parseIntKeyedMap(_, parseNpcCorporation))
+      .mapBoth(Error.Yaml("Failed to parse NpcCorporations", "", _), ExportedData.NpcCorporations.apply)
+
+  private def parseNpcCorporation(id: Int, c: Cursor[String]): YamlValue[NpcCorporation] =
+    for
+      nameEn        <- c.downField("nameID").downField("en").as[String]
+      allowedRaces  <- c.downField("allowedMemberRaces").as[Option[Vector[Long]]]
+      ceoId         <- c.downField("ceoID").as[Option[Long]]
+      raceId        <- c.downField("raceID").as[Option[Int]]
+      descriptionEn <- c.downField("descriptionID").downField("en").as[Option[String]]
+      factionId     <- c.downField("factionID").as[Option[Long]]
+      iconId        <- c.downField("iconID").as[Option[Long]]
+      solarSystemId <- c.downField("solarSystemID").as[Option[Long]]
+      stationId     <- c.downField("stationID").as[Option[Long]]
+      ticker        <- c.downField("tickerName").as[String]
+      uniqueName    <- c.downField("uniqueName").as[Boolean]
+    yield NpcCorporation(
+      id = id.toLong,
+      nameEn = nameEn,
+      allowedRaces = allowedRaces,
+      ceoId = ceoId,
+      raceId = raceId,
+      descriptionEn = descriptionEn,
+      factionId = factionId,
+      iconId = iconId,
+      solarSystemId = solarSystemId,
+      stationId = stationId,
+      ticker = ticker,
+      uniqueName = uniqueName
+    )
 
   private[sde] def parseUniqueNames(yaml: YamlArray): Parser[ExportedData.UniqueNames] =
     YAML
@@ -107,6 +201,30 @@ object parser:
   private def parseStationService(id: Int, c: Cursor[String]): YamlValue[StationService] =
     for nameEn <- c.downField("serviceNameID").downField("en").as[String]
     yield StationService(id, nameEn)
+
+  private[sde] def parseTypeDogmas(yaml: YamlObject[Integer]): Parser[ExportedData] =
+    YAML
+      .cursor[Integer](yaml)
+      .flatMap(parseIntKeyedMap(_, parseTypeDogma))
+      .mapBoth(Error.Yaml("Failed to parse TypeDogmas", "", _), ExportedData.TypeDogmas.apply)
+
+  private def parseTypeDogma(id: Int, c: Cursor[String]): YamlValue[TypeDogma] =
+    for
+      attributes <- c.downField("dogmaAttributes").mapArray(parseDogmaAttribute).map(_.toMap)
+      effects    <- c.downField("dogmaEffects").mapArray(parseDogmaEffect).map(_.toMap)
+    yield TypeDogma(id, attributes, effects)
+
+  private def parseDogmaAttribute(c: Cursor[String]): YamlValue[(Long, Double)] =
+    for
+      attributeId <- c.downField("attributeID").as[Long]
+      value       <- c.downField("value").as[Double]
+    yield attributeId -> value
+
+  private def parseDogmaEffect(c: Cursor[String]): YamlValue[(Long, Boolean)] =
+    for
+      effectId  <- c.downField("effectID").as[Long]
+      isDefault <- c.downField("isDefault").as[Boolean]
+    yield effectId -> isDefault
 
   private[sde] def parseTypeIds(yaml: YamlObject[Integer]): Parser[ExportedData] =
     YAML

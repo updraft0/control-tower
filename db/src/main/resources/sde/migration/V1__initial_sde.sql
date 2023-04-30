@@ -8,6 +8,21 @@ CREATE TABLE sde.dogma_attribute_category
     description TEXT
 ) STRICT;
 
+-- dogma_attribute_type
+CREATE TABLE sde.dogma_attribute_type
+(
+    id            INTEGER PRIMARY KEY,
+    category_id   INTEGER,
+    data_type     INTEGER NOT NULL,
+    name          TEXT    NOT NULL,
+    description   TEXT,
+    default_value REAL    NOT NULL,
+    unit_id       INTEGER,
+    icon_id       INTEGER,
+
+    FOREIGN KEY (category_id) REFERENCES dogma_attribute_category (id)
+) STRICT;
+
 -- item_category
 CREATE TABLE sde.item_category
 (
@@ -43,7 +58,21 @@ CREATE TABLE sde.item_type
     id          INTEGER PRIMARY KEY,
     name        TEXT    NOT NULL,
     group_id    INTEGER NOT NULL,
-    description TEXT
+    description TEXT,
+
+    FOREIGN KEY (group_id) REFERENCES item_group (id)
+) STRICT;
+
+-- item_dogma_attribute
+CREATE TABLE sde.item_dogma_attribute
+(
+    item_id      INTEGER NOT NULL,
+    attribute_id INTEGER NOT NULL,
+    value        REAL    NOT NULL,
+
+    FOREIGN KEY (item_id) REFERENCES item_type (id),
+    FOREIGN KEY (attribute_id) REFERENCES dogma_attribute_type (id),
+    UNIQUE (item_id, attribute_id)
 ) STRICT;
 
 -- station_service
@@ -52,8 +81,6 @@ CREATE TABLE sde.station_service
     id   INTEGER PRIMARY KEY,
     name TEXT NOT NULL
 ) STRICT;
-
--- TODO: faction
 
 -- region
 CREATE TABLE sde.region
@@ -65,7 +92,7 @@ CREATE TABLE sde.region
 
     FOREIGN KEY (id) REFERENCES item_name (id),
     CHECK (wh_class_id > 0 AND wh_class_id < 26)
-    -- fixme fk_faction_id
+    -- no fk constraint on faction_id due to reference
 ) STRICT;
 
 -- constellation
@@ -115,7 +142,13 @@ CREATE TABLE sde.solar_system
     FOREIGN KEY (region_id) REFERENCES region (id),
     FOREIGN KEY (constellation_id) REFERENCES constellation (id),
     FOREIGN KEY (effect_type_id) REFERENCES item_type (id),
-    FOREIGN KEY (star_type_id) REFERENCES item_type (id)
+    FOREIGN KEY (star_type_id) REFERENCES item_type (id),
+    CHECK (border == 1 or border == 0),
+    CHECK (corridor == 1 or corridor == 0),
+    CHECK (fringe == 1 or fringe == 0),
+    CHECK (hub == 1 or hub == 0),
+    CHECK (international == 1 or international == 0),
+    CHECK (regional == 1 or regional == 0)
 ) STRICT;
 
 -- solar_system_planet
@@ -160,10 +193,9 @@ CREATE TABLE sde.solar_system_asteroid_belt
 -- stargate
 CREATE TABLE sde.stargate
 (
-
-    id             INTEGER PRIMARY KEY,
-    system_id      INTEGER NOT NULL,
-    to_system_id   INTEGER NOT NULL,
+    id           INTEGER PRIMARY KEY,
+    system_id    INTEGER NOT NULL,
+    to_system_id INTEGER NOT NULL,
 
     FOREIGN KEY (system_id) REFERENCES solar_system (id),
     FOREIGN KEY (to_system_id) REFERENCES solar_system (id)
@@ -182,4 +214,46 @@ CREATE TABLE sde.npc_station
     FOREIGN KEY (moon_id) REFERENCES solar_system_moon (id),
     FOREIGN KEY (system_id) REFERENCES solar_system (id),
     FOREIGN KEY (type_id) REFERENCES item_type (id)
+) STRICT;
+
+-- faction
+CREATE TABLE sde.faction
+(
+    id                     INTEGER PRIMARY KEY,
+    name                   TEXT    NOT NULL,
+    corporation_id         INTEGER,
+    description            TEXT    NOT NULL,
+    short_description      TEXT,
+    icon_id                INTEGER NOT NULL,
+    militia_corporation_id INTEGER,
+    size_factor            REAL    NOT NULL,
+    system_id              INTEGER NOT NULL,
+    unique_name            INTEGER NOT NULL,
+
+    -- no cross-referential fk constraints due to no alter table support for adding those
+    -- FOREIGN KEY (corporation_id) REFERENCES npc_corporation (id),
+    -- FOREIGN KEY (militia_corporation_id) REFERENCES npc_corporation (id),
+    FOREIGN KEY (system_id) REFERENCES solar_system (id),
+    CHECK (unique_name == 1 or unique_name == 0)
+) STRICT;
+
+-- npc_corporation
+CREATE table sde.npc_corporation
+(
+    id              INTEGER PRIMARY KEY,
+    name            TEXT NOT NULL,
+    ceo_id          INTEGER,
+    description     TEXT,
+    race_id         INTEGER,
+    faction_id      INTEGER,
+    icon_id         INTEGER,
+    solar_system_id INTEGER,
+    station_id      INTEGER,
+    ticker          TEXT NOT NULL,
+    unique_name     INT  NOT NULL,
+
+    FOREIGN KEY (faction_id) REFERENCES faction (id),
+    FOREIGN KEY (solar_system_id) REFERENCES solar_system (id),
+    FOREIGN KEY (station_id) REFERENCES npc_station (id),
+    CHECK (unique_name == 1 or unique_name == 0)
 ) STRICT;

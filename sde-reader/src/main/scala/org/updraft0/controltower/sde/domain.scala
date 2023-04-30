@@ -47,14 +47,29 @@ enum ExportedData:
   case CategoryIds(value: Vector[CategoryId])
 
   /** @note
+    *   from `fsd/dogmaAttributeCategories.yaml`
+    */
+  case DogmaAttributeCategories(value: Vector[DogmaAttributeCategory])
+
+  /** @note
+    *   from `fsd/dogmaAttributes.yaml`
+    */
+  case DogmaAttributes(value: Vector[DogmaAttribute])
+
+  /** @note
+    *   from `fsd/factions.yaml`
+    */
+  case Factions(value: Vector[Faction])
+
+  /** @note
     *   from `fsd/groupIDs.yaml`
     */
   case GroupIds(value: Vector[GroupId])
 
   /** @note
-    *   from `fsd/typeIDs.yaml`
+    *   from `fsd/npcCorporations.yaml`
     */
-  case TypeIds(value: Vector[TypeId])
+  case NpcCorporations(value: Vector[NpcCorporation])
 
   /** @note
     *   from `fsd/stationServices.yaml`
@@ -62,25 +77,66 @@ enum ExportedData:
   case StationServices(value: Vector[StationService])
 
   /** @note
-    *   from `bsd/staStations.yaml`
+    *   from `fsd/typeDogma.yaml`
     */
-  case Stations(value: Vector[Station])
+  case TypeDogmas(value: Vector[TypeDogma])
+
+  /** @note
+    *   from `fsd/typeIDs.yaml`
+    */
+  case TypeIds(value: Vector[TypeId])
 
   /** @note
     *   from `bsd/invUniqueNames.yaml`
     */
   case UniqueNames(value: Vector[UniqueName])
 
-  case DogmaAttributeCategories(value: Vector[DogmaAttributeCategory])
-
-// -- array types
+// -- array/map-of-object types
 
 case class CategoryId(id: Long, nameEn: String, iconId: Option[Long])
+case class DogmaAttributeCategory(id: Long, name: String, description: Option[String])
+case class DogmaAttribute(
+    id: Long,
+    categoryId: Option[Long],
+    dataType: Int,
+    name: String,
+    description: Option[String],
+    defaultValue: Double,
+    unitId: Option[Int],
+    iconId: Option[Long]
+)
+case class Faction(
+    id: Long,
+    nameEn: String,
+    corporationId: Option[Long],
+    descriptionEn: String,
+    shortDescriptionEn: Option[String],
+    iconId: Long,
+    militiaCorporationId: Option[Long],
+    memberRaces: Vector[Int],
+    sizeFactor: Double,
+    solarSystemId: Long,
+    uniqueName: Boolean
+)
 case class GroupId(id: Long, categoryId: Long, nameEn: String, iconId: Option[Long])
+case class NpcCorporation(
+    id: Long,
+    nameEn: String,
+    allowedRaces: Option[Vector[Long]],
+    ceoId: Option[Long],
+    raceId: Option[Int],
+    descriptionEn: Option[String],
+    factionId: Option[Long],
+    iconId: Option[Long],
+    solarSystemId: Option[Long],
+    stationId: Option[Long],
+    ticker: String,
+    uniqueName: Boolean
+)
 case class TypeId(id: Long, nameEn: String, groupId: Long, descriptionEn: Option[String])
-case class UniqueName(itemId: Long, groupId: Int, name: String)
-case class Station(constellationId: Long, regionId: Long, solarSystemId: Long, name: String, corporationId: Long)
+case class TypeDogma(id: Long, attributes: Map[Long, Double], effects: Map[Long, Boolean])
 case class StationService(id: Long, nameEn: String)
+case class UniqueName(itemId: Long, groupId: Int, name: String)
 
 // -- solar system
 
@@ -97,10 +153,6 @@ case class Planet(
 )
 case class Star(id: Long, typeId: Long)
 case class Stargate(id: Long, destinationId: Long)
-
-// -- dogma
-
-case class DogmaAttributeCategory(id: Long, name: String, description: Option[String])
 
 // -- own mappings
 

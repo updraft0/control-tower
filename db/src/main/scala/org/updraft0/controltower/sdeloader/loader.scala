@@ -45,21 +45,27 @@ private[sdeloader] def nextState(state: ImportState): ImportState = state match 
 }
 
 private[sdeloader] def loadSingle(raw: ExportedData): RIO[DataSource, Long] = raw match {
-//  case ExportedData.Stations(stations) => query.sde.insertStations(stations.map(toStation))
-  case ExportedData.CategoryIds(categoryIds) => query.sde.insertItemCategories(categoryIds.map(toItemCategory))
+  case ExportedData.CategoryIds(categoryIds) =>
+    query.sde.insertItemCategories(categoryIds.map(toItemCategory))
   case ExportedData.DogmaAttributeCategories(categories) =>
     query.sde.insertDogmaAttributeCategories(categories.map(toDogmaAttributeCategory))
-  case ExportedData.GroupIds(groupIds) => query.sde.insertItemGroups(groupIds.map(toItemGroup))
+  case ExportedData.DogmaAttributes(attributes) =>
+    query.sde.insertDogmaAttributeTypes(attributes.map(toDogmaAttributeType))
+  case ExportedData.Factions(factions)            => query.sde.insertFactions(factions.map(toFaction))
+  case ExportedData.GroupIds(groupIds)            => query.sde.insertItemGroups(groupIds.map(toItemGroup))
+  case ExportedData.NpcCorporations(corporations) => query.sde.insertNpcCorporations(corporations.map(toNpcCorporation))
   case ExportedData.StationServices(stationServices) =>
     query.sde.insertStationServices(stationServices.map(toStationService))
+  case ExportedData.TypeDogmas(dogmas) => loadTypeDogmas(dogmas)
   case ExportedData.TypeIds(ids)       => query.sde.insertItemTypes(ids.map(toItemType))
   case ExportedData.UniqueNames(names) => query.sde.insertItemNames(names.map(toItemName))
-//  case other                           => ZIO.logError(s"FIXME UNSUPPORTED ${other.getClass.getSimpleName}").as(0L)
-//  case other                           => unsupported(s"BUG: Cannot load a single ${other.getClass.getSimpleName}")
-
+  // unsupported export types
   case _: ExportedData.Region | _: ExportedData.Constellation | _: ExportedData.SolarSystem =>
     unsupported("BUG: cannot import a single region/constellation/solar system standalone")
 }
+
+private[sdeloader] def loadTypeDogmas(attrs: Vector[sde.TypeDogma]) =
+  query.sde.insertItemDogmaAttributes(attrs.flatMap(toItemDogmaAttributes))
 
 private[sdeloader] def loadSolarSystems(s: ImportState.ReadyForSolarSystems, rss: GroupedExport.RegionSolarSystems) =
   for
@@ -88,7 +94,6 @@ private def insertSolarSystem(
     stationCount  <- insertNpcStations(names, s)
   yield systemCount + starCount + planetCount + moonCount + beltCount + stargateCount + stationCount
 
-// FIXME: moon index is not working correctly
 private def insertSolarSystemMoons(s: ExportedData.SolarSystem) =
   ZIO
     .foreach(s.planets.flatMap(p => p.moons.zipWithIndex.map((planetMoon, moonIdx) => (p, planetMoon, moonIdx))))(
@@ -162,6 +167,19 @@ private def toPlanetMoon(s: ExportedData.SolarSystem, p: sde.Planet, m: sde.Plan
 private def toAsteroidBelt(s: ExportedData.SolarSystem, p: sde.Planet, ab: sde.PlanetAsteroidBelt) =
   SolarSystemAsteroidBelt(ab.id, p.id, s.id)
 private def toStargate(s: ExportedData.SolarSystem, sg: sde.Stargate) = Stargate(sg.id, s.id, sg.destinationId)
+private def toFaction(f: sde.Faction): Faction =
+  Faction(
+    id = f.id,
+    name = f.nameEn,
+    corporationId = f.corporationId,
+    description = f.descriptionEn,
+    shortDescription = f.shortDescriptionEn,
+    iconId = f.iconId,
+    militiaCorporationId = f.militiaCorporationId,
+    sizeFactor = f.sizeFactor,
+    systemId = f.solarSystemId,
+    uniqueName = f.uniqueName
+  )
 private def toNpcStation(
     names: Map[Long, sde.UniqueName],
     s: ExportedData.SolarSystem,
@@ -177,8 +195,29 @@ private def toNpcStation(
     systemId = s.id
   )
 
+private def toNpcCorporation(c: sde.NpcCorporation): NpcCorporation =
+  NpcCorporation(
+    id = c.id,
+    name = c.nameEn,
+    ceoId = c.ceoId,
+    description = c.descriptionEn,
+    raceId = c.raceId,
+    factionId = c.factionId,
+    iconId = c.iconId,
+    solarSystemId = c.solarSystemId,
+    stationId = c.stationId,
+    ticker = c.ticker,
+    uniqueName = c.uniqueName
+  )
+
+private def toItemDogmaAttributes(t: sde.TypeDogma): Vector[ItemDogmaAttribute] =
+  t.attributes.map((attrId, value) => ItemDogmaAttribute(t.id, attrId, value)).toVector
+
 private def toDogmaAttributeCategory(c: sde.DogmaAttributeCategory) =
   DogmaAttributeCategory(c.id, c.name, c.description)
+
+private def toDogmaAttributeType(a: sde.DogmaAttribute) =
+  DogmaAttributeType(a.id, a.categoryId, a.dataType, a.name, a.description, a.defaultValue, a.unitId, a.iconId)
 
 private def toItemCategory(ci: sde.CategoryId): ItemCategory = ItemCategory(ci.id, ci.nameEn, ci.iconId)
 private def toItemGroup(gi: sde.GroupId): ItemGroup          = ItemGroup(gi.id, gi.categoryId, gi.nameEn, gi.iconId)
