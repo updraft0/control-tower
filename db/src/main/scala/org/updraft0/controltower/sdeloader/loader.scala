@@ -54,6 +54,7 @@ private[sdeloader] def loadSingle(raw: ExportedData): RIO[DataSource, Long] = ra
   case ExportedData.Factions(factions)            => query.sde.insertFactions(factions.map(toFaction))
   case ExportedData.GroupIds(groupIds)            => query.sde.insertItemGroups(groupIds.map(toItemGroup))
   case ExportedData.NpcCorporations(corporations) => query.sde.insertNpcCorporations(corporations.map(toNpcCorporation))
+  case ExportedData.StationOperations(stationOperations) => loadStationOperations(stationOperations)
   case ExportedData.StationServices(stationServices) =>
     query.sde.insertStationServices(stationServices.map(toStationService))
   case ExportedData.TypeDogmas(dogmas) => loadTypeDogmas(dogmas)
@@ -75,6 +76,14 @@ private[sdeloader] def loadSolarSystems(s: ImportState.ReadyForSolarSystems, rss
       .foreach(rss.solarSystems)(insertSolarSystem(s.uniqueNamesById, rss.region, rss.constellation, _))
       .map(_.sum)
   yield rc + cc + sc
+
+private[sdeloader] def loadStationOperations(operations: Vector[sde.StationOperation]) =
+  for
+    oc <- query.sde.insertStationOperations(operations.map(toStationOperation))
+    osc <- query.sde.insertStationOperationServices(
+      operations.flatMap(so => so.services.map(sid => StationOperationService(so.id, sid)))
+    )
+  yield oc + osc
 
 private def insertSolarSystem(
     names: Map[Long, sde.UniqueName],
@@ -191,6 +200,7 @@ private def toNpcStation(
     name = names(ns.id).name,
     ownerId = ns.ownerId,
     typeId = ns.typeId,
+    operationId = ns.operationId,
     moonId = m.id,
     systemId = s.id
   )
@@ -223,6 +233,8 @@ private def toItemCategory(ci: sde.CategoryId): ItemCategory = ItemCategory(ci.i
 private def toItemGroup(gi: sde.GroupId): ItemGroup          = ItemGroup(gi.id, gi.categoryId, gi.nameEn, gi.iconId)
 private def toItemName(un: sde.UniqueName): ItemName         = ItemName(un.itemId, un.groupId, un.name)
 private def toItemType(ti: sde.TypeId): ItemType             = ItemType(ti.id, ti.nameEn, ti.groupId, ti.descriptionEn)
+private def toStationOperation(so: sde.StationOperation): StationOperation =
+  StationOperation(so.id, so.activityId, so.nameEn, so.descriptionEn)
 private def toStationService(ss: sde.StationService): StationService = StationService(ss.id, ss.nameEn)
 
 private def unsupported(message: String): RIO[Any, Nothing] = ZIO.fail(new IllegalStateException(message))

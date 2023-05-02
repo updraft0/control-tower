@@ -29,4 +29,7 @@ case class NpcCorporation(
     ticker: String,
     uniqueName: Boolean
 )
+
+case class StationOperation(id: Long, activityId: Int, name: String, description: Option[String])
+case class StationOperationService(operationId: Long, serviceId: Long)
 case class StationService(id: Long, name: String)

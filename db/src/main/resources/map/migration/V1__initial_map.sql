@@ -4,3 +4,5 @@ CREATE TABLE map.something
 (
     id INTEGER
 );
+
+

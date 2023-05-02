@@ -1,7 +1,8 @@
 package org.updraft0.controltower.db
 
 import io.getquill.{SnakeCase, SqliteZioJdbcContext}
-import zio.{ZIO, RIO}
+import zio.{RIO, ZIO}
+
 import java.sql.SQLException
 import javax.sql.DataSource
 

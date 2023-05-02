@@ -1,8 +1,8 @@
 package org.updraft0.controltower.db.query
 
-import ctx.*
 import io.getquill.*
 import org.updraft0.controltower.db.model.*
+import org.updraft0.controltower.db.query.ctx.*
 import zio.ZIO
 
 import java.sql.SQLException
@@ -32,74 +32,100 @@ object sde:
     inline def solarSystemMoon         = quote(querySchema[SolarSystemMoon]("sde.solar_system_moon"))
     inline def solarSystemStar         = quote(querySchema[SolarSystemStar]("sde.solar_system_star"))
     inline def stargate                = quote(querySchema[Stargate]("sde.stargate"))
+    inline def stationOperation        = quote(querySchema[StationOperation]("sde.station_operation"))
+    inline def stationOperationService = quote(querySchema[StationOperationService]("sde.station_operation_service"))
     inline def stationService          = quote(querySchema[StationService]("sde.station_service"))
 
-  object query:
-    inline def insert[T](inline entity: Quoted[EntityQuery[T]], inline value: T): Insert[T] = quote {
-      entity.insertValue(value)
+  private inline def insert[T](inline entity: Quoted[EntityQuery[T]], inline value: T): Insert[T] = quote {
+    entity.insertValue(value)
+  }
+
+  private inline def insertAll[T](inline entity: Quoted[EntityQuery[T]], inline values: Vector[T]) = quote {
+    liftQuery(values).foreach(e => entity.insertValue(e))
+  }
+
+  // selects
+  // TODO: not sure this is the right way forward...
+  def selectSolarSystemWithStationsFull(name: String): DbOperation[Map[Long, (SolarSystem, Vector[NpcStation])]] =
+    inline def q = quote {
+      for
+        sys <- solarSystem.filter(_.name == lift(name))
+        sta <- npcStation.leftJoin(s => s.systemId == sys.id)
+      yield (sys, sta)
     }
 
-    inline def insertAll[T](inline entity: Quoted[EntityQuery[T]], inline values: Vector[T]) = quote {
-      liftQuery(values).foreach(e => entity.insertValue(e))
-    }
+    ctx
+      .run(q)
+      .map(_.foldLeft(Map.empty[Long, (SolarSystem, Vector[NpcStation])]) { case (m, (system, stationOpt)) =>
+        m.updatedWith(system.id) {
+          case Some((_, stations)) => Some(system -> stations.appendedAll(stationOpt))
+          case None                => Some(system -> stationOpt.toVector)
+        }
+      })
 
   // upserts
 
   // more convenient to upsert the same region multiple times than do the first one
   def upsertRegion(region: Region): DbOperation[Long] =
-    ctx.run(query.insert(schema.region, lift(region)).onConflictIgnore)
+    ctx.run(insert(schema.region, lift(region)).onConflictIgnore)
 
   // inserts
   def insertDogmaAttributeCategories(categories: Vector[DogmaAttributeCategory]): DbOperation[Long] =
-    ctx.run(query.insertAll(schema.dogmaAttributeCategory, categories)).map(_.sum)
+    ctx.run(insertAll(schema.dogmaAttributeCategory, categories)).map(_.sum)
 
   def insertDogmaAttributeTypes(types: Vector[DogmaAttributeType]): DbOperation[Long] =
-    ctx.run(query.insertAll(schema.dogmaAttributeType, types)).map(_.sum)
+    ctx.run(insertAll(schema.dogmaAttributeType, types)).map(_.sum)
 
   def insertItemCategories(itemCategories: Vector[ItemCategory]): DbOperation[Long] =
-    ctx.run(query.insertAll(schema.itemCategory, itemCategories)).map(_.sum)
+    ctx.run(insertAll(schema.itemCategory, itemCategories)).map(_.sum)
 
   def insertItemDogmaAttributes(attrs: Vector[ItemDogmaAttribute]): DbOperation[Long] =
-    ctx.run(query.insertAll(schema.itemDogmaAttribute, attrs)).map(_.sum)
+    ctx.run(insertAll(schema.itemDogmaAttribute, attrs)).map(_.sum)
 
   def insertFactions(factions: Vector[Faction]): DbOperation[Long] =
-    ctx.run(query.insertAll(schema.faction, factions)).map(_.sum)
+    ctx.run(insertAll(schema.faction, factions)).map(_.sum)
 
   def insertItemGroups(itemGroups: Vector[ItemGroup]): DbOperation[Long] =
-    ctx.run(query.insertAll(schema.itemGroup, itemGroups)).map(_.sum)
+    ctx.run(insertAll(schema.itemGroup, itemGroups)).map(_.sum)
 
   def insertItemNames(itemNames: Vector[ItemName]): DbOperation[Long] =
-    ctx.run(query.insertAll(schema.itemName, itemNames)).map(_.sum)
+    ctx.run(insertAll(schema.itemName, itemNames)).map(_.sum)
 
   def insertItemTypes(itemTypes: Vector[ItemType]): DbOperation[Long] =
-    ctx.run(query.insertAll(schema.itemType, itemTypes)).map(_.sum)
+    ctx.run(insertAll(schema.itemType, itemTypes)).map(_.sum)
 
   def insertNpcCorporations(corps: Vector[NpcCorporation]): DbOperation[Long] =
-    ctx.run(query.insertAll(schema.npcCorporation, corps)).map(_.sum)
+    ctx.run(insertAll(schema.npcCorporation, corps)).map(_.sum)
+
+  def insertStationOperations(operations: Vector[StationOperation]): DbOperation[Long] =
+    ctx.run(insertAll(schema.stationOperation, operations)).map(_.sum)
+
+  def insertStationOperationServices(services: Vector[StationOperationService]): DbOperation[Long] =
+    ctx.run(insertAll(schema.stationOperationService, services)).map(_.sum)
 
   def insertStationServices(services: Vector[StationService]): DbOperation[Long] =
-    ctx.run(query.insertAll(schema.stationService, services)).map(_.sum)
+    ctx.run(insertAll(schema.stationService, services)).map(_.sum)
 
   def insertStargates(stargates: Vector[Stargate]): DbOperation[Long] =
-    ctx.run(query.insertAll(schema.stargate, stargates)).map(_.sum)
+    ctx.run(insertAll(schema.stargate, stargates)).map(_.sum)
 
   def insertConstellation(constellation: Constellation): DbOperation[Long] =
-    ctx.run(query.insert(schema.constellation, lift(constellation)))
+    ctx.run(insert(schema.constellation, lift(constellation)))
 
   def insertSolarSystem(solarSystem: SolarSystem): DbOperation[Long] =
-    ctx.run(query.insert(schema.solarSystem, lift(solarSystem)))
+    ctx.run(insert(schema.solarSystem, lift(solarSystem)))
 
   def insertSolarSystemStar(star: SolarSystemStar): DbOperation[Long] =
-    ctx.run(query.insert(schema.solarSystemStar, lift(star)))
+    ctx.run(insert(schema.solarSystemStar, lift(star)))
 
   def insertSolarSystemPlanet(planet: SolarSystemPlanet): DbOperation[Long] =
-    ctx.run(query.insert(schema.solarSystemPlanet, lift(planet)))
+    ctx.run(insert(schema.solarSystemPlanet, lift(planet)))
 
   def insertSolarSystemMoon(moon: SolarSystemMoon): DbOperation[Long] =
-    ctx.run(query.insert(schema.solarSystemMoon, lift(moon) /* 🏋️ */ ))
+    ctx.run(insert(schema.solarSystemMoon, lift(moon) /* 🏋️ */ ))
 
   def insertSolarSystemAsteroidBelt(ab: SolarSystemAsteroidBelt): DbOperation[Long] =
-    ctx.run(query.insert(schema.solarSystemAsteroidBelt, lift(ab)))
+    ctx.run(insert(schema.solarSystemAsteroidBelt, lift(ab)))
 
   def insertNpcStation(s: NpcStation): DbOperation[Long] =
-    ctx.run(query.insert(schema.npcStation, lift(s)))
+    ctx.run(insert(schema.npcStation, lift(s)))

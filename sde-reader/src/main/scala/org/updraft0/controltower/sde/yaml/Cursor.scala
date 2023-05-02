@@ -101,6 +101,11 @@ private def asScala[K, V](jmap: ju.LinkedHashMap[K, V]): Vector[(K, V)] =
   jmap.forEach((k, v) => res.addOne(k, v))
   res.toVector
 
+private def destroyOrderMap[K, V](values: Iterable[(K, V)]): Map[K, V] =
+  val res = mutable.LinkedHashMap.empty[K, V]
+  res.addAll(values)
+  res.toMap
+
 trait FromYaml[T]:
   def from(yaml: AnyRef): YamlValue[T]
 
@@ -142,3 +147,11 @@ given [T](using from: FromYaml[T]): FromYaml[Vector[T]] =
 given [T](using from: FromYaml[T]): FromYaml[Option[T]] =
   case null  => ZIO.succeed(None)
   case other => from.from(other).map(Some.apply)
+
+given [K, V](using fk: FromYaml[K], fv: FromYaml[V]): FromYaml[Map[K, V]] =
+  case m: ju.LinkedHashMap[_, _] =>
+    ZIO
+      .foreach(asScala(m))((k, v) => fk.from(k).flatMap(key => fv.from(v).map(value => key -> value)))
+      .map(destroyOrderMap)
+  case null  => ZIO.succeed(Map.empty[K, V])
+  case other => ZIO.fail(Error.InvalidType("Map", other.getClass.getName))

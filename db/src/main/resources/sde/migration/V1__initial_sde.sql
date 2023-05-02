@@ -82,6 +82,26 @@ CREATE TABLE sde.station_service
     name TEXT NOT NULL
 ) STRICT;
 
+-- station_operation
+CREATE TABLE sde.station_operation
+(
+    id          INTEGER PRIMARY KEY,
+    activity_id INTEGER NOT NULL,
+    name        TEXT    NOT NULL,
+    description TEXT
+) STRICT;
+
+-- station_operation_service
+CREATE TABLE sde.station_operation_service
+(
+    operation_id INTEGER NOT NULL,
+    service_id   INTEGER NOT NULL,
+
+    FOREIGN KEY (operation_id) REFERENCES station_operation,
+    FOREIGN KEY (service_id) REFERENCES station_service,
+    UNIQUE (operation_id, service_id)
+) STRICT;
+
 -- region
 CREATE TABLE sde.region
 (
@@ -204,14 +224,16 @@ CREATE TABLE sde.stargate
 -- npc_station
 CREATE TABLE sde.npc_station
 (
-    id        INTEGER PRIMARY KEY,
-    name      TEXT    NOT NULL,
-    owner_id  INTEGER NOT NULL,
-    type_id   INTEGER NOT NULL,
-    moon_id   INTEGER NOT NULL,
-    system_id INTEGER NOT NULL,
+    id           INTEGER PRIMARY KEY,
+    name         TEXT    NOT NULL,
+    owner_id     INTEGER NOT NULL,
+    type_id      INTEGER NOT NULL,
+    operation_id INTEGER NOT NULL,
+    moon_id      INTEGER NOT NULL,
+    system_id    INTEGER NOT NULL,
 
     FOREIGN KEY (moon_id) REFERENCES solar_system_moon (id),
+    FOREIGN KEY (operation_id) REFERENCES station_operation (id),
     FOREIGN KEY (system_id) REFERENCES solar_system (id),
     FOREIGN KEY (type_id) REFERENCES item_type (id)
 ) STRICT;

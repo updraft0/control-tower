@@ -1,5 +1,8 @@
 package org.updraft0.controltower.db
 
+import zio.ZLayer
+import javax.sql.DataSource
+
 import java.nio.file.Path
 
 /** Top-level database configuration
@@ -13,6 +16,11 @@ case class Config(dir: Path):
   private[db] def flywayConfig: FlywaySqliteConfig = FlywaySqliteConfig(
     Map("sde" -> (s"$dir/sde.db", "sde/migration"), "map" -> (s"$dir/map.db", "map/migration"))
   )
+
+/** Runs migrations and gives a `DataSource` that is ready to run
+  */
+def postMigrationLayer: ZLayer[Config, Throwable, DataSource] =
+  flyway.layer >>> ZLayer.fromZIO(flyway.migrate) >>> datasource.layer
 
 private[db] type Name            = String
 private[db] type DbPath          = String

@@ -36,6 +36,8 @@ object parser:
         parseYaml[Integer](bytes).flatMap(parseNpcCorporations).asSome
       case "sde/fsd/groupIDs.yaml" =>
         parseYaml[Integer](bytes).flatMap(parseGroupIds).asSome
+      case "sde/fsd/stationOperations.yaml" =>
+        parseYaml[Integer](bytes).flatMap(parseStationOperations).asSome
       case "sde/fsd/stationServices.yaml" =>
         parseYaml[Integer](bytes).flatMap(parseStationServices).asSome
       case "sde/fsd/typeDogma.yaml" =>
@@ -192,6 +194,28 @@ object parser:
       name    <- c.downField("itemName").as[String]
     yield UniqueName(id, groupId, name)
 
+  private[sde] def parseStationOperations(yaml: YamlObject[Integer]): Parser[ExportedData] =
+    YAML
+      .cursor[Integer](yaml)
+      .flatMap(parseIntKeyedMap(_, parseStationOperation))
+      .mapBoth(Error.Yaml("Failed to parse StationOperations", "", _), ExportedData.StationOperations.apply)
+
+  private def parseStationOperation(id: Int, c: Cursor[String]): YamlValue[StationOperation] =
+    for
+      activityId    <- c.downField("activityID").as[Int]
+      nameEn        <- c.downField("operationNameID").downField("en").as[String]
+      descriptionEn <- c.downField("descriptionID").downField("en").as[Option[String]]
+      services      <- c.downField("services").as[Vector[Int]]
+      stationTypes  <- c.downField("stationTypes").as[Map[Int, Int]]
+    yield StationOperation(
+      id = id.toLong,
+      activityId = activityId,
+      nameEn = nameEn,
+      descriptionEn = descriptionEn,
+      services = services,
+      stationTypes = stationTypes
+    )
+
   private[sde] def parseStationServices(yaml: YamlObject[Integer]): Parser[ExportedData] =
     YAML
       .cursor[Integer](yaml)
@@ -339,9 +363,10 @@ object parser:
 
   private def parseNpcStation(id: Int, c: Cursor[String]): YamlValue[NpcStation] =
     for
-      ownerId <- c.downField("ownerID").as[Long]
-      typeId  <- c.downField("typeID").as[Long]
-    yield NpcStation(id.toLong, ownerId, typeId)
+      ownerId     <- c.downField("ownerID").as[Long]
+      typeId      <- c.downField("typeID").as[Long]
+      operationId <- c.downField("operationID").as[Long]
+    yield NpcStation(id.toLong, ownerId, typeId, operationId)
 
   private def parseAsteroidBelts(c: Cursor[String]): YamlValue[Vector[PlanetAsteroidBelt]] =
     parseIntKeyedMap(c, (id, _) => ZIO.succeed(PlanetAsteroidBelt(id.toLong)))

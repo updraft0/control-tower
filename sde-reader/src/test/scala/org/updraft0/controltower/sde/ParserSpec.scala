@@ -524,7 +524,7 @@ object ParserSpec extends ZIOSpecDefault {
                   PlanetMoon(
                     id = 40012361,
                     npcStations = Vector(
-                      NpcStation(id = 60007585, ownerId = 1000075, typeId = 1930)
+                      NpcStation(id = 60007585, ownerId = 1000075, typeId = 1930, operationId = 1)
                     )
                   )
                 ),
@@ -552,6 +552,57 @@ object ParserSpec extends ZIOSpecDefault {
             hub = true,
             international = false,
             regional = false
+          )
+        )
+      },
+      test("can parse station operations") {
+        val yaml = """
+            |118:
+            |  activityID: 5
+            |  border: 0.0
+            |  corridor: 0.0
+            |  fringe: 0.0
+            |  hub: 0.0
+            |  manufacturingFactor: 0.98
+            |  operationNameID:
+            |    en: Anchorage
+            |  ratio: 0.0
+            |  researchFactor: 0.98
+            |  services:
+            |  - 5
+            |  - 7
+            |  - 10
+            |  - 13
+            |  - 14
+            |  - 17
+            |  - 18
+            |  - 19
+            |  - 20
+            |  - 21
+            |  - 22
+            |  - 23
+            |  - 25
+            |  - 26
+            |  stationTypes:
+            |    1: 1529
+            |    8: 56
+            |""".stripMargin
+
+        for
+          yamlObj           <- parser.parseYaml[Integer](yaml)
+          stationOperations <- parser.parseStationOperations(yamlObj)
+        yield assertTrue(
+          stationOperations == ExportedData.StationOperations(
+            Vector(
+              StationOperation(
+                id = 118,
+                activityId = 5,
+                nameEn = "Anchorage",
+                descriptionEn = None,
+                services = Vector(5, 7, 10, 13, 14, 17, 18, 19, 20, 21, 22, 23, 25, 26),
+                stationTypes = Map(1 -> 1529, 8 -> 56)
+              )
+            )
           )
         )
       },

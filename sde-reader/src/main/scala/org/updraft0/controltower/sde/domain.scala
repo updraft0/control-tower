@@ -72,6 +72,11 @@ enum ExportedData:
   case NpcCorporations(value: Vector[NpcCorporation])
 
   /** @note
+    *   from `fsd/stationOperations.yaml`
+    */
+  case StationOperations(value: Vector[StationOperation])
+
+  /** @note
     *   from `fsd/stationServices.yaml`
     */
   case StationServices(value: Vector[StationService])
@@ -135,12 +140,20 @@ case class NpcCorporation(
 )
 case class TypeId(id: Long, nameEn: String, groupId: Long, descriptionEn: Option[String])
 case class TypeDogma(id: Long, attributes: Map[Long, Double], effects: Map[Long, Boolean])
+case class StationOperation(
+    id: Long,
+    activityId: Int,
+    nameEn: String,
+    descriptionEn: Option[String],
+    services: Vector[Int],
+    stationTypes: Map[Int, Int]
+)
 case class StationService(id: Long, nameEn: String)
 case class UniqueName(itemId: Long, groupId: Int, name: String)
 
 // -- solar system
 
-case class NpcStation(id: Long, ownerId: Long, typeId: Long)
+case class NpcStation(id: Long, ownerId: Long, typeId: Long, operationId: Long)
 case class PlanetMoon(id: Long, npcStations: Vector[NpcStation])
 case class PlanetAsteroidBelt(id: Long)
 

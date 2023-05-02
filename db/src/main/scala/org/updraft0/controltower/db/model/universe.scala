@@ -3,7 +3,15 @@ package org.updraft0.controltower.db.model
 case class Constellation(id: Long, name: String, regionId: Long, regionName: String)
 case class Region(id: Long, name: String, whClassId: Option[Int], factionId: Option[Long])
 
-case class NpcStation(id: Long, name: String, ownerId: Long, typeId: Long, moonId: Long, systemId: Long)
+case class NpcStation(
+    id: Long,
+    name: String,
+    ownerId: Long,
+    typeId: Long,
+    operationId: Long,
+    moonId: Long,
+    systemId: Long
+)
 case class SolarSystemAsteroidBelt(id: Long, planetId: Long, systemId: Long)
 case class SolarSystemPlanet(id: Long, systemId: Long, idx: Long, typeId: Long)
 case class SolarSystemMoon(id: Long, planetId: Long, systemId: Long, idx: Long)
