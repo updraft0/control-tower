@@ -1,9 +1,10 @@
 package org.updraft0.controltower.sde
 
+import org.updraft0.controltower.constant.WormholeClass
 import org.updraft0.controltower.sde.yaml.YAML
 import zio.test.*
 
-object ParserSpec extends ZIOSpecDefault {
+object ParserSpec extends ZIOSpecDefault:
   def spec =
     suite("Static Data Parser")(
       test("can parse a region") {
@@ -36,7 +37,7 @@ object ParserSpec extends ZIOSpecDefault {
             id = 10000033,
             nameId = 267744,
             tag = "a-region",
-            wormholeClass = Some(WormholeClass.Hi),
+            wormholeClass = Some(WormholeClass.H),
             factionId = Some(500001)
           )
         )
@@ -991,5 +992,3 @@ object ParserSpec extends ZIOSpecDefault {
         )
       }
     ).provideSomeShared(YAML.layer)
-
-}

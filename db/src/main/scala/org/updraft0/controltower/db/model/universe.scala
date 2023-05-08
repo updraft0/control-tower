@@ -1,5 +1,8 @@
 package org.updraft0.controltower.db.model
 
+import org.updraft0.controltower.constant.WormholeClass
+import java.time.Instant
+
 case class Constellation(id: Long, name: String, regionId: Long, regionName: String)
 case class Region(id: Long, name: String, whClassId: Option[Int], factionId: Option[Long])
 
@@ -37,3 +40,22 @@ case class SolarSystem(
 )
 
 case class Stargate(id: Long, systemId: Long, toSystemId: Long)
+
+// from map
+
+case class SystemStaticWormhole(
+    systemId: Long,
+    staticTypeId: Long,
+    validFrom: Option[Instant] = None,
+    validUntil: Option[Instant] = None,
+    updatedAt: Option[Instant] = None
+)
+case class Wormhole(
+    typeId: Long,
+    name: String,
+    massRegeneration: Long,
+    maxJumpMass: Long,
+    maxStableMass: Long,
+    maxStableTime: Long,
+    targetClass: WormholeClass
+)

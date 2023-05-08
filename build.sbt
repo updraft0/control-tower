@@ -3,9 +3,10 @@ import build._
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
-lazy val `sde-reader` = project
-  .in(file("sde-reader"))
-  .settings(commonSettings, Seq(libraryDependencies ++= snakeyaml ++ zio ++ `zio-test`))
+lazy val constant =
+  crossProject(JSPlatform, JVMPlatform)
+    .in(file("constant"))
+    .settings(commonSettings)
 
 lazy val db = project
   .in(file("db"))
@@ -13,18 +14,26 @@ lazy val db = project
     libraryDependencies ++= flyway ++ quill ++ sqlite,
     libraryDependencies ++= zio ++ `zio-test`
   ))
-  .dependsOn(`sde-reader`)
+  .dependsOn(constant.jvm, `sde-reader`)
 
 lazy val protocol =
   crossProject(JSPlatform, JVMPlatform)
     .in(file("protocol"))
-    .settings(commonSettings)
+    .settings(commonSettings, Seq(
+      libraryDependencies ++= tapir,
+      libraryDependencies ++= `zio-test`,
+    ))
+    .dependsOn(constant)
 
-lazy val server = Project(id = "yyy-server", base = file("server"))
-  .settings(
-    commonSettings,
-    Seq(
-    )
-  )
+lazy val server = project
+  .in(file("server"))
+  .settings(commonSettings, Seq(
+    libraryDependencies ++= `http4s-blaze` ++ tapir ++ `tapir-server`,
+    libraryDependencies ++= zio ++ `zio-test`
+  ))
   .dependsOn(protocol.jvm, db)
-  .aggregate(protocol.jvm)
+
+lazy val `sde-reader` = project
+  .in(file("sde-reader"))
+  .settings(commonSettings, Seq(libraryDependencies ++= snakeyaml ++ zio ++ `zio-test`))
+  .dependsOn(constant.jvm)

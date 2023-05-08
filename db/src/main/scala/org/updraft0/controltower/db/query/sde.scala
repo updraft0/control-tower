@@ -44,25 +44,6 @@ object sde:
     liftQuery(values).foreach(e => entity.insertValue(e))
   }
 
-  // selects
-  // TODO: not sure this is the right way forward...
-  def selectSolarSystemWithStationsFull(name: String): DbOperation[Map[Long, (SolarSystem, Vector[NpcStation])]] =
-    inline def q = quote {
-      for
-        sys <- solarSystem.filter(_.name == lift(name))
-        sta <- npcStation.leftJoin(s => s.systemId == sys.id)
-      yield (sys, sta)
-    }
-
-    ctx
-      .run(q)
-      .map(_.foldLeft(Map.empty[Long, (SolarSystem, Vector[NpcStation])]) { case (m, (system, stationOpt)) =>
-        m.updatedWith(system.id) {
-          case Some((_, stations)) => Some(system -> stations.appendedAll(stationOpt))
-          case None                => Some(system -> stationOpt.toVector)
-        }
-      })
-
   // upserts
 
   // more convenient to upsert the same region multiple times than do the first one

@@ -3,9 +3,9 @@ package org.updraft0.controltower.protocol
 import sttp.tapir.{json as _, *}
 import sttp.tapir.json.zio.*
 
-object Server:
+object Endpoints:
   import schema.given
-  import json.given
+  import jsoncodec.given
 
   private val api = endpoint.in("api").errorOut(statusCode.and(stringBody))
 

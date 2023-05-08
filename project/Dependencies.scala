@@ -4,10 +4,11 @@ object Dependencies {
 
   object Versions {
     val flyway        = "9.16.3"
+    val `http4s-blaze` = "0.23.14"
     val quill         = "4.6.0.1"
     val snakeyaml     = "2.6"
     val sqlite        = "3.41.2.1"
-    val tapir         = "1.2.12"
+    val tapir         = "1.3.0"
     val zio           = "2.0.13"
     val `zio-config`  = "4.0.0-RC15"
     val `zio-logging` = "2.1.12"
@@ -15,6 +16,10 @@ object Dependencies {
 
   val flyway = Seq(
     "org.flywaydb" % "flyway-core" % Versions.flyway
+  )
+
+  val `http4s-blaze` = Seq(
+    "org.http4s" %% "http4s-blaze-server" % Versions.`http4s-blaze`
   )
 
   val quill = Seq(
@@ -30,7 +35,15 @@ object Dependencies {
   )
 
   val tapir = Seq(
-    "com.softwaremill.tapir" %% "tapir-core" % Versions.tapir
+    "com.softwaremill.sttp.tapir" %% "tapir-core"     % Versions.tapir,
+    "com.softwaremill.sttp.tapir" %% "tapir-json-zio" % Versions.tapir
+  )
+
+  val `tapir-server` = Seq(
+    // zio-http has no support for websockets, yet.
+    "com.softwaremill.sttp.tapir" %% "tapir-http4s-server-zio" % Versions.tapir,
+    "com.softwaremill.sttp.tapir" %% "tapir-server"            % Versions.tapir,
+    "com.softwaremill.sttp.tapir" %% "tapir-zio"               % Versions.tapir
   )
 
   val zio = Seq(
