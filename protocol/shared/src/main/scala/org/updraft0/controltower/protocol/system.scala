@@ -1,4 +1,5 @@
 package org.updraft0.controltower.protocol
+
 import org.updraft0.controltower.constant.{WormholeClass, WormholeEffect}
 
 case class Planet(
@@ -32,8 +33,7 @@ case class SolarSystem(
     planets: Vector[Planet],
     effect: Option[WormholeEffect],
     systemClass: Option[WormholeClass],
-//    wormholeStatics: Vector[WormholeStatic],
-    security: Option[Double]
-//    starType: Option[StarType],
-// FIXME
+    wormholeStatics: Vector[WormholeStatic],
+    security: Option[Double],
+    starTypeId: Option[Long]
 )

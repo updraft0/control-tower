@@ -12,7 +12,8 @@ case class NpcStation(
     ownerId: Long,
     typeId: Long,
     operationId: Long,
-    moonId: Long,
+    planetId: Long,
+    moonId: Option[Long],
     systemId: Long
 )
 case class SolarSystemAsteroidBelt(id: Long, planetId: Long, systemId: Long)

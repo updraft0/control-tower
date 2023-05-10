@@ -263,7 +263,9 @@ object parser:
       descriptionEn <- c.downField("description").downField("en").as[Option[String]]
       nameEn        <- c.downField("name").downField("en").as[String]
       groupId       <- c.downField("groupID").as[Long]
-    yield TypeId(id.toLong, nameEn, groupId, descriptionEn)
+      mass          <- c.downField("mass").as[Option[Double]]
+      volume        <- c.downField("volume").as[Option[Double]]
+    yield TypeId(id.toLong, nameEn, groupId, descriptionEn, mass, volume)
 
   private[sde] def parseRegion(tag: String, yaml: YamlObject[String]): Parser[ExportedData] =
     (for
@@ -351,7 +353,8 @@ object parser:
       typeId        <- c.downField("typeID").as[Long]
       moons         <- parseMoons(c.downField("moons"))
       asteroidBelts <- parseAsteroidBelts(c.downField("asteroidBelts"))
-    yield Planet(id.toLong, index, typeId, moons, asteroidBelts)
+      stations      <- parseNpcStations(c.downField("npcStations"))
+    yield Planet(id.toLong, index, typeId, moons, asteroidBelts, stations)
 
   private def parseMoons(c: Cursor[String]): YamlValue[Vector[PlanetMoon]] =
     parseIntKeyedMap(c, parseMoon)

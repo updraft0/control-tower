@@ -500,7 +500,8 @@ object ParserSpec extends ZIOSpecDefault:
                 index = 1,
                 typeId = 2016,
                 moons = Vector.empty,
-                asteroidBelts = Vector.empty
+                asteroidBelts = Vector.empty,
+                stations = Vector.empty
               ),
               Planet(
                 id = 40012331,
@@ -513,7 +514,8 @@ object ParserSpec extends ZIOSpecDefault:
                 asteroidBelts = Vector(
                   PlanetAsteroidBelt(id = 40012332),
                   PlanetAsteroidBelt(id = 40012334)
-                )
+                ),
+                stations = Vector.empty
               ),
               Planet(
                 id = 40012349,
@@ -532,7 +534,8 @@ object ParserSpec extends ZIOSpecDefault:
                 asteroidBelts = Vector(
                   PlanetAsteroidBelt(id = 40012351),
                   PlanetAsteroidBelt(id = 40012352)
-                )
+                ),
+                stations = Vector.empty
               )
             ),
             stargates = Vector(
@@ -944,8 +947,8 @@ object ParserSpec extends ZIOSpecDefault:
         yield assertTrue(
           typeIds == ExportedData.TypeIds(
             Vector(
-              TypeId(4, "Constellation", 4, None),
-              TypeId(5, "Solar System", 5, None)
+              TypeId(4, "Constellation", 4, None, None, Some(1.0)),
+              TypeId(5, "Solar System", 5, None, None, Some(1.0))
             )
           )
         )

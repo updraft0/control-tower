@@ -8,8 +8,8 @@ import zio.test.*
 object ReferenceProtocolSpec extends ZIOSpecDefault:
   def spec =
     suite("reference protocol")(
-      test("can encode/decode StationOperationReference") {
-        val value = StationOperationReference(
+      test("can encode/decode StationOperation") {
+        val value = StationOperation(
           operationId = 42,
           operationName = "Law School",
           services = Vector(
@@ -27,7 +27,7 @@ object ReferenceProtocolSpec extends ZIOSpecDefault:
         )
 
         assertTrue(
-          json.as[StationOperationReference] == Right(value),
+          json.as[StationOperation] == Right(value),
           value.toJsonAST == Right(json)
         )
       }

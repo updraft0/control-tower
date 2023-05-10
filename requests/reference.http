@@ -1,0 +1,38 @@
+## Reference queries
+
+###
+
+# @name GetRefSolarSystem
+GET {{api}}/reference/system/Rens
+
+###
+
+# @name GetRefAll
+GET {{api}}/reference/all
+
+###
+
+# @name GetRefFactions
+GET {{api}}/reference/factions
+
+###
+
+# @name GetRefShipTypes
+GET {{api}}/reference/shipTypes
+
+###
+
+# @name GetRefStarTypes
+GET {{api}}/reference/starTypes
+
+###
+
+# @name GetRefStationOperations
+GET {{api}}/reference/stationOperations
+
+###
+
+# @name GetRefWormholeTypes
+GET {{api}}/reference/wormholeTypes
+
+###

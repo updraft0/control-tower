@@ -140,7 +140,14 @@ case class NpcCorporation(
     ticker: String,
     uniqueName: Boolean
 )
-case class TypeId(id: Long, nameEn: String, groupId: Long, descriptionEn: Option[String])
+case class TypeId(
+    id: Long,
+    nameEn: String,
+    groupId: Long,
+    descriptionEn: Option[String],
+    mass: Option[Double],
+    volume: Option[Double]
+)
 case class TypeDogma(id: Long, attributes: Map[Long, Double], effects: Map[Long, Boolean])
 case class StationOperation(
     id: Long,
@@ -164,7 +171,8 @@ case class Planet(
     index: Int,
     typeId: Long,
     moons: Vector[PlanetMoon],
-    asteroidBelts: Vector[PlanetAsteroidBelt]
+    asteroidBelts: Vector[PlanetAsteroidBelt],
+    stations: Vector[NpcStation]
 )
 case class Star(id: Long, typeId: Long)
 case class Stargate(id: Long, destinationId: Long)

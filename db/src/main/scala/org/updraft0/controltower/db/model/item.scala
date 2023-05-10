@@ -15,7 +15,14 @@ case class Faction(
 case class ItemCategory(id: Long, name: String, iconId: Option[Long])
 case class ItemGroup(id: Long, categoryId: Long, name: String, iconId: Option[Long])
 case class ItemName(id: Long, groupId: Long, name: String)
-case class ItemType(id: Long, name: String, groupId: Long, description: Option[String])
+case class ItemType(
+    id: Long,
+    name: String,
+    groupId: Long,
+    description: Option[String],
+    mass: Option[Double],
+    volume: Option[Double]
+)
 case class NpcCorporation(
     id: Long,
     name: String,

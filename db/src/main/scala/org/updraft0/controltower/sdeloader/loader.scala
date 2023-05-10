@@ -112,9 +112,12 @@ private def insertSolarSystemMoons(s: ExportedData.SolarSystem) =
 
 private def insertNpcStations(names: Map[Long, sde.UniqueName], s: ExportedData.SolarSystem) =
   ZIO
-    .foreach(s.planets.flatMap(p => p.moons.flatMap(m => m.npcStations.map(ns => (m, ns)))))((m, ns) =>
-      query.sde.insertNpcStation(toNpcStation(names, s, m, ns))
-    )
+    .foreach(
+      s.planets.flatMap(p =>
+        p.moons.flatMap(m => m.npcStations.map(ns => (p, Some(m), ns))) ++
+          p.stations.map(ns => (p, None, ns))
+      )
+    )((p, m, ns) => query.sde.insertNpcStation(toNpcStation(names, s, p, m, ns)))
     .map(_.sum)
 
 private def insertAsteroidBelts(s: ExportedData.SolarSystem) =
@@ -192,7 +195,8 @@ private def toFaction(f: sde.Faction): Faction =
 private def toNpcStation(
     names: Map[Long, sde.UniqueName],
     s: ExportedData.SolarSystem,
-    m: sde.PlanetMoon,
+    p: sde.Planet,
+    m: Option[sde.PlanetMoon],
     ns: sde.NpcStation
 ) =
   NpcStation(
@@ -201,7 +205,8 @@ private def toNpcStation(
     ownerId = ns.ownerId,
     typeId = ns.typeId,
     operationId = ns.operationId,
-    moonId = m.id,
+    planetId = p.id,
+    moonId = m.map(_.id),
     systemId = s.id
   )
 
@@ -232,7 +237,15 @@ private def toDogmaAttributeType(a: sde.DogmaAttribute) =
 private def toItemCategory(ci: sde.CategoryId): ItemCategory = ItemCategory(ci.id, ci.nameEn, ci.iconId)
 private def toItemGroup(gi: sde.GroupId): ItemGroup          = ItemGroup(gi.id, gi.categoryId, gi.nameEn, gi.iconId)
 private def toItemName(un: sde.UniqueName): ItemName         = ItemName(un.itemId, un.groupId, un.name)
-private def toItemType(ti: sde.TypeId): ItemType             = ItemType(ti.id, ti.nameEn, ti.groupId, ti.descriptionEn)
+private def toItemType(ti: sde.TypeId): ItemType =
+  ItemType(
+    id = ti.id,
+    name = ti.nameEn,
+    groupId = ti.groupId,
+    description = ti.descriptionEn,
+    mass = ti.mass,
+    volume = ti.volume
+  )
 private def toStationOperation(so: sde.StationOperation): StationOperation =
   StationOperation(so.id, so.activityId, so.nameEn, so.descriptionEn)
 private def toStationService(ss: sde.StationService): StationService = StationService(ss.id, ss.nameEn)

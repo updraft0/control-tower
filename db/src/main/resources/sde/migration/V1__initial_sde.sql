@@ -59,6 +59,8 @@ CREATE TABLE sde.item_type
     name        TEXT    NOT NULL,
     group_id    INTEGER NOT NULL,
     description TEXT,
+    mass        REAL,
+    volume      REAL,
 
     FOREIGN KEY (group_id) REFERENCES item_group (id)
 ) STRICT;
@@ -229,9 +231,11 @@ CREATE TABLE sde.npc_station
     owner_id     INTEGER NOT NULL,
     type_id      INTEGER NOT NULL,
     operation_id INTEGER NOT NULL,
-    moon_id      INTEGER NOT NULL,
+    planet_id    INTEGER NOT NULL,
+    moon_id      INTEGER,
     system_id    INTEGER NOT NULL,
 
+    FOREIGN KEY (planet_id) REFERENCES solar_system_planet (id),
     FOREIGN KEY (moon_id) REFERENCES solar_system_moon (id),
     FOREIGN KEY (operation_id) REFERENCES station_operation (id),
     FOREIGN KEY (system_id) REFERENCES solar_system (id),
