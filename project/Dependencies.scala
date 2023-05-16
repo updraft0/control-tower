@@ -1,17 +1,21 @@
-import sbt._
+import sbt.*
+import org.portablescala.sbtplatformdeps.PlatformDepsPlugin.autoImport.*
+import sbt.Keys.libraryDependencies
 
 object Dependencies {
 
   object Versions {
-    val flyway        = "9.16.3"
+    val flyway         = "9.16.3"
     val `http4s-blaze` = "0.23.14"
-    val quill         = "4.6.0.1"
-    val snakeyaml     = "2.6"
-    val sqlite        = "3.41.2.1"
-    val tapir         = "1.3.0"
-    val zio           = "2.0.13"
-    val `zio-config`  = "4.0.0-RC15"
-    val `zio-logging` = "2.1.12"
+    val laminar        = "15.0.1"
+    val quill          = "4.6.0.1"
+    val snakeyaml      = "2.6"
+    val sqlite         = "3.41.2.1"
+    val tapir          = "1.3.0"
+    val waypoint       = "6.0.0"
+    val zio            = "2.0.13"
+    val `zio-config`   = "4.0.0-RC15"
+    val `zio-logging`  = "2.1.12"
   }
 
   val flyway = Seq(
