@@ -4,7 +4,6 @@ import org.updraft0.controltower.protocol.*
 import org.updraft0.controltower.server.Server.EndpointEnv
 import org.updraft0.controltower.server.db.ReferenceQueries
 import sttp.model.StatusCode
-import sttp.tapir.server.http4s.ztapir.ZHttp4sServerInterpreter
 import sttp.tapir.ztapir.*
 import zio.*
 

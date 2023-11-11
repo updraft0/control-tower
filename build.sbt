@@ -67,7 +67,7 @@ lazy val server = project
   .settings(
     commonSettings,
     Seq(
-      libraryDependencies ++= `http4s-blaze` ++ jwt ++ tapir  ++ `tapir-zio-json` ++ `tapir-server`,
+      libraryDependencies ++= jwt ++ tapir  ++ `tapir-zio-json` ++ `tapir-server`,
       libraryDependencies ++= zio ++ `zio-config` ++ `zio-test`
     )
   )
