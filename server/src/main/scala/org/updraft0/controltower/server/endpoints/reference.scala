@@ -1,6 +1,7 @@
 package org.updraft0.controltower.server.endpoints
 
 import org.updraft0.controltower.protocol.*
+import org.updraft0.controltower.server.Server.EndpointEnv
 import org.updraft0.controltower.server.db.ReferenceQueries
 import sttp.model.StatusCode
 import sttp.tapir.server.http4s.ztapir.ZHttp4sServerInterpreter
@@ -17,9 +18,9 @@ def getSolarSystem = Endpoints.getSolarSystem.zServerLogic { name =>
   }
 }
 
-def getVersion = Endpoints.getVersion.zServerLogic(_ => ZIO.succeed(0L /* TODO */ ))
+def getVersion = Endpoints.getVersion.zServerLogic[Any](_ => ZIO.succeed(0L /* TODO */ ))
 
-def getAllReference = Endpoints.getAll.zServerLogic(_ =>
+def getAllReference = Endpoints.getAllReference.zServerLogic(_ =>
   (ReferenceQueries.getFactions <&> ReferenceQueries.getShipTypes <&> ReferenceQueries.getStarTypes <&> ReferenceQueries.getStationOperations <&> ReferenceQueries.getWormholeTypes)
     .mapBoth(
       dbError,
@@ -36,14 +37,14 @@ def getStationOperations =
   Endpoints.getStationOperations.zServerLogic(_ => ReferenceQueries.getStationOperations.mapError(dbError))
 def getWormholeTypes = Endpoints.getWormholeTypes.zServerLogic(_ => ReferenceQueries.getWormholeTypes.mapError(dbError))
 
-def allReferenceEndpoints: List[ZServerEndpoint[DataSource, Any]] =
+def allReferenceEndpoints: List[ZServerEndpoint[EndpointEnv, Any]] =
   List(
-    getSolarSystem,
-    getVersion.asInstanceOf[ZServerEndpoint[DataSource, Any]],
-    getAllReference,
-    getFactions,
-    getShipTypes,
-    getStarTypes,
-    getStationOperations,
-    getWormholeTypes
+    getSolarSystem.widen[EndpointEnv],
+    getVersion.widen[EndpointEnv],
+    getAllReference.widen[EndpointEnv],
+    getFactions.widen[EndpointEnv],
+    getShipTypes.widen[EndpointEnv],
+    getStarTypes.widen[EndpointEnv],
+    getStationOperations.widen[EndpointEnv],
+    getWormholeTypes.widen[EndpointEnv]
   )

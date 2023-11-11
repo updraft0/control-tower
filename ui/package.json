@@ -1,0 +1,25 @@
+{
+  "name": "control-tower",
+  "private": true,
+  "browserslist": [
+    "last 3 versions"
+  ],
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite -l info",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "@scala-js/vite-plugin-scalajs": "^1.0.0",
+    "autoprefixer": "^10.4.14",
+    "css-reset-and-normalize": "^2.3.6",
+    "postcss-fail-on-warn": "^0.2.1",
+    "postcss-import": "^15.1.0",
+    "postcss-nesting": "^11.3.0",
+    "postcss-reporter": "^7.0.5",
+    "postcss-simple-vars": "^7.0.1",
+    "vite": "^4.3.7"
+  }
+}

@@ -1,5 +1,6 @@
 import Dependencies._
 import build._
+import org.scalajs.linker.interface.ModuleSplitStyle
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
@@ -20,13 +21,32 @@ lazy val db = project
   )
   .dependsOn(constant.jvm, `sde-reader`)
 
+lazy val `esi-client` = project
+  .in(file("esi-client"))
+  .settings(
+    commonSettings,
+    Seq(
+      libraryDependencies ++= jsoniter ++ tapir ++ `tapir-client` ++ `tapir-jsoniter`,
+      libraryDependencies ++= zio ++ `zio-test`
+    )
+  )
+
+lazy val `mini-reactive` = project
+  .in(file("mini-reactive"))
+  .settings(
+    commonSettings,
+    Seq(
+      libraryDependencies ++= zio ++ `zio-test`
+    )
+  )
+
 lazy val protocol =
   crossProject(JSPlatform, JVMPlatform)
     .crossType(CrossType.Pure)
     .in(file("protocol"))
     .settings(commonSettings)
     .jvmSettings(
-      libraryDependencies ++= tapir,
+      libraryDependencies ++= tapir ++ `tapir-zio-json`,
       libraryDependencies ++= `zio-test`
     )
     .jsSettings(
@@ -34,7 +54,7 @@ lazy val protocol =
         "com.softwaremill.sttp.tapir" %%% "tapir-core"     % Versions.tapir,
         "com.softwaremill.sttp.tapir" %%% "tapir-json-zio" % Versions.tapir,
         // tests
-        "dev.zio" %%% "zio-json"          % "0.5.0", // FIXME brr
+        "dev.zio" %%% "zio-json"          % "0.6.0", // FIXME brr
         "dev.zio" %%% "zio-test"          % Versions.zio % Test,
         "dev.zio" %%% "zio-test-sbt"      % Versions.zio % Test,
         "dev.zio" %%% "zio-test-magnolia" % Versions.zio % Test
@@ -47,11 +67,11 @@ lazy val server = project
   .settings(
     commonSettings,
     Seq(
-      libraryDependencies ++= `http4s-blaze` ++ tapir ++ `tapir-server`,
-      libraryDependencies ++= zio ++ `zio-test`
+      libraryDependencies ++= `http4s-blaze` ++ jwt ++ tapir  ++ `tapir-zio-json` ++ `tapir-server`,
+      libraryDependencies ++= zio ++ `zio-config` ++ `zio-test`
     )
   )
-  .dependsOn(protocol.jvm, db)
+  .dependsOn(protocol.jvm, db, `esi-client`)
 
 lazy val `sde-reader` = project
   .in(file("sde-reader"))
@@ -65,6 +85,10 @@ lazy val ui = project
     commonSettings,
     scalaJSLinkerConfig ~= {
       _.withModuleKind(ModuleKind.ESModule)
+        .withModuleSplitStyle(
+          // TODO: remove after dev complete?
+          ModuleSplitStyle.SmallModulesFor(List("org.updraft0", "controltower"))
+        )
     },
     scalaJSLinkerConfig ~= {
       _.withSourceMap(true)
@@ -74,6 +98,14 @@ lazy val ui = project
       // doesn't seem to be a nice way to refer to both scala and scalajs dependencies in one place *sigh*
       "com.raquo" %%% "laminar"  % Versions.laminar,
       "com.raquo" %%% "waypoint" % Versions.waypoint,
+      // laminext
+      "io.laminext" %%% "core" % "0.16.1", // FIXME
+      "io.laminext" %%% "websocket" % "0.16.1", // FIXME
+      // sttp
+      "com.softwaremill.sttp.tapir" %%% "tapir-sttp-client" % Versions.tapir,
+      "io.github.cquiroz" %%% "scala-java-time" % "2.5.0", // implementations of java.time classes for Scala.JS
+      "com.softwaremill.sttp.client3" %%% "core" % "3.8.15", // FIXME
+
       // test
       "dev.zio" %%% "zio-test"          % Versions.zio % Test,
       "dev.zio" %%% "zio-test-sbt"      % Versions.zio % Test,

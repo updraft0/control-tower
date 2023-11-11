@@ -13,13 +13,15 @@ object map:
 
   private val WormholeGroupId = 988L
 
-  // TODO: not sure about location of these
   given MappedEncoding[Int, WormholeClass] = MappedEncoding(WormholeClasses.ById.apply)
   given MappedEncoding[WormholeClass, Int] = MappedEncoding(_.value)
 
   /** Each table lives in the `map` schema, but Quill has no config annotation/etc. for that
     */
   object schema:
+    inline def map = quote(querySchema[MapModel]("map.map"))
+    inline def alliance = quote(querySchema[Alliance]("map.alliance"))
+    inline def corporation = quote(querySchema[Corporation]("map.corporation"))
     inline def systemStaticWormhole = quote(querySchema[SystemStaticWormhole]("map.ref_system_static_wormhole"))
     inline def wormhole             = quote(querySchema[Wormhole]("map.ref_wormhole"))
 
@@ -44,7 +46,7 @@ object map:
 
   // upserts
   def upsertSystemStatic(value: SystemStaticWormhole): DbOperation[Long] =
-    ctx.run(systemStaticWormhole.insertValue(lift(value)).onConflictIgnore)
+    ctx.run(systemStaticWormhole.insertValue(lift(value)).onConflictIgnore(_.systemId, _.staticTypeId, _.validFrom))
 
   def upsertWormhole(value: Wormhole): DbOperation[Long] =
     ctx.run(wormhole.insertValue(lift(value)).onConflictIgnore(_.name))

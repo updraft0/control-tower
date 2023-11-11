@@ -30,11 +30,10 @@ object zip:
       .flatMap(fis => ZIO.fromAutoCloseable(ZIO.attempt(new BufferedInputStream(fis))))
       .flatMap(bis => ZIO.fromAutoCloseable(ZIO.attempt(new jzip.ZipInputStream(bis))))
 
-  private def toEntry(entry: jzip.ZipEntry, zis: jzip.ZipInputStream) = {
+  private def toEntry(entry: jzip.ZipEntry, zis: jzip.ZipInputStream) =
     ZIO
       .attempt(zis.readNBytes(entry.getSize.toInt))
       .flatMap(bytes => ZIO.attempt(ZipEntry(entry.getName, entry.getSize, entry.isDirectory, bytes)))
-  }
 
   private def nextOrFail[A](action: => A): ZIO[Any, Option[Throwable], A] =
     ZIO

@@ -6,7 +6,7 @@ object build {
   val manifestSetting = packageOptions += {
     val (title, v, vendor) = (name.value, version.value, organization.value)
     Package.ManifestAttributes(
-      "Created-By"               -> "Simple Build Tool",
+      "Created-By"               -> "sbt",
       "Built-By"                 -> System.getProperty("user.name"),
       "Build-Jdk"                -> System.getProperty("java.version"),
       "Specification-Title"      -> title,
@@ -22,7 +22,7 @@ object build {
   val commonSettings = Seq(
     organization := "org.updraft0",
     version      := "0.0.1-SNAPSHOT",
-    scalaVersion := "3.2.2",
+    scalaVersion := "3.3.1",
     manifestSetting,
     crossVersion := CrossVersion.binary,
     scalacOptions += "-explain"

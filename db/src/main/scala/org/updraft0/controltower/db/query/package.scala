@@ -12,4 +12,4 @@ package object query:
   val ctx = SqliteJsonZioJdbcContext(SnakeCase)
 
   // final transaction at the end
-  def transaction[A](op: RIO[DataSource, A]): RIO[DataSource, A] = ctx.transaction(op)
+  def transaction[R, A](op: RIO[R & DataSource, A]): RIO[R & DataSource, A] = ctx.transaction(op)

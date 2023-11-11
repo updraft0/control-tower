@@ -20,3 +20,6 @@ target/
 
 # EVE specific
 /sde/
+
+# Vite
+/ui/.vite/

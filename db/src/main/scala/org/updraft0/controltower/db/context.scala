@@ -140,16 +140,39 @@ trait StringJsonExtensions extends Encoders with Decoders:
 /** sqlite dialect with json support
   */
 class SqliteJsonZioJdbcContext[+N <: NamingStrategy](val naming: N)
-    extends ZioJdbcContext[SqliteDialect, N]
-    with SqliteJdbcTypes[SqliteDialect, N]
+    extends ZioJdbcContext[SqliteModifiedDialect, N]
+    with SqliteJdbcTypes[SqliteModifiedDialect, N]
     with StringJsonExtensions:
-  val idiom: SqliteDialect = SqliteDialect
+  val idiom: SqliteModifiedDialect = SqliteModifiedDialect
 
-  val connDelegate: ZioJdbcUnderlyingContext[SqliteDialect, N] = new SqliteJsonZioJdbcContext.Underlying[N](naming)
+  val connDelegate: ZioJdbcUnderlyingContext[SqliteModifiedDialect, N] = new SqliteJsonZioJdbcContext.Underlying[N](naming)
 
 object SqliteJsonZioJdbcContext:
   class Underlying[+N <: NamingStrategy](val naming: N)
-      extends ZioJdbcUnderlyingContext[SqliteDialect, N]
-      with SqliteJdbcTypes[SqliteDialect, N]
+      extends ZioJdbcUnderlyingContext[SqliteModifiedDialect, N]
+      with SqliteJdbcTypes[SqliteModifiedDialect, N]
       with StringJsonExtensions:
-    val idiom: SqliteDialect = SqliteDialect
+    val idiom: SqliteModifiedDialect = SqliteModifiedDialect
+
+trait SqliteModifiedDialect extends SqliteDialect { self =>
+  import io.getquill.ast.Ast
+  import io.getquill.idiom.StatementInterpolator.*
+  import io.getquill.context.sql.{FlattenSqlQuery, SetOperationSqlQuery, SqlQuery, UnaryOperationSqlQuery}
+
+  def parentTokenizer(implicit astTokenizer: Tokenizer[Ast], strategy: NamingStrategy, idiomContext: IdiomContext) =
+    super.sqlQueryTokenizer
+
+  // NOTE: sqlite does not support encasing UNION operations with parens so don't do that
+  override implicit def sqlQueryTokenizer(implicit
+      astTokenizer: Tokenizer[Ast],
+      strategy: NamingStrategy,
+      idiomContext: IdiomContext
+  ): Tokenizer[SqlQuery] = Tokenizer[SqlQuery] {
+    case SetOperationSqlQuery(a, op, b) =>
+      stmt"${a.token} ${op.token} ${b.token}"
+    case other =>
+      parentTokenizer.token(other)
+  }
+}
+
+object SqliteModifiedDialect extends SqliteModifiedDialect

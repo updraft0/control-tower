@@ -1,0 +1,113 @@
+$black:                       black;
+$white:                       white;
+
+$bg-color:                    #05050a;
+
+/* gray */
+$gray-lightest:               #eaeaea;
+$gray-lighter:                #adadad;
+$gray-light:                  #63676a;
+$gray:                        #3c3f41;
+$gray-dark:                   #313335;
+$gray-darker:                 #2b2b2b;
+$gray-darkest:                #1d1d1d;
+
+$gray-mid-light:              lighten($black, 75%);
+
+/* blue */
+$blue-lighter:                #57889c;
+$blue:                        #428bca;
+$blue-dark:                   #316490;
+
+/* teal */
+$teal-lightest:               #6caead;
+$teal-lighter:                #568a89;
+$teal:                        #477372;
+$teal-dark:                   #375959;
+$teal-darker:                 #212C30;
+$teal-darkest:                #1b2326;
+
+/*green*/
+$green-light:                 #66c84f;
+$green:                       #5cb85c;
+$green-dark:                  #4f9e4f;
+
+/*red*/
+$red:                         #d9534f;
+$red-dark:                    #a52521;
+$red-darker:                  #58100d;
+$red-darkest:                 #430c0a;
+
+/*indigo*/
+$indigo-light:                #9fa8da;
+$indigo:                      #7986cb;
+$indigo-dark:                 #5c6bc0;
+$indigo-darkest:              #313966;
+
+/*orange*/
+$orange-light:                #f0ad4e;
+$orange:                      #e28a0d;
+$orange-dark:                 #c2760c;
+
+/*yellow*/
+$yellow-lighter:              #ffffbb;
+$yellow:                      #e2ce48;
+$yellow-dark:                 #c8b847;
+
+/*pink*/
+$pink-light:                  #e88ce7;
+$pink:                        #e06fdf;
+$pink-dark:                   #d747d6;
+$pink-darker:                 #782d77;
+
+/*purple*/
+$purple-dark:                 #3e264e;
+
+/*aqua*/
+$aqua-light:                  #44be99;
+$aqua:                        #44aa82;
+
+/*ranking*/
+$gold:                        #cfb53b;
+$silver:                      #c0c0c0;
+$bronze:                      #8c7853;
+
+/* wh effect */
+$wh-color-magnetar:           $pink;
+$wh-color-redgiant:           $red;
+$wh-color-pulsar:             $blue;
+$wh-color-wolfrayet:          $orange;
+$wh-color-cataclysmic:        $yellow-lighter;
+$wh-color-blackhole:          $black;
+
+/*system security status*/
+$system-color-sec-0-0:        #be0000;
+$system-color-sec-0-1:        #ab2600;
+$system-color-sec-0-2:        #be3900;
+$system-color-sec-0-3:        #c24e02;
+$system-color-sec-0-4:        #ab5f00;
+$system-color-sec-0-5:        #bebe00;
+$system-color-sec-0-6:        #73bf26;
+$system-color-sec-0-7:        #00bf00;
+$system-color-sec-0-8:        #00bf39;
+$system-color-sec-0-9:        #39bf99;
+$system-color-sec-1-0:        #28c0bf;
+
+/* planet types */
+$planet-color-barren:         #755e48;
+$planet-color-gas:            #a4b2b2;
+$planet-color-ice:            #aacada;
+$planet-color-lava:           #891c08;
+$planet-color-oceanic:        #4d7999;
+$planet-color-plasma:         #28576e;
+$planet-color-shattered:      $indigo;
+$planet-color-storm:          #38556a;
+$planet-color-temperate:      #4c593c;
+
+/* brand colors */
+$brand-primary:               $teal-dark !default;
+$brand-success:               $green-dark !default;
+$brand-info:                  $blue-dark !default;
+$brand-warning:               $orange !default;
+$brand-danger:                $red-dark !default;
+$brand-hint:                  $yellow-dark !default;

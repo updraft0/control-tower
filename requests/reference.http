@@ -1,5 +1,6 @@
-## Reference queries
-
+## Reference requests
+##
+## These endpoints return "static" data and do not require authentication
 ###
 
 # @name GetRefSolarSystem
@@ -7,6 +8,7 @@ GET {{api}}/reference/system/Rens
 
 ###
 
+# Used by the client to pre-load static reference data (to avoid balooning request sizes)
 # @name GetRefAll
 GET {{api}}/reference/all
 
