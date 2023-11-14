@@ -6,7 +6,6 @@
 # @name CreateNewMap
 < {%
     request.variables.set("name", "examplemap")
-    request.variables.set("characterId", "2120729046")
 %}
 POST {{api}}/map
 Content-Type: application/json

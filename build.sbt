@@ -54,7 +54,7 @@ lazy val protocol =
         "com.softwaremill.sttp.tapir" %%% "tapir-core"     % Versions.tapir,
         "com.softwaremill.sttp.tapir" %%% "tapir-json-zio" % Versions.tapir,
         // tests
-        "dev.zio" %%% "zio-json"          % "0.6.0", // FIXME brr
+        "dev.zio" %%% "zio-json"          % Versions.`zio-json`,
         "dev.zio" %%% "zio-test"          % Versions.zio % Test,
         "dev.zio" %%% "zio-test-sbt"      % Versions.zio % Test,
         "dev.zio" %%% "zio-test-magnolia" % Versions.zio % Test
@@ -67,7 +67,7 @@ lazy val server = project
   .settings(
     commonSettings,
     Seq(
-      libraryDependencies ++= jwt ++ tapir  ++ `tapir-zio-json` ++ `tapir-server`,
+      libraryDependencies ++= jwt ++ tapir ++ `tapir-zio-json` ++ `tapir-server`,
       libraryDependencies ++= zio ++ `zio-config` ++ `zio-test`
     )
   )
@@ -80,7 +80,7 @@ lazy val `sde-reader` = project
 
 lazy val ui = project
   .in(file("ui"))
-  .enablePlugins(ScalaJSPlugin)
+  .enablePlugins(ScalaJSPlugin, JSDependenciesPlugin)
   .settings(
     commonSettings,
     scalaJSLinkerConfig ~= {
@@ -94,17 +94,22 @@ lazy val ui = project
       _.withSourceMap(true)
     },
     scalaJSUseMainModuleInitializer := true,
+    jsDependencies ++= Seq(
+      "org.webjars.npm" % "interactjs" % Versions.interactJs / s"${Versions.interactJs}/dist/interact.js"
+    ),
     libraryDependencies ++= Seq(
       // doesn't seem to be a nice way to refer to both scala and scalajs dependencies in one place *sigh*
       "com.raquo" %%% "laminar"  % Versions.laminar,
       "com.raquo" %%% "waypoint" % Versions.waypoint,
       // laminext
-      "io.laminext" %%% "core" % "0.16.1", // FIXME
-      "io.laminext" %%% "websocket" % "0.16.1", // FIXME
+      "io.laminext" %%% "core"      % Versions.laminext,
+      "io.laminext" %%% "websocket" % Versions.laminext,
       // sttp
       "com.softwaremill.sttp.tapir" %%% "tapir-sttp-client" % Versions.tapir,
-      "io.github.cquiroz" %%% "scala-java-time" % "2.5.0", // implementations of java.time classes for Scala.JS
-      "com.softwaremill.sttp.client3" %%% "core" % "3.8.15", // FIXME
+      "io.github.cquiroz" %%% "scala-java-time" % Versions.`scala-java-time`, // implementations of java.time classes for Scala.JS
+      "com.softwaremill.sttp.client3" %%% "core" % Versions.sttp,
+      // interactjs-scala
+//      "com.github.busti" %%% "scalajs-interactjs" % Versions.interactJsScala, // TODO https://github.com/busti/scalajs-interactjs/issues/4
 
       // test
       "dev.zio" %%% "zio-test"          % Versions.zio % Test,
