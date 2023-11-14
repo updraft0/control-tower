@@ -1,62 +1,94 @@
 package org.updraft0.controltower.server.endpoints
 
+import org.updraft0.controltower.db.{model, query as dbquery}
 import org.updraft0.controltower.protocol.{SessionCookie as _, *}
 import org.updraft0.controltower.server.Config
 import org.updraft0.controltower.server.Server.EndpointEnv
 import org.updraft0.controltower.server.auth.*
+import org.updraft0.controltower.server.db.{AuthQueries, MapQueries}
+import org.updraft0.controltower.server.map.MapSession
 import org.updraft0.esi.client.EsiClient
+import sttp.capabilities.zio.ZioStreams
 import sttp.client3.UriContext
-import sttp.model.{Uri, StatusCode}
 import sttp.model.headers.{Cookie, CookieValueWithMeta}
+import sttp.model.{StatusCode, Uri}
 import sttp.tapir.ztapir.*
+import zio.stream.ZStream
 import zio.{Config as _, *}
+
 import java.util.UUID
-import org.updraft0.controltower.server.db.AuthQueries
-import org.updraft0.controltower.server.db.MapQueries
-import org.updraft0.controltower.db.model
+
+case class ValidationError(msg: String) extends RuntimeException(msg)
 
 def createMap = Endpoints.createMap
   .zServerSecurityLogic(validateSession)
   .serverLogic(user =>
-    newMap => (checkNewMapCharacterMatches(user.userId, newMap) *> insertNewMap(user.userId, newMap)).map(toMapInfo)
+    newMap =>
+      dbquery
+        .transaction(checkNewMapCharacterMatches(user.userId, newMap) *> insertNewMap(user.userId, newMap))
+        .tapErrorCause(ZIO.logWarningCause("failed while creating map", _))
+        .mapBoth(toUserError, toMapInfo)
   )
+
+def mapWebSocket = Endpoints
+  .mapWebSocket(using ZioStreams)
+  .zServerSecurityLogic(validateSession)
+  .serverLogic(user =>
+    (mapName, characterId) =>
+      checkUserCanAccessMap(user, characterId, mapName)
+        .flatMap(MapSession(_, characterId, user.userId).mapError(toUserError))
+  )
+
+def allMapEndpoints
+    : List[ZServerEndpoint[EndpointEnv, sttp.capabilities.zio.ZioStreams & sttp.capabilities.WebSockets]] =
+  List(
+    createMap.widen[EndpointEnv],
+    mapWebSocket.widen[EndpointEnv]
+  )
+
+private def checkUserCanAccessMap(user: LoggedInUser, characterId: Long, mapName: String) =
+  dbquery
+    .transaction {
+      for
+        maps     <- MapPolicy.allowedMapIdsForUser(user.userId).map(_.filter(_._1 == characterId))
+        mapNames <- MapQueries.getMapNamesByIds(maps.map(_._2))
+        _        <- ZIO.when(mapNames.isEmpty)(ZIO.fail(ValidationError("No maps found")))
+        _        <- ZIO.when(mapNames.size > 1)(ZIO.fail(ValidationError("Map name is ambiguous")))
+      yield mapNames.head._1
+    }
+    .tapErrorCause(ZIO.logWarningCause("failed while checking user access", _))
+    .mapError(toUserError)
 
 private def checkNewMapCharacterMatches(userId: Long, newMap: NewMap) =
   for
-    charAndExists <- (AuthQueries.getUserCharacterByIdAndCharId(userId, newMap.createdByCharacterId)
-      <*> MapQueries.getMapByUserAndName(userId, newMap.name).map(_.isDefined))
-      .tapErrorCause(ZIO.logWarningCause("failed query", _))
-      .orElseFail("Failure while trying to find user/map info")
-    _ <- ZIO.when(charAndExists._2)(ZIO.fail("Map name not unique"))
-    _ <- ZIO.when(charAndExists._1.isEmpty)(ZIO.fail("No user/character combination found"))
+    // note: we stopped checking whether a character matches because there is no need to link a character to a map (except through policy)
+    mapAlreadyExists <- MapQueries.getMapByCreatorUserAndName(userId, newMap.name).map(_.isDefined)
+    _                <- ZIO.when(mapAlreadyExists)(ZIO.fail(ValidationError("Map name not unique")))
   yield ()
 
-private def insertNewMap(userId: Long, newMap: NewMap) =
-  (for
-    map <- MapQueries.createMap(userId, newMap.name).flatMap(MapQueries.getMap).map(_.head)
-    _   <- AuthQueries.createMapPolicy(map.id, userId)
+private def insertNewMap(userId: model.UserId, newMap: NewMap) =
+  for
+    map <- MapQueries
+      .createMap(userId, newMap.name, toModelMapDisplayType(newMap.displayType))
+      .flatMap(MapQueries.getMap)
+      .map(_.head)
+    _ <- AuthQueries.createMapPolicy(map.id, userId)
     _ <- AuthQueries.createMapPolicyMembers(newMap.policyMembers.map(pm => toModelPolicyMember(map, userId, pm)).toList)
-  yield map)
-    .tapErrorCause(ZIO.logWarningCause("failed query", _))
-    .orElseFail("Failure while trying to create map")
+  yield map
 
-def allMapEndpoints: List[ZServerEndpoint[EndpointEnv, Any]] =
-  List(
-    createMap.widen[EndpointEnv]
-  )
+def toMapInfo(map: model.MapModel): MapInfo =
+  MapInfo(map.id, map.name, toMapDisplayType(map.displayType), map.createdAt)
 
-def toMapInfo(map: model.MapModel): MapInfo = MapInfo(map.id, map.name, map.creatorUserId, map.createdAt)
-
-def toModelPolicyMember(map: model.MapModel, userId: Long, m: MapPolicyMember): model.MapPolicyMember =
+def toModelPolicyMember(map: model.MapModel, userId: model.UserId, m: MapPolicyMember): model.MapPolicyMember =
   model.MapPolicyMember(
     mapId = map.id,
     memberId = m.memberId,
     memberType = toMemberType(m.memberType),
     isDeny = m.isDeny,
     role = toMapRole(m.role),
-    createdBy = userId,
+    createdByUserId = userId,
     createdAt = map.createdAt,
-    updatedBy = userId,
+    updatedByUserId = userId,
     updatedAt = map.createdAt
   )
 
@@ -65,7 +97,17 @@ def toMemberType(m: PolicyMemberType): model.PolicyMemberType = m match
   case PolicyMemberType.Alliance    => model.PolicyMemberType.Alliance
   case PolicyMemberType.Character   => model.PolicyMemberType.Character
 
+def toMapDisplayType(dt: model.MapDisplayType): MapDisplayType = dt match
+  case model.MapDisplayType.Manual => MapDisplayType.Manual
+
+def toModelMapDisplayType(dt: MapDisplayType): model.MapDisplayType = dt match
+  case MapDisplayType.Manual => model.MapDisplayType.Manual
+
 def toMapRole(m: MapRole): model.MapRole = m match
   case MapRole.Viewer => model.MapRole.Viewer
   case MapRole.Editor => model.MapRole.Editor
   case MapRole.Admin  => model.MapRole.Admin
+
+def toUserError(t: Throwable) = t match
+  case ValidationError(msg) => msg
+  case ex                   => "Unknown error occurred"

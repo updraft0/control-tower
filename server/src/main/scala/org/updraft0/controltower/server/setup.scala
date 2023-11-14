@@ -23,5 +23,5 @@ private[server] def desktopLogFormat = {
 }
 
 private[server] def desktopLogger = Runtime.removeDefaultLoggers >>> consoleLogger(
-  ConsoleLoggerConfig(desktopLogFormat, LogFilter.acceptAll)
+  ConsoleLoggerConfig(desktopLogFormat, LogFilter.logLevel(LogLevel.Debug))
 ) >+> Slf4jBridge.initialize

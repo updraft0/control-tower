@@ -23,7 +23,7 @@ object AuthQueries:
     quote {
       userSession
         .filter(_.sessionId == lift(sessionId))
-        .filter(us => sql"${us.expiresAt} > (unixepoch('subsec') * 1000)".asCondition)
+        .filter(us => sql"${us.expiresAt} > (unixepoch() * 1000)".asCondition)
     }
 
   def getUserCharacterByIdAndCharId(
@@ -108,9 +108,9 @@ object AuthQueries:
         .union(userAllianceRoles(characterIds))
     }).map(_.groupBy(_._1).view.mapValues(_.map(_._2)).toMap)
 
-  def createMapPolicy(mapId: Long, userId: Long): Result[Unit] =
+  def createMapPolicy(mapId: model.MapId, userId: model.UserId): Result[Unit] =
     run(quote {
-      mapPolicy.insert(_.mapId -> lift(mapId), _.createdBy -> lift(userId))
+      mapPolicy.insert(_.mapId -> lift(mapId), _.createdByUserId -> lift(userId))
     }).unit
 
   def createMapPolicyMembers(policyMembers: List[model.MapPolicyMember]): Result[Int] =

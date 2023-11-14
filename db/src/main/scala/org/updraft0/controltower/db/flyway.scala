@@ -11,7 +11,7 @@ import java.nio.file.Files
   */
 object flyway:
   def layer: ZLayer[Config, Throwable, Vector[Flyway]] =
-    ZLayer.fromZIO(
+    ZLayer(
       ZIO.serviceWithZIO[Config](c =>
         ZIO.attemptBlocking(Files.createDirectories(c.dir)) *> ZIO.foreach(c.flywayConfig.databases.toVector) {
           case (dbName, (dbPath, migrationFolder)) => ZIO.attempt(configureFlyway(dbName, dbPath, migrationFolder))
@@ -38,4 +38,8 @@ private def configureFlyway(dbName: String, dbPath: String, migrationFolder: Str
     .load()
 
 private def initSql(dbName: String, dbPath: String) =
-  List(s"ATTACH DATABASE '${dbPath}' AS $dbName;", s"PRAGMA ${dbName}.journal_mode = WAL;").mkString(" ")
+  List(
+    s"ATTACH DATABASE '${dbPath}' AS $dbName;",
+    s"PRAGMA ${dbName}.journal_mode = WAL;",
+    s"PRAGMA foreign_keys = ON;"
+  ).mkString(" ")

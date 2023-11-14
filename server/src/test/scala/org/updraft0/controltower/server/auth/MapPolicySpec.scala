@@ -119,7 +119,7 @@ object MapPolicySpec extends ZIOSpecDefault:
   )
 
 private def mapPolicy(
-    mapId: Long,
+    mapId: model.MapId,
     memberId: Long,
     memberType: model.PolicyMemberType,
     isDeny: Boolean = false,
@@ -131,8 +131,8 @@ private def mapPolicy(
     memberType = memberType,
     isDeny = isDeny,
     role = role,
-    createdBy = 0L,
+    createdByUserId = 0L,
     createdAt = Instant.EPOCH,
-    updatedBy = 0L,
+    updatedByUserId = 0L,
     updatedAt = Instant.EPOCH
   )

@@ -27,10 +27,20 @@ private def loadDerivedWormholeAttributes(): RIO[DataSource, Long] =
 private def loadDerivedWormholeStatics(): RIO[DataSource, Long] =
   for
     systemsByName <- map.getWormholeSystemNames
-    wormholeTypes <- map.getWormholeTypeNames.map(_.map((k, v) => k.stripPrefix("Wormhole ") -> v).toMap)
+    wormholeTypes <- wormholeTypeNamesNonUnique
     statics       <- readSystemStatics(systemsByName, wormholeTypes).runCollect
-    loaded        <- ZIO.foreach(statics)(map.upsertSystemStatic)
+    loaded <- ZIO.foreach(statics)(s =>
+      map.upsertSystemStatic(s).tapError(_ => ZIO.logError(s"failed to load static: $s"))
+    )
   yield loaded.sum
+
+private inline def wormholeTypeNamesNonUnique =
+  // some wormhole names like J244 are not unique, and because these are loaded from SDE using a lowest id first
+  // we need to load the lowest id here too
+  map.getWormholeTypeNames
+    .map(
+      _.map((k, v) => k.stripPrefix("Wormhole ") -> v).groupBy(_._1).map((k, xs) => k -> xs.map(_._2).sorted.head).toMap
+    )
 
 private def toWormhole(id: Long, name: String, attributes: JsonValue[Map[String, Double]]): Wormhole =
   Wormhole(

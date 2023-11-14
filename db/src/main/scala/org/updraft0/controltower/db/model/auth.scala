@@ -3,12 +3,17 @@ package org.updraft0.controltower.db.model
 import java.time.Instant
 import java.util.UUID
 
+type AllianceId    = Long
+type CharacterId   = Long
+type CorporationId = Long
+type UserId        = Long
+
 case class AuthCharacter(
     ownerHash: String,
-    id: Long,
+    id: CharacterId,
     name: String,
-    corporationId: Long,
-    allianceId: Option[Long],
+    corporationId: CorporationId,
+    allianceId: Option[AllianceId],
     bornAt: Instant,
     addedAt: Option[Instant],
     updatedAt: Option[Instant],
@@ -16,20 +21,20 @@ case class AuthCharacter(
 )
 
 case class CharacterAuthToken(
-    characterId: Long,
+    characterId: CharacterId,
     token: String,
     refreshToken: String,
     expiresAt: Instant,
     updatedAt: Option[Instant]
 )
 
-case class AuthUser(id: Long, displayName: String, createdAt: Option[Instant])
+case class AuthUser(id: UserId, displayName: String, createdAt: Option[Instant])
 
-case class UserCharacter(userId: Long, characterId: Long)
+case class UserCharacter(userId: UserId, characterId: CharacterId)
 
 case class UserSession(
     sessionId: UUID,
-    userId: Long,
+    userId: UserId,
     createdAt: Instant,
     expiresAt: Instant,
     lastSeenAt: Option[Instant],
@@ -44,20 +49,19 @@ enum PolicyMemberType:
   case Character, Corporation, Alliance
 
 case class MapPolicy(
-    mapId: Long,
-    defaultRole: MapRole,
-    createdBy: Long,
+    mapId: MapId,
+    createdByUserId: UserId,
     createdAt: Instant
 )
 
 case class MapPolicyMember(
-    mapId: Long,
+    mapId: MapId,
     memberId: Long,
     memberType: PolicyMemberType,
     isDeny: Boolean,
     role: MapRole,
-    createdBy: Long,
+    createdByUserId: UserId,
     createdAt: Instant,
-    updatedBy: Long,
+    updatedByUserId: UserId,
     updatedAt: Instant
 )

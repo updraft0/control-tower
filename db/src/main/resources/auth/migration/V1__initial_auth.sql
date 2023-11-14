@@ -40,58 +40,47 @@ CREATE TABLE auth.user
 -- user_character
 CREATE TABLE auth.user_character
 (
-    user_id      INTEGER NOT NULL,
-    character_id INTEGER NOT NULL,
-
-    FOREIGN KEY (user_id) REFERENCES user (id),
-    FOREIGN KEY (character_id) REFERENCES character (id)
+    user_id      INTEGER NOT NULL REFERENCES user (id),
+    character_id INTEGER NOT NULL REFERENCES character (id)
 ) STRICT;
 
 -- user_session
 CREATE TABLE auth.user_session
 (
     session_id   TEXT    NOT NULL,
-    user_id      INTEGER,
+    user_id      INTEGER REFERENCES user (id),
     created_at   INTEGER NOT NULL,
     expires_at   INTEGER NOT NULL,
     last_seen_at INTEGER,
     ip_address   TEXT,
     user_agent   TEXT,
 
-    UNIQUE (session_id, user_id),
-
-    FOREIGN KEY (user_id) REFERENCES user (id)
+    UNIQUE (session_id, user_id)
 ) STRICT;
 
 -- map_policy
 CREATE TABLE auth.map_policy
 (
-    map_id       INTEGER PRIMARY KEY,
-    default_role TEXT    NOT NULL                     DEFAULT 'viewer',
+    map_id             INTEGER PRIMARY KEY,
 
-    created_by   INTEGER NOT NULL,
-    created_at   INTEGER NOT NULL ON CONFLICT REPLACE DEFAULT (unixepoch() * 1000),
-
-    FOREIGN KEY (created_by) REFERENCES user (id)
+    created_by_user_id INTEGER NOT NULL REFERENCES user (id),
+    created_at         INTEGER NOT NULL ON CONFLICT REPLACE DEFAULT (unixepoch() * 1000)
 ) STRICT;
 
 -- map_policy_member
 CREATE TABLE auth.map_policy_member
 (
-    id          INTEGER PRIMARY KEY,
-    map_id      INTEGER NOT NULL,
-    member_id   INTEGER NOT NULL,
-    member_type TEXT    NOT NULL,
-    is_deny     INTEGER NOT NULL                     DEFAULT 0,
-    role        TEXT    NOT NULL,
+    id                 INTEGER PRIMARY KEY,
+    map_id             INTEGER NOT NULL,
+    member_id          INTEGER NOT NULL,
+    member_type        TEXT    NOT NULL,
+    is_deny            INTEGER NOT NULL                     DEFAULT 0,
+    role               TEXT    NOT NULL,
 
-    created_by  INTEGER NOT NULL,
-    created_at  INTEGER NOT NULL ON CONFLICT REPLACE DEFAULT (unixepoch() * 1000),
-    updated_by  INTEGER NOT NULL,
-    updated_at  INTEGER NOT NULL ON CONFLICT REPLACE DEFAULT (unixepoch() * 1000),
-
-    FOREIGN KEY (created_by) REFERENCES user (id),
-    FOREIGN KEY (updated_by) REFERENCES user (id),
+    created_by_user_id INTEGER NOT NULL REFERENCES user (id),
+    created_at         INTEGER NOT NULL ON CONFLICT REPLACE DEFAULT (unixepoch() * 1000),
+    updated_by_user_id INTEGER NOT NULL REFERENCES user (id),
+    updated_at         INTEGER NOT NULL ON CONFLICT REPLACE DEFAULT (unixepoch() * 1000),
 
     UNIQUE (map_id, member_id, member_type, is_deny, role),
 

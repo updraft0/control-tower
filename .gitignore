@@ -23,3 +23,6 @@ target/
 
 # Vite
 /ui/.vite/
+
+# Requests
+/requests/*.private.env.json

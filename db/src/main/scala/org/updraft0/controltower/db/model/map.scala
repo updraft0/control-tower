@@ -2,27 +2,136 @@ package org.updraft0.controltower.db.model
 
 import java.time.Instant
 
+type MapId    = Long
+type SystemId = Long
+
+enum ChainNamingStrategy extends Enum[ChainNamingStrategy]:
+  case Manual
+
+enum SignatureGroup extends Enum[SignatureGroup]:
+  case Unknown, Combat, Data, Gas, Ghost, Ore, Relic, Wormhole
+
+enum WormholeMassSize extends Enum[WormholeMassSize]:
+  case Unknown, XL, L, M, S
+
+enum WormholeMassStatus extends Enum[WormholeMassStatus]:
+  case Unknown, Fresh, Reduced, Critical
+
+enum WormholeK162Type extends Enum[WormholeK162Type]:
+  case Unknown, Dangerous, Deadly
+
+enum IntelStance extends Enum[IntelStance]:
+  case Unknown, Friendly, Hostile
+
+enum MapDisplayType extends Enum[MapDisplayType]:
+  case Manual
+
+enum SystemDisplayData:
+  /**
+   * Manual position of system on grid in (x, y) coordinate (not pixels)
+   */
+  case Manual(x: Int, y: Int)
+
+extension (sd: SystemDisplayData)
+  def displayType: MapDisplayType = sd match
+    case _: SystemDisplayData.Manual => MapDisplayType.Manual
+
 // note: using the name `Map` conflicts with prelude
-case class MapModel(id: Long, name: String, createdAt: Instant, creatorUserId: Long)
+case class MapModel(id: MapId, name: String, displayType: MapDisplayType, createdAt: Instant, creatorUserId: UserId)
+
+case class MapSystem(
+    mapId: MapId,
+    systemId: SystemId,
+    name: Option[String],
+    isPinned: Boolean,
+    chainNamingStrategy: ChainNamingStrategy,
+    description: Option[String],
+    stance: IntelStance,
+    updatedByCharacterId: CharacterId,
+    updatedAt: Instant
+)
+
+case class MapSystemDisplay(
+    mapId: MapId,
+    systemId: SystemId,
+    displayType: MapDisplayType,
+    data: SystemDisplayData)
+
+case class MapSystemStructure(
+    mapId: MapId,
+    systemId: SystemId,
+    name: String,
+    isDeleted: Boolean,
+    ownerCorporationId: Option[CorporationId],
+    structureType: Option[String], // TODO improve categorisation
+    location: Option[String],
+    createdAt: Instant,
+    createdByCharacterId: CharacterId,
+    updatedAt: Instant,
+    updatedByCharacterId: CharacterId
+)
+
+case class MapSystemNote(
+    id: Long,
+    mapId: MapId,
+    systemId: SystemId,
+    note: String,
+    isDeleted: Boolean,
+    createdAt: Instant,
+    createdByCharacterId: CharacterId,
+    updatedAt: Instant,
+    updatedByCharacterId: CharacterId
+)
+
+case class MapWormholeConnection(
+    id: Long,
+    fromSystemId: SystemId,
+    toSystemId: SystemId,
+    isDeleted: Boolean,
+    createdAt: Instant,
+    createdByCharacterId: CharacterId,
+    updatedAt: Instant,
+    updatedByCharacterId: CharacterId
+)
+
+case class MapSystemSignature(
+    mapId: MapId,
+    systemId: SystemId,
+    signatureId: String,
+    isDeleted: Boolean,
+    signatureGroup: SignatureGroup,
+    signatureTypeName: Option[String],
+    wormholeIsEol: Option[Boolean],
+    wormholeEolAt: Option[Instant],
+    wormholeTypeId: Option[Int],
+    wormholeMassSize: Option[WormholeMassSize],
+    wormholeMassStatus: Option[WormholeMassStatus],
+    wormholeK162Type: Option[WormholeK162Type],
+    wormholeConnectionId: Option[Long],
+    createdAt: Instant,
+    createdByCharacterId: CharacterId,
+    updatedAt: Instant,
+    updatedByCharacterId: CharacterId
+)
 
 case class Alliance(
-    id: Long,
+    id: AllianceId,
     name: String,
     ticker: String,
-    creatorCharacterId: Long,
-    creatorCorporationId: Long,
-    executorCorporationId: Long,
+    creatorCharacterId: CharacterId,
+    creatorCorporationId: CorporationId,
+    executorCorporationId: CorporationId,
     createdAt: Instant,
     updatedAt: Instant
 )
 
 case class Corporation(
-    id: Long,
+    id: CorporationId,
     name: String,
     ticker: String,
-    allianceId: Option[Long],
-    ceoCharacterId: Long,
-    creatorCharacterId: Long,
+    allianceId: Option[AllianceId],
+    ceoCharacterId: CharacterId,
+    creatorCharacterId: CharacterId,
     homeStationId: Long,
     memberCount: Int,
     url: Option[String],

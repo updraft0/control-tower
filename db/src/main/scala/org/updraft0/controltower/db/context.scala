@@ -137,6 +137,120 @@ trait StringJsonExtensions extends Encoders with Decoders:
     sql"json_object($k1, $v1, $k2, $v2, $k3, $v3, $k4, $v4, $k5, $v5, $k6, $v6, $k7, $v7, $k8, $v8)".pure
       .as[JsonValue[R]]
 
+  inline def jsonObject9[R](
+      inline k1: Any,
+      inline v1: Any,
+      inline k2: Any,
+      inline v2: Any,
+      inline k3: Any,
+      inline v3: Any,
+      inline k4: Any,
+      inline v4: Any,
+      inline k5: Any,
+      inline v5: Any,
+      inline k6: Any,
+      inline v6: Any,
+      inline k7: Any,
+      inline v7: Any,
+      inline k8: Any,
+      inline v8: Any,
+      inline k9: Any,
+      inline v9: Any
+  ) =
+    sql"json_object($k1, $v1, $k2, $v2, $k3, $v3, $k4, $v4, $k5, $v5, $k6, $v6, $k7, $v7, $k8, $v8, $k9, $v9)".pure
+      .as[JsonValue[R]]
+
+  inline def jsonObject10[R](
+      inline k1: Any,
+      inline v1: Any,
+      inline k2: Any,
+      inline v2: Any,
+      inline k3: Any,
+      inline v3: Any,
+      inline k4: Any,
+      inline v4: Any,
+      inline k5: Any,
+      inline v5: Any,
+      inline k6: Any,
+      inline v6: Any,
+      inline k7: Any,
+      inline v7: Any,
+      inline k8: Any,
+      inline v8: Any,
+      inline k9: Any,
+      inline v9: Any,
+      inline k10: Any,
+      inline v10: Any
+  ) =
+    sql"json_object($k1, $v1, $k2, $v2, $k3, $v3, $k4, $v4, $k5, $v5, $k6, $v6, $k7, $v7, $k8, $v8, $k9, $v9, $k10, $v10)".pure
+      .as[JsonValue[R]]
+
+  inline def jsonObject11[R](
+      inline k1: Any,
+      inline v1: Any,
+      inline k2: Any,
+      inline v2: Any,
+      inline k3: Any,
+      inline v3: Any,
+      inline k4: Any,
+      inline v4: Any,
+      inline k5: Any,
+      inline v5: Any,
+      inline k6: Any,
+      inline v6: Any,
+      inline k7: Any,
+      inline v7: Any,
+      inline k8: Any,
+      inline v8: Any,
+      inline k9: Any,
+      inline v9: Any,
+      inline k10: Any,
+      inline v10: Any,
+      inline k11: Any,
+      inline v11: Any
+  ) =
+    sql"json_object($k1, $v1, $k2, $v2, $k3, $v3, $k4, $v4, $k5, $v5, $k6, $v6, $k7, $v7, $k8, $v8, $k9, $v9, $k10, $v10, $k11, $v11)".pure
+      .as[JsonValue[R]]
+
+  inline def jsonObject17[R](
+      inline k1: Any,
+      inline v1: Any,
+      inline k2: Any,
+      inline v2: Any,
+      inline k3: Any,
+      inline v3: Any,
+      inline k4: Any,
+      inline v4: Any,
+      inline k5: Any,
+      inline v5: Any,
+      inline k6: Any,
+      inline v6: Any,
+      inline k7: Any,
+      inline v7: Any,
+      inline k8: Any,
+      inline v8: Any,
+      inline k9: Any,
+      inline v9: Any,
+      inline k10: Any,
+      inline v10: Any,
+      inline k11: Any,
+      inline v11: Any,
+      inline k12: Any,
+      inline v12: Any,
+      inline k13: Any,
+      inline v13: Any,
+      inline k14: Any,
+      inline v14: Any,
+      inline k15: Any,
+      inline v15: Any,
+      inline k16: Any,
+      inline v16: Any,
+      inline k17: Any,
+      inline v17: Any
+  ) =
+    sql"json_object($k1, $v1, $k2, $v2, $k3, $v3, $k4, $v4, $k5, $v5, $k6, $v6, $k7, $v7, $k8, $v8, $k9, $v9, $k10, $v10, $k11, $v11, $k12, $v12, $k13, $v13, $k14, $v14, $k15, $v15, $k16, $v16, $k17, $v17)".pure
+      .as[JsonValue[R]]
+
 /** sqlite dialect with json support
   */
 class SqliteJsonZioJdbcContext[+N <: NamingStrategy](val naming: N)
@@ -145,7 +259,8 @@ class SqliteJsonZioJdbcContext[+N <: NamingStrategy](val naming: N)
     with StringJsonExtensions:
   val idiom: SqliteModifiedDialect = SqliteModifiedDialect
 
-  val connDelegate: ZioJdbcUnderlyingContext[SqliteModifiedDialect, N] = new SqliteJsonZioJdbcContext.Underlying[N](naming)
+  val connDelegate: ZioJdbcUnderlyingContext[SqliteModifiedDialect, N] =
+    new SqliteJsonZioJdbcContext.Underlying[N](naming)
 
 object SqliteJsonZioJdbcContext:
   class Underlying[+N <: NamingStrategy](val naming: N)

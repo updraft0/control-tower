@@ -71,7 +71,7 @@ lazy val server = project
       libraryDependencies ++= zio ++ `zio-config` ++ `zio-test`
     )
   )
-  .dependsOn(protocol.jvm, db, `esi-client`)
+  .dependsOn(protocol.jvm, db, `esi-client`, `mini-reactive`)
 
 lazy val `sde-reader` = project
   .in(file("sde-reader"))

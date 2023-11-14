@@ -7,9 +7,134 @@ CREATE TABLE map.map
     name            TEXT    NOT NULL,
     created_at      INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
     creator_user_id INTEGER NOT NULL,
+    display_type    INTEGER NOT NULL DEFAULT 0,
 
     UNIQUE (name, creator_user_id),
     CHECK (name <> '')
+) STRICT;
+
+-- map_system
+CREATE TABLE map.map_system
+(
+    map_id                  INTEGER NOT NULL REFERENCES map (id),
+    system_id               INTEGER NOT NULL,
+    name                    TEXT,
+    is_pinned               INTEGER NOT NULL                     DEFAULT 0,
+    chain_naming_strategy   INTEGER NOT NULL                     DEFAULT 0,
+    description             TEXT,
+    stance                  INTEGER NOT NULL                     DEFAULT 0,
+
+    updated_by_character_id INTEGER NOT NULL,
+    updated_at              INTEGER NOT NULL ON CONFLICT REPLACE DEFAULT (unixepoch() * 1000),
+
+    UNIQUE (map_id, system_id),
+    CHECK (name is null or length(name) > 0),
+    CHECK (is_pinned == 0 or is_pinned == 1),
+    CHECK (stance >= 0 or stance < 3)
+) STRICT;
+
+-- map_system_display
+CREATE TABLE map.map_system_display
+(
+    map_id       INTEGER NOT NULL REFERENCES map (id),
+    system_id    INTEGER NOT NULL,
+    display_type INTEGER NOT NULL,
+    data         TEXT    NOT NULL,
+
+    updated_at   INTEGER NOT NULL ON CONFLICT REPLACE DEFAULT (unixepoch() * 1000),
+
+    UNIQUE (map_id, system_id),
+    FOREIGN KEY (map_id, system_id) REFERENCES map_system (map_id, system_id)
+) STRICT;
+
+-- map_system_structure
+CREATE TABLE map.map_system_structure
+(
+    map_id                  INTEGER NOT NULL REFERENCES map (id),
+    system_id               INTEGER NOT NULL,
+    name                    TEXT    NOT NULL,
+    is_deleted              INTEGER NOT NULL                     DEFAULT 0,
+    owner_corporation_id    INTEGER REFERENCES corporation (id),
+    structure_type          TEXT,
+    location                TEXT,
+
+    created_at              INTEGER NOT NULL                     DEFAULT (unixepoch() * 1000),
+    created_by_character_id INTEGER NOT NULL,
+    updated_at              INTEGER NOT NULL ON CONFLICT REPLACE DEFAULT (unixepoch() * 1000),
+    updated_by_character_id INTEGER NOT NULL,
+
+    UNIQUE (map_id, system_id, name),
+    FOREIGN KEY (map_id, system_id) REFERENCES map_system (map_id, system_id),
+    CHECK (is_deleted == 0 or is_deleted == 1),
+    CHECK (length(structure_type) > 2)
+) STRICT;
+
+-- map_system_note
+CREATE TABLE map.map_system_note
+(
+    id                      INTEGER PRIMARY KEY,
+    map_id                  INTEGER NOT NULL REFERENCES map (id),
+    system_id               INTEGER NOT NULL,
+    note                    TEXT    NOT NULL,
+    is_deleted              INTEGER NOT NULL                     DEFAULT 0,
+
+    created_at              INTEGER NOT NULL                     DEFAULT (unixepoch() * 1000),
+    created_by_character_id INTEGER NOT NULL,
+    updated_at              INTEGER NOT NULL ON CONFLICT REPLACE DEFAULT (unixepoch() * 1000),
+    updated_by_character_id INTEGER NOT NULL,
+
+    FOREIGN KEY (map_id, system_id) REFERENCES map_system (map_id, system_id),
+    CHECK (is_deleted == 0 or is_deleted == 1),
+    CHECK (length(note) > 0)
+) STRICT;
+
+-- map_wormhole_connection
+CREATE TABLE map.map_wormhole_connection
+(
+    id                      INTEGER PRIMARY KEY,
+    from_system_id          INTEGER NOT NULL REFERENCES map_system (system_id),
+    to_system_id            INTEGER NOT NULL REFERENCES map_system (system_id),
+    is_deleted              INTEGER NOT NULL,
+
+    created_at              INTEGER NOT NULL                     DEFAULT (unixepoch() * 1000),
+    created_by_character_id INTEGER NOT NULL,
+    updated_at              INTEGER NOT NULL ON CONFLICT REPLACE DEFAULT (unixepoch() * 1000),
+    updated_by_character_id INTEGER NOT NULL,
+
+    CHECK (is_deleted == 0 or is_deleted == 1)
+) STRICT;
+
+-- map_system_signature
+CREATE TABLE map.map_system_signature
+(
+    map_id                  INTEGER NOT NULL REFERENCES map (id),
+    system_id               INTEGER NOT NULL,
+    signature_id            TEXT    NOT NULL,
+    is_deleted              INTEGER NOT NULL                     DEFAULT 0,
+    signature_group         INTEGER NOT NULL                     DEFAULT 0,
+    signature_type_name     TEXT,
+    wormhole_is_eol         INTEGER,
+    wormhole_eol_at         INTEGER,
+    wormhole_type_id        INTEGER REFERENCES ref_wormhole (type_id),
+    wormhole_mass_size      INTEGER                              DEFAULT 0,
+    wormhole_mass_status    INTEGER                              DEFAULT 0,
+    wormhole_k162_type      INTEGER,
+    wormhole_connection_id  INTEGER REFERENCES map_wormhole_connection (id),
+
+    created_at              INTEGER NOT NULL                     DEFAULT (unixepoch() * 1000),
+    created_by_character_id INTEGER NOT NULL,
+    updated_at              INTEGER NOT NULL ON CONFLICT REPLACE DEFAULT (unixepoch() * 1000),
+    updated_by_character_id INTEGER NOT NULL,
+    expires_at              INTEGER NOT NULL                     DEFAULT ((unixepoch() + 172800 /* 2 days */) * 1000),
+
+    UNIQUE (map_id, system_id, signature_id),
+    FOREIGN KEY (map_id, system_id) REFERENCES map_system (map_id, system_id),
+    CHECK (length(signature_id) == 7),
+    CHECK (is_deleted == 0 or is_deleted == 1),
+    CHECK (signature_group >= 0 and signature_group < 7),
+    CHECK (wormhole_k162_type is null or (wormhole_k162_type >= 0 and wormhole_k162_type < 3)),
+    CHECK (wormhole_is_eol is null or wormhole_is_eol == 0 or wormhole_is_eol == 1),
+    CHECK (wormhole_mass_status is null or (wormhole_mass_status >= 0 and wormhole_mass_status < 4))
 ) STRICT;
 
 -- alliance
@@ -19,8 +144,8 @@ CREATE TABLE map.alliance
     name                    TEXT    NOT NULL,
     ticker                  TEXT    NOT NULL,
     creator_character_id    INTEGER NOT NULL,
-    creator_corporation_id  INTEGER NOT NULL,
-    executor_corporation_id INTEGER NOT NULL,
+    creator_corporation_id  INTEGER NOT NULL REFERENCES corporation (id),
+    executor_corporation_id INTEGER NOT NULL REFERENCES corporation (id),
     created_at              INTEGER NOT NULL                     DEFAULT (unixepoch() * 1000),
     updated_at              INTEGER NOT NULL ON CONFLICT REPLACE DEFAULT (unixepoch() * 1000),
 
@@ -33,7 +158,7 @@ CREATE TABLE map.corporation
     id                   INTEGER PRIMARY KEY,
     name                 TEXT    NOT NULL,
     ticker               TEXT    NOT NULL,
-    alliance_id          INTEGER,
+    alliance_id          INTEGER REFERENCES alliance (id),
     ceo_character_id     INTEGER NOT NULL,
     creator_character_id INTEGER NOT NULL,
     home_station_id      INTEGER NOT NULL,
@@ -43,8 +168,6 @@ CREATE TABLE map.corporation
     updated_at           INTEGER NOT NULL ON CONFLICT REPLACE DEFAULT (unixepoch() * 1000),
 
     UNIQUE (name),
-
-    FOREIGN KEY (alliance_id) REFERENCES alliance (id),
     CHECK (member_count > 0)
 ) STRICT;
 
@@ -71,12 +194,11 @@ CREATE TABLE map.ref_wormhole
 CREATE TABLE map.ref_system_static_wormhole
 (
     system_id      INTEGER NOT NULL,
-    static_type_id INTEGER NOT NULL,
+    static_type_id INTEGER NOT NULL REFERENCES ref_wormhole (type_id),
     valid_from     INTEGER NOT NULL ON CONFLICT REPLACE DEFAULT 0,
     valid_until    INTEGER NOT NULL ON CONFLICT REPLACE DEFAULT 253402300799999, -- 9999-12-31 23:59:59.999
     updated_at     INTEGER NOT NULL ON CONFLICT REPLACE DEFAULT (unixepoch() * 1000),
 
-    FOREIGN KEY (static_type_id) REFERENCES ref_wormhole (type_id),
     UNIQUE (system_id, static_type_id, valid_from),
     CHECK (valid_until > valid_from)
 ) STRICT;

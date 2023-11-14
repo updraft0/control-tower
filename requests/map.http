@@ -1,0 +1,83 @@
+## Map requests
+##
+## Create and manipulate maps
+
+# Create a new map with the given map policy
+# @name CreateNewMap
+< {%
+    request.variables.set("name", "examplemap")
+    request.variables.set("characterId", "2120729046")
+%}
+POST {{api}}/map
+Content-Type: application/json
+Cookie: __Host-CT-Session={{ctsessionid}}
+
+{
+  "name": "{{name}}",
+  "policyMembers": [
+    {
+      "memberId": {{characterId}},
+      "memberType": {"Character": {}},
+      "isDeny": false,
+      "role": {"Admin": {}}
+    }
+  ],
+  "displayType": {"Manual": {}}
+}
+
+###
+
+# Main map WebSocket through which the UI talks in a bidirectional message stream
+# @name MapWebsocket
+< {%
+    request.variables.set("name", "examplemap")
+%}
+WEBSOCKET {{apiws}}/map/{{name}}/{{characterId}}/ws
+Content-Type: application/json
+Cookie: __Host-CT-Session={{ctsessionid}}
+
+# 1. get map snapshot
+# 2. add jita
+
+{"GetSnapshot":  {}}
+
+===
+
+{
+  "AddSystem": {
+    "systemId": 30000142,
+    "name": "TradeHub1",
+    "isPinned": true,
+    "displayData": {"Manual": {"x": 0, "y": 0}},
+    "stance": {"Unknown": {}}
+  }
+}
+
+===
+
+{
+  "UpdateSystemDisplay": {
+    "systemId": 30000142,
+    "displayData": {"Manual": {"x": 20, "y": 0}}
+  }
+}
+
+===
+
+{
+  "RemoveSystem": {
+    "systemId": 30000142
+  }
+}
+
+===
+
+{
+  "UpdateSystemDisplay": {
+    "systemId": 30000142,
+    "displayData": {"Manual": {"x": 42, "y": 42}}
+  }
+}
+
+###
+

@@ -28,6 +28,7 @@ private[db] class MultiDbDatasource(cfg: Config, orig: DataSource) extends DataS
     cfg.flywayConfig.databases.foreach { case (name, (path, _)) =>
       s.execute(s"ATTACH DATABASE '$path' AS $name;")
     }
+    s.execute("PRAGMA foreign_keys = ON;")
     s.close()
     c
 

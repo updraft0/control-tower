@@ -9,12 +9,13 @@ object Endpoints:
   import schema.given
 
   private val SessionCookieName = "__Host-CT-Session"
-  private val SessionCookieOpt = cookie[Option[String]](SessionCookieName).map(_.map(SessionCookie.apply))(_.map(_.value))
+  private val SessionCookieOpt =
+    cookie[Option[String]](SessionCookieName).map(_.map(SessionCookie.apply))(_.map(_.value))
   private val SessionCookieDef = cookie[String](SessionCookieName).map(SessionCookie.apply)(_.value)
 
   private val RedirectHeader = header[String]("Location")
 
-  //region Reference
+  // region Reference
   private val reference = endpoint.in("api" / "reference").errorOut(statusCode.and(stringBody))
 
   val getSolarSystem =
@@ -23,8 +24,8 @@ object Endpoints:
       .out(jsonBody[SolarSystem])
       .description("Get static data for a given solar system")
 
-  val getAllReference     = reference.get.in("all").out(jsonBody[Reference])
-  val getVersion = reference.get.in("version").out(jsonBody[Long])
+  val getAllReference = reference.get.in("all").out(jsonBody[Reference])
+  val getVersion      = reference.get.in("version").out(jsonBody[Long])
 
   val getFactions          = reference.get.in("factions").out(jsonBody[List[Faction]])
   val getShipTypes         = reference.get.in("shipTypes").out(jsonBody[List[ShipType]])
@@ -33,9 +34,9 @@ object Endpoints:
   val getWormholeTypes     = reference.get.in("wormholeTypes").out(jsonBody[List[WormholeType]])
   // TODO: need an endpoint for wormhole sig strength
 
-  //endregion
+  // endregion
 
-  //region Auth
+  // region Auth
   private val auth = endpoint.in("api" / "auth")
 
   val loginRedirect = auth.get
@@ -53,19 +54,21 @@ object Endpoints:
     .out(statusCode(StatusCode.PermanentRedirect))
     .description("ESI OAuth2 callback (redirect)")
 
-  private val user = endpoint.in("api" / "user")
+  private val user = endpoint
+    .in("api" / "user")
     .securityIn(SessionCookieDef)
     .errorOut(plainBody[String])
 
-  val getUserInfo = user.in("info")
+  val getUserInfo = user
+    .in("info")
     .out(jsonBody[UserInfo])
     .description("Return basic user information including their characters and maps")
 
-  //endregion
+  // endregion
 
-
-  //region Map
-  private val map = endpoint.in("api" / "map")
+  // region Map
+  private val map = endpoint
+    .in("api" / "map")
     .securityIn(SessionCookieDef)
     .errorOut(plainBody[String])
 
@@ -75,6 +78,14 @@ object Endpoints:
       .out(jsonBody[MapInfo])
       .description("Create a new map")
 
+  // TODO: delete map
+
+  def mapWebSocket[S](using c: sttp.capabilities.Streams[S]) =
+    map
+      .in(path[String].name("mapName") / path[Long].name("characterId") / "ws")
+      .out(webSocketBody[MapRequest, CodecFormat.Json, MapMessage, CodecFormat.Json](c))
+      .description("Open a WebSocket for map updates")
+
   // TODO better error for validation
 
-  //endregion
+  // endregion

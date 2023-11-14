@@ -1,28 +1,19 @@
 package controltower.page
 
-import controltower.component.{*, given}
-import controltower.ui.*
-import controltower.*
-import controltower.backend.{ControlTowerBackend, ESI}
-
 import com.raquo.airstream.ownership.DynamicOwner
 import com.raquo.laminar.api.L.{*, given}
 import com.raquo.laminar.nodes.ReactiveElement
+import controltower.*
+import controltower.backend.{ControlTowerBackend, ESI}
+import controltower.component.{*, given}
+import controltower.ui.*
 import org.scalajs.dom
 import org.scalajs.dom.document
-import org.updraft0.controltower.protocol.{
-  MapPolicyMember,
-  PolicyMemberType,
-  UserCharacter,
-  UserCharacterMap,
-  UserInfo,
-  MapRole,
-  NewMap
-}
+import org.updraft0.controltower.protocol.*
 import sttp.model.Uri
 
-import scala.util.{Success, Failure}
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.util.{Failure, Success}
 
 object LandingPage:
   def renderPage(using ct: ControlTowerBackend) =
@@ -154,8 +145,7 @@ object NewMapDialogView:
             val name  = nameVar.now()
             val perms = permissionsVar.now().filterNot(_._2.memberId == 0).map(_._2)
 
-            // call the new map creation
-            val newMap = NewMap(name, perms, char.characterId)
+            val newMap = NewMap(name, perms, MapDisplayType.Manual)
             dom.console.debug(s"creating new map: ${newMap}")
             ct.createMap(newMap).onComplete {
               case Failure(ex)          => dom.console.error("failed to call newMap", ex) // FIXME this isn't called??

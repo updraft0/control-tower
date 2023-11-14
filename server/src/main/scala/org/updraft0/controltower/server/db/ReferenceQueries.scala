@@ -50,8 +50,8 @@ object ReferenceQueries:
           .on((sc, f) => sc._2.factionId == Option(f.id)))
           .leftJoin(_._1._1.systemId == sys.id)
         whj <- (systemStaticWormhole
-          .filter(ss => sql"${ss.validFrom} < unixepoch()".asCondition)
-          .filter(ss => sql"${ss.validUntil} > unixepoch()".asCondition)
+          .filter(ss => sql"${ss.validFrom} < (unixepoch() * 1000)".asCondition) // TODO test this
+          .filter(ss => sql"${ss.validUntil} > (unixepoch() * 1000)".asCondition)
           .join(wormhole)
           .on(_.staticTypeId == _.typeId))
           .leftJoin(_._1.systemId == sys.id)

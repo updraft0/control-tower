@@ -8,7 +8,6 @@ import zio.stream.SubscriptionRef
 //  - [ ] Timeouts for mailbox processing
 //  - [ ] Comprehensive tests
 
-
 /** A "reactive entity" is like a "persistent actor"
   *
   * @tparam R
@@ -55,6 +54,12 @@ object MiniReactive:
       current: Ref[S],
       fiber: Fiber[Nothing, Nothing]
   )
+
+  def layer[R, K: Tag, S, I: Tag, O: Tag](
+      entity: ReactiveEntity[R, K, S, I, O],
+      config: MiniReactiveConfig
+  ): ZLayer[R, Nothing, MiniReactive[K, I, O]] =
+    ZLayer.scoped(apply(entity, config))
 
   def apply[R, K, S, I, O](
       entity: ReactiveEntity[R, K, S, I, O],
@@ -108,14 +113,15 @@ object MiniReactive:
           (nextState, msgs) = res
           _ <- stateRef.set(nextState)
 //          _ <- ZIO.logInfo(s"offering msgs")
-          _ <- outbox.offerAll(msgs)
-//          _ <- ZIO.logInfo(s"offered ${msgs}")
+          _ <- ZIO.iterate(msgs)(_.nonEmpty)(outbox.offerAll)
+//          _ <- ZIO.logInfo(s"offered ${msgs}, out: $out, hub: $hubSize")
         yield ()).forever.supervised(sup).forkScoped
 
       private def stop(state: State[K, S, I, O]): UIO[Unit] =
         state.fiber.interrupt.ignoreLogged
 
 // Example
+// FIXME move this out
 
 case class User(id: Long, name: String, age: Int)
 

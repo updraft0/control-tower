@@ -1,8 +1,7 @@
 package org.updraft0.controltower.server.auth
 
-import org.updraft0.controltower.server.db.AuthQueries
-import org.updraft0.controltower.server.db.MapQueries
 import org.updraft0.controltower.db.model
+import org.updraft0.controltower.server.db.{AuthQueries, MapQueries}
 import zio.*
 
 object MapPolicy:
@@ -28,6 +27,15 @@ object MapPolicy:
       characterIds: List[CharacterId]
   ): ZIO[Env, Throwable, Map[CharacterId, List[(MapId, model.MapRole)]]] =
     AuthQueries.getMapPoliciesForCharacter(characterIds).map(resolveCharacterMapPolicies)
+
+  /** Fetch the allowed map ids that a user can access
+    */
+  def allowedMapIdsForUser(userId: Long): RIO[Env, List[(CharacterId, MapId, model.MapRole)]] =
+    AuthQueries.getUserCharactersById(userId).flatMap {
+      case None => ZIO.succeed(List.empty[(CharacterId, MapId, model.MapRole)])
+      case Some((_, chars)) =>
+        allowedMapIdsForCharacters(chars.map(_.id)).map(_.toList.flatMap((k, v) => v.map(mp => (k, mp._1, mp._2))))
+    }
 
   private[auth] def resolveCharacterMapPolicies(
       map: Map[CharacterId, List[model.MapPolicyMember]]
