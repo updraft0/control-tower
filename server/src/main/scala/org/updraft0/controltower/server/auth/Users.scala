@@ -20,7 +20,7 @@ object Users:
           AuthQueries.getUserByCharacterId(tokenMeta.characterId))
           .flatMap {
             case (None, None)                  => newUser(jwt, tokenMeta, sessionId)
-            case (None, Some((user, char)))    => newSession(jwt, tokenMeta, user, char)
+            case (None, Some((user, char)))    => newSession(jwt, tokenMeta, user, char, sessionId)
             case (Some((_, user, _)), None)    => addCharacterToUser(jwt, tokenMeta, user)
             case (Some(_), Some((user, char))) => updateRefreshToken(jwt, tokenMeta, user, char)
           }
@@ -43,8 +43,10 @@ object Users:
       jwt: JwtAuthResponse,
       tokenMeta: EsiTokenMeta,
       user: AuthUser,
-      char: AuthCharacter
-  ): ZIO[Env, Throwable, Unit] = ???
+      char: AuthCharacter,
+      sessionId: UUID
+  ): ZIO[Env, Throwable, Unit] =
+    newUserSession(user.id, sessionId).flatMap(auth.insertUserSession).unit
 
   private def addCharacterToUser(
       jwt: JwtAuthResponse,
@@ -57,7 +59,7 @@ object Users:
       tokenMeta: EsiTokenMeta,
       user: AuthUser,
       char: AuthCharacter
-  ): ZIO[Env, Throwable, Unit] = ???
+  ): ZIO[Env, Throwable, Unit] = ZIO.unit // FIXME implement this?
 
   private def newUserSession(userId: Long, sessionId: UUID) =
     for

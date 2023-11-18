@@ -17,6 +17,7 @@ object Dependencies {
     val laminext          = "0.16.2"
     val quill             = "4.8.0"
     val `scala-java-time` = "2.5.0"
+    val `sjs-dom`         = "2.8.0+3-b7b5301d-SNAPSHOT"
     val snakeyaml         = "2.7"
     val sqlite            = "3.42.0.0"
     val sttp              = "3.9.1"
@@ -26,6 +27,7 @@ object Dependencies {
     val `zio-config`      = "4.0.0-RC16"
     val `zio-json`        = "0.6.2"
     val `zio-logging`     = "2.1.15"
+    val `zio-metrics`     = "2.2.1"
   }
 
   val flyway = Seq(
@@ -75,9 +77,11 @@ object Dependencies {
   )
 
   val zio = Seq(
-    "dev.zio" %% "zio"                       % Versions.zio,
-    "dev.zio" %% "zio-logging-slf4j2-bridge" % Versions.`zio-logging`,
-    "dev.zio" %% "zio-streams"               % Versions.zio
+    "dev.zio" %% "zio"                               % Versions.zio,
+    "dev.zio" %% "zio-logging-slf4j2-bridge"         % Versions.`zio-logging`,
+    "dev.zio" %% "zio-streams"                       % Versions.zio,
+    "dev.zio" %% "zio-metrics-connectors"            % Versions.`zio-metrics`,
+    "dev.zio" %% "zio-metrics-connectors-prometheus" % Versions.`zio-metrics`
   )
 
   val `zio-config` = Seq(

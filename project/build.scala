@@ -19,12 +19,21 @@ object build {
     )
   }
 
+  // work around intellij highlighting issues with ~ui/fastLinkJS
+  val targetSettings =
+    if (System.getenv("IDEA_INITIAL_DIRECTORY") ne null)
+      Seq(
+        target := baseDirectory.value / "target-idea"
+      )
+    else Seq.empty
+
   val commonSettings = Seq(
     organization := "org.updraft0",
     version      := "0.0.1-SNAPSHOT",
     scalaVersion := "3.3.1",
     manifestSetting,
     crossVersion := CrossVersion.binary,
-    scalacOptions += "-explain"
-  )
+    scalacOptions ++= Seq( /*"-explain",*/ "-feature", "-deprecation", "-Wunused:all")
+  ) ++ targetSettings
+
 }

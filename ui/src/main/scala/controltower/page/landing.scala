@@ -92,7 +92,7 @@ object LandingPage:
     )
 
   private def mapLink(map: UserCharacterMap) =
-    val page = Page.Map(map.characterId, map.mapId)
+    val page = Page.Map(map.characterId, map.mapName)
     a(
       Routes.navigateTo(page),
       map.mapName

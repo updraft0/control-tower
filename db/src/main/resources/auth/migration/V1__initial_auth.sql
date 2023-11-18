@@ -40,15 +40,15 @@ CREATE TABLE auth.user
 -- user_character
 CREATE TABLE auth.user_character
 (
-    user_id      INTEGER NOT NULL REFERENCES user (id),
-    character_id INTEGER NOT NULL REFERENCES character (id)
+    user_id      INTEGER NOT NULL REFERENCES user (id) DEFERRABLE INITIALLY DEFERRED,
+    character_id INTEGER NOT NULL REFERENCES character (id) DEFERRABLE INITIALLY DEFERRED
 ) STRICT;
 
 -- user_session
 CREATE TABLE auth.user_session
 (
     session_id   TEXT    NOT NULL,
-    user_id      INTEGER REFERENCES user (id),
+    user_id      INTEGER REFERENCES user (id) DEFERRABLE INITIALLY DEFERRED,
     created_at   INTEGER NOT NULL,
     expires_at   INTEGER NOT NULL,
     last_seen_at INTEGER,
@@ -63,7 +63,7 @@ CREATE TABLE auth.map_policy
 (
     map_id             INTEGER PRIMARY KEY,
 
-    created_by_user_id INTEGER NOT NULL REFERENCES user (id),
+    created_by_user_id INTEGER NOT NULL REFERENCES user (id) DEFERRABLE INITIALLY DEFERRED,
     created_at         INTEGER NOT NULL ON CONFLICT REPLACE DEFAULT (unixepoch() * 1000)
 ) STRICT;
 
@@ -77,9 +77,9 @@ CREATE TABLE auth.map_policy_member
     is_deny            INTEGER NOT NULL                     DEFAULT 0,
     role               TEXT    NOT NULL,
 
-    created_by_user_id INTEGER NOT NULL REFERENCES user (id),
+    created_by_user_id INTEGER NOT NULL REFERENCES user (id) DEFERRABLE INITIALLY DEFERRED,
     created_at         INTEGER NOT NULL ON CONFLICT REPLACE DEFAULT (unixepoch() * 1000),
-    updated_by_user_id INTEGER NOT NULL REFERENCES user (id),
+    updated_by_user_id INTEGER NOT NULL REFERENCES user (id) DEFERRABLE INITIALLY DEFERRED,
     updated_at         INTEGER NOT NULL ON CONFLICT REPLACE DEFAULT (unixepoch() * 1000),
 
     UNIQUE (map_id, member_id, member_type, is_deny, role),

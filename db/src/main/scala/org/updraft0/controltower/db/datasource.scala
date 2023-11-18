@@ -12,15 +12,16 @@ import javax.sql.DataSource
 /** Custom DataSource that attaches multiple SQLite databases into one connection
   */
 object datasource:
-  def layer: ZLayer[Config, Nothing, DataSource] = ZLayer(ZIO.serviceWith[Config](c => apply(c)))
+  def layer: ZLayer[Config, Nothing, DataSource] = ZLayer(ZIO.serviceWith[Config](c => apply(c, false)))
+  def layerSde: ZLayer[Config, Nothing, DataSource] = ZLayer(ZIO.serviceWith[Config](c => apply(c, true)))
 
-  def apply(c: Config): DataSource =
+  def apply(c: Config, inSdeLoad: Boolean): DataSource =
     val cfg = new SQLiteConfig()
     cfg.setJournalMode(SQLiteConfig.JournalMode.WAL)
     val ds = new SQLiteConnectionPoolDataSource(cfg)
-    new MultiDbDatasource(c, ds)
+    new MultiDbDatasource(c, ds, inSdeLoad)
 
-private[db] class MultiDbDatasource(cfg: Config, orig: DataSource) extends DataSource:
+private[db] class MultiDbDatasource(cfg: Config, orig: DataSource, inSdeLoad: Boolean) extends DataSource:
   override def getConnection: Connection =
     val c = orig.getConnection
     val s = c.createStatement()
@@ -28,7 +29,7 @@ private[db] class MultiDbDatasource(cfg: Config, orig: DataSource) extends DataS
     cfg.flywayConfig.databases.foreach { case (name, (path, _)) =>
       s.execute(s"ATTACH DATABASE '$path' AS $name;")
     }
-    s.execute("PRAGMA foreign_keys = ON;")
+    if (!inSdeLoad) s.execute("PRAGMA foreign_keys = ON;") // FIXME figure out why SDE load is violating FK
     s.close()
     c
 

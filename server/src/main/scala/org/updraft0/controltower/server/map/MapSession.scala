@@ -2,57 +2,103 @@ package org.updraft0.controltower.server.map
 
 import org.updraft0.controltower.db.model
 import org.updraft0.controltower.protocol
-import org.updraft0.controltower.protocol.displayType
-import org.updraft0.controltower.server.db.{MapQueries, MapSystemWithAll}
-import zio.stream.{Stream, ZSink, ZStream}
-import zio.{Exit, RIO, Scope, ZIO, ZLayer}
+import org.updraft0.controltower.protocol.jsoncodec.given
+import org.updraft0.controltower.server.Log
+import org.updraft0.controltower.server.db.MapSystemWithAll
+import zio.*
+import zio.http.{ChannelEvent, Handler, WebSocketChannelEvent, WebSocketFrame}
+import zio.json.*
 
 /** Loosely, a map "session" is an open WebSocket for a single (character, map)
+  *
+  * @note
+  *   Using zio-http directly here because of some shutdown issues encountered with the sttp/zio bridge. Basically, with
+  *   the internals of `ZioHttpInterpreter` the incoming WS messages are put on a queue, and there's no handler for
+  *   socket closure (here we do `Channel.awaitShutdown` to close the manually-created scope and release the resources)
   */
 object MapSession:
   type Env = MapReactive.Service
+
+  private case class Context(
+      mapId: MapId,
+      sessionId: MapSessionId,
+      userId: Long,
+      mapQ: Enqueue[Identified[MapRequest]],
+      resQ: Dequeue[Identified[MapResponse]]
+  )
 
   def apply(
       mapId: MapId,
       characterId: Long,
       userId: Long
-  ): RIO[Env, Stream[Throwable, protocol.MapRequest] => Stream[Throwable, protocol.MapMessage]] =
-    // make a manual scope that will be released when the stream finishes (rather than when the outer effect completes)
-    Scope.make.flatMap { scope =>
+  ) = Handler.webSocket: chan =>
+    inContext(mapId, characterId, userId)(
       for
-        streamId <- ZIO.randomWith(_.nextUUID)
-        mapE     <- ZIO.service[MapReactive.Service]
-        mapQ     <- mapE.enqueue(mapId)
-        resQ     <- mapE.subscribe(mapId).provideSome(ZLayer.succeed(scope))
-        _        <- ZIO.logInfo(s"started subscription stream for $mapId/$characterId/$userId")
-      yield { (reqStream: Stream[Throwable, protocol.MapRequest]) =>
+        sid  <- ZIO.service[MapSessionId]
+        _    <- ZIO.logDebug("started map session")
+        mapE <- ZIO.service[MapReactive.Service]
+        mapQ <- mapE.enqueue(mapId)
+        resQ <- mapE.subscribe(mapId)
+        ctx = Context(mapId, sid, userId, mapQ, resQ)
+        // close the scope (and the subscription) if the websocket is closed
+        _ <- ZIO
+          .serviceWithZIO[Scope.Closeable](scope =>
+            chan.awaitShutdown
+              .zipRight(ZIO.logDebug("finished map session due to socket closure"))
+              .zipRight(scope.close(Exit.succeed(())))
+          )
+          .forkDaemon
+        // run the receive from websocket -> queue of inbox and receive from outbox --> websocket in parallel, in scope
+        recv <- ZIO
+          .whileLoop(true)(chan.receive.flatMap(decodeMessage(_)).flatMap {
+            case Some(msg) => processMessage(ctx, msg).unit
+            case None      => ZIO.unit
+          })(identity)
+          .forkScoped
+        send <- ZIO
+          .whileLoop(true)(resQ.take.map(filterToProto(sid)(_)).flatMap {
+            case Some(msg) => chan.send(ChannelEvent.Read(WebSocketFrame.Text(msg.toJson)))
+            case None      => ZIO.unit
+          })(identity)
+          .forkScoped
+        _ <- recv.join
+        _ <- send.join
+      yield ()
+    )
 
-        val requestInStream = reqStream.mapZIO {
-          case protocol.MapRequest.GetSnapshot =>
-            mapQ.offer(Identified(Some(characterId), MapRequest.MapSnapshot))
-          case add: protocol.MapRequest.AddSystem =>
-            mapQ.offer(Identified(Some(characterId), toAddSystem(add)))
-          case upd: protocol.MapRequest.UpdateSystemDisplay =>
-            mapQ.offer(Identified(Some(characterId), toUpdateSystemDisplay(upd)))
-          case protocol.MapRequest.RemoveSystem(systemId) =>
-            mapQ.offer(Identified(Some(characterId), MapRequest.RemoveSystem(systemId)))
-        }.drain
+  private def inContext[R: Tag](mapId: MapId, characterId: Long, userId: Long)(
+      f: ZIO[R & Scope.Closeable & MapSessionId, Throwable, Any]
+  ): ZIO[R, Throwable, Any] =
+    for
+      sessionId <- ZIO.randomWith(_.nextUUID).map(MapSessionId(characterId, _))
+      scope     <- Scope.make
+      res <- f.provideSome[R](ZLayer.succeed(scope), ZLayer.succeed(sessionId)) @@ Log.SessionId(
+        sessionId.sessionId
+      ) @@ Log.MapId(mapId) @@ Log.UserId(userId) @@ Log.CharacterId(sessionId.characterId)
+    yield res
 
-        val mapEntitySubStream = ZStream.fromQueue(resQ).map(filterToProto(characterId))
+  private inline def decodeMessage(ev: WebSocketChannelEvent): Task[Option[protocol.MapRequest]] = ev match
+    case ChannelEvent.Read(WebSocketFrame.Text(msgText)) =>
+      msgText.fromJson[protocol.MapRequest] match
+        case Left(error) => ZIO.logError(s"Unable to decode json: $error").as(None)
+        case Right(msg)  => ZIO.succeed(Some(msg))
+    case ChannelEvent.ExceptionCaught(ex) => ZIO.logErrorCause("Received exception, logging", Cause.fail(ex)).as(None)
+    case ChannelEvent.Unregistered        => ZIO.none
+    case ChannelEvent.UserEventTriggered(ChannelEvent.UserEvent.HandshakeComplete) => ZIO.none
+    case other => ZIO.logError(s"BUG - don't know what to do with message $other").as(None)
 
-        ZStream
-          .mergeAllUnbounded(outputBuffer = 1)(requestInStream, mapEntitySubStream)
-          .filter(_.isDefined)
-          .map(_.get)
-          .onError(cause => scope.close(Exit.failCause(cause))) ++ ZStream.fromZIO(scope.close(Exit.succeed(()))).drain
-      }
-    }
+  private inline def processMessage(ctx: Context, msg: protocol.MapRequest) = msg match
+    case protocol.MapRequest.GetSnapshot =>
+      ctx.mapQ.offer(Identified(Some(ctx.sessionId), MapRequest.MapSnapshot))
+    case add: protocol.MapRequest.AddSystem =>
+      ctx.mapQ.offer(Identified(Some(ctx.sessionId), toAddSystem(add)))
+    case upd: protocol.MapRequest.UpdateSystemDisplay =>
+      ctx.mapQ.offer(Identified(Some(ctx.sessionId), toUpdateSystemDisplay(upd)))
+    case protocol.MapRequest.RemoveSystem(systemId) =>
+      ctx.mapQ.offer(Identified(Some(ctx.sessionId), MapRequest.RemoveSystem(systemId)))
 
-private def filterToProto(characterId: Long)(msg: Identified[MapResponse]): Option[protocol.MapMessage] =
-  msg match
-    case Identified(Some(`characterId`), msg) => toProto(msg)
-    case Identified(Some(_), _)               => None
-    case Identified(None, msg)                => toProto(msg)
+private def filterToProto(sessionId: MapSessionId)(msg: Identified[MapResponse]): Option[protocol.MapMessage] =
+  if (msg.sessionId.forall(_ == sessionId)) toProto(msg.value) else None
 
 private def toProto(msg: MapResponse): Option[protocol.MapMessage] = msg match
   case MapResponse.MapSnapshot(all) =>
@@ -99,9 +145,11 @@ private def toProtoSystems(all: Map[SystemId, MapSystemWithAll]): Vector[protoco
 private def toProtoSystemSnapshot(value: MapSystemWithAll): protocol.MapSystemSnapshot =
   protocol.MapSystemSnapshot(
     system = toProtoSystem(value.sys, value.display),
-    signatures = value.signatures.map(toProtoSignature),
+    display = value.display.map(toProtoDisplay),
+    structures = value.structures.map(toProtoStructure),
     notes = value.notes.map(toProtoNote),
-    structures = value.structures.map(toProtoStructure)
+    signatures = value.signatures.map(toProtoSignature),
+    connections = value.connections.map(toProtoConnection)
   )
 
 private def toProtoSystem(value: model.MapSystem, displayData: Option[model.SystemDisplayData]): protocol.MapSystem =

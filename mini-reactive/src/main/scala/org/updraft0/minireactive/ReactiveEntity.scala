@@ -1,7 +1,11 @@
 package org.updraft0.minireactive
 
 import zio.*
+import zio.logging.LogAnnotation
 import zio.stream.SubscriptionRef
+import zio.metrics.*
+
+import java.util.concurrent.TimeoutException
 
 // TODO:
 //  - [ ] Monitoring
@@ -23,6 +27,8 @@ import zio.stream.SubscriptionRef
   */
 trait ReactiveEntity[R, K, S, I, O]:
 
+  def tag: String
+
   /** Initial state for this entity with given id
     */
   def hydrate(key: K): URIO[R, S]
@@ -31,9 +37,11 @@ trait ReactiveEntity[R, K, S, I, O]:
     */
   def handle(key: K, state: S, in: I): URIO[R, (S, Chunk[O])]
 
-// Actual manager?
+object ReactiveEntity:
+  val Tag            = LogAnnotation[String]("EntityTag", (_, r) => r, identity)
+  def Id[K: zio.Tag] = LogAnnotation[K]("EntityId", (_, r) => r, _.toString)
 
-case class MiniReactiveConfig(mailboxSize: Int)
+case class MiniReactiveConfig(mailboxSize: Int, handlerTimeout: Duration)
 
 /** A 'mini-reactive' is something that manages uniquely identifiable entities, allow to enqueue new messages for them,
   * subscribe to updates, and manage lifetimes (by explicitly destroying entities)
@@ -52,7 +60,10 @@ object MiniReactive:
       outbox: Hub[O],
       key: K,
       current: Ref[S],
-      fiber: Fiber[Nothing, Nothing]
+      fiber: Fiber[Nothing, Nothing],
+      inboxCounter: Metric.Counter[Long],
+      outboxCounter: Metric.Counter[Long],
+      processingTime: Metric.Summary[Double]
   )
 
   def layer[R, K: Tag, S, I: Tag, O: Tag](
@@ -61,7 +72,7 @@ object MiniReactive:
   ): ZLayer[R, Nothing, MiniReactive[K, I, O]] =
     ZLayer.scoped(apply(entity, config))
 
-  def apply[R, K, S, I, O](
+  def apply[R, K: Tag, S, I: Tag, O: Tag](
       entity: ReactiveEntity[R, K, S, I, O],
       config: MiniReactiveConfig
   ): URIO[Scope & R, MiniReactive[K, I, O]] =
@@ -74,7 +85,7 @@ object MiniReactive:
     yield new MiniReactive[K, I, O]:
 
       override def enqueue(key: K): UIO[Enqueue[I]] =
-        lookupOrCreate(key).map(_.inbox)
+        lookupOrCreate(key).map(_.inbox) @@ ReactiveEntity.Tag(entity.tag) @@ ReactiveEntity.Id[K].apply(key)
 
       override def subscribe(key: K): URIO[Scope, Dequeue[O]] =
         lookupOrCreate(key).flatMap(_.outbox.subscribe)
@@ -85,7 +96,7 @@ object MiniReactive:
           .flatMap(ZIO.fromOption)
           .flatMap(stop)
           .as(true)
-          .orElseSucceed(false)
+          .orElseSucceed(false) @@ ReactiveEntity.Tag(entity.tag) @@ ReactiveEntity.Id[K].apply(key)
 
       private def lookupOrCreate(key: K): UIO[State[K, S, I, O]] =
         s.withPermit(
@@ -100,25 +111,53 @@ object MiniReactive:
         for
           inbox        <- Queue.bounded[I](config.mailboxSize)
           outbox       <- Hub.bounded[O](config.mailboxSize)
-          initialState <- entity.hydrate(key).provideEnvironment(env).flatMap(Ref.make)
-          fiber        <- runEntity(key, inbox, outbox, initialState)
-        yield State(inbox, outbox, key, initialState, fiber)
+          initialState <- entity.hydrate(key).provideEnvironment(env).flatMap(Ref.make) // TODO add timeout here too
+          labels        = Set(MetricLabel("entity_tag", entity.tag), MetricLabel("key", key.toString))
+          inboxCounter  = Metric.counter("entity_inbox_count").fromConst(1).tagged(labels)
+          outboxCounter = Metric.counter("entity_outbox_count").tagged(labels)
+          processingTime = Metric
+            .summary("entity_processing_ms", 2.hours, 100, 0.02d, Chunk(0.1, 0.5, 0.95, 0.99))
+            .tagged(labels)
+          fiber <- runEntity(key, inbox, outbox, initialState, inboxCounter, outboxCounter, processingTime)
+        yield State(inbox, outbox, key, initialState, fiber, inboxCounter, outboxCounter, processingTime)
 
-      private def runEntity(key: K, inbox: Queue[I], outbox: Hub[O], stateRef: Ref[S]) =
+      private def runEntity(
+          key: K,
+          inbox: Queue[I],
+          outbox: Hub[O],
+          stateRef: Ref[S],
+          inboxCounter: Metric.Counter[Long],
+          outboxCounter: Metric.Counter[Long],
+          processingTime: Metric.Summary[Double]
+      ) =
         (for
           inMsg <- inbox.take
+          _     <- inboxCounter.update(1)
           state <- stateRef.get
-          res   <- entity.handle(key, state, inMsg).provideEnvironment(env)
+          resT <- entity
+            .handle(key, state, inMsg)
+            .provideEnvironment(env)
+            .timeoutFailCause(Cause.die(new TimeoutException("entity failed to process message")))(
+              config.handlerTimeout
+            )
+            .timed
+          (took, res) = resT
+          _ <- processingTime.update(took.toMillis.toDouble)
+          // FIXME do timeout
 //          _     <- ZIO.logInfo(s"got next state for k ${key} : ${state}")
           (nextState, msgs) = res
           _ <- stateRef.set(nextState)
+          _ <- outboxCounter.update(msgs.size)
 //          _ <- ZIO.logInfo(s"offering msgs")
           _ <- ZIO.iterate(msgs)(_.nonEmpty)(outbox.offerAll)
 //          _ <- ZIO.logInfo(s"offered ${msgs}, out: $out, hub: $hubSize")
         yield ()).forever.supervised(sup).forkScoped
 
       private def stop(state: State[K, S, I, O]): UIO[Unit] =
-        state.fiber.interrupt.ignoreLogged
+        ZIO.logInfo("stopping entity") *>
+          state.fiber.interrupt.ignoreLogged *>
+          state.inbox.shutdown *>
+          state.outbox.shutdown
 
 // Example
 // FIXME move this out
@@ -130,6 +169,7 @@ enum UserChange:
   case Birthday
 
 object UserEntity extends ReactiveEntity[Any, Long, User, UserChange, User]:
+  override def tag = "user"
   override def hydrate(key: Long) =
     ZIO.succeed(User(key, "Bob", 1)) // everyone is always called Bob
 
@@ -150,7 +190,7 @@ object MiniReactiveExample extends ZIOAppDefault:
   def run =
     for
       _     <- ZIO.logInfo("Starting")
-      r     <- MiniReactive(UserEntity, MiniReactiveConfig(100))
+      r     <- MiniReactive(UserEntity, MiniReactiveConfig(100, 10.seconds))
       sub1  <- r.subscribe(1).flatMap(ZStream.fromQueue(_).tap(v => ZIO.logInfo(s"got ${v}")).runDrain).fork
       sub2  <- r.subscribe(2).flatMap(ZStream.fromQueue(_).tap(v => ZIO.logInfo(s"got ${v}")).runDrain).fork
       prod1 <- r.enqueue(1).flatMap(q => q.offer(UserChange.Birthday).delay(5.seconds).repeatN(50)).fork

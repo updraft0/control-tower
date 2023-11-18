@@ -1,22 +1,15 @@
 package org.updraft0.controltower.server.endpoints
 
 import org.updraft0.controltower.db.{model, query as dbquery}
+import org.updraft0.controltower.protocol
 import org.updraft0.controltower.protocol.{SessionCookie as _, *}
-import org.updraft0.controltower.server.Config
 import org.updraft0.controltower.server.Server.EndpointEnv
 import org.updraft0.controltower.server.auth.*
 import org.updraft0.controltower.server.db.{AuthQueries, MapQueries}
 import org.updraft0.controltower.server.map.MapSession
-import org.updraft0.esi.client.EsiClient
 import sttp.capabilities.zio.ZioStreams
-import sttp.client3.UriContext
-import sttp.model.headers.{Cookie, CookieValueWithMeta}
-import sttp.model.{StatusCode, Uri}
 import sttp.tapir.ztapir.*
-import zio.stream.ZStream
 import zio.{Config as _, *}
-
-import java.util.UUID
 
 case class ValidationError(msg: String) extends RuntimeException(msg)
 
@@ -30,20 +23,35 @@ def createMap = Endpoints.createMap
         .mapBoth(toUserError, toMapInfo)
   )
 
-def mapWebSocket = Endpoints
-  .mapWebSocket(using ZioStreams)
-  .zServerSecurityLogic(validateSession)
-  .serverLogic(user =>
-    (mapName, characterId) =>
-      checkUserCanAccessMap(user, characterId, mapName)
-        .flatMap(MapSession(_, characterId, user.userId).mapError(toUserError))
-  )
+// NOTE: See comments in MapSession for why this doesn't use sttp's websocket interop
+def mapWebSocket: zio.http.HttpApp[EndpointEnv] =
+  import zio.http.*
+
+  def validCookie(req: Request): ZIO[EndpointEnv, Response, LoggedInUser] =
+    req
+      .cookieWithOrFail(Endpoints.SessionCookieName)(
+        Response.text("Missing session cookie").status(Status.BadRequest)
+      )(cookie =>
+        validateSession(protocol.SessionCookie(cookie.content)).mapError(msg =>
+          Response.text(msg).status(Status.Unauthorized)
+        )
+      )
+
+  Routes(
+    Method.GET / "api" / "map" / string("mapName") / long("characterId") / "ws" ->
+      handler { (mapName: String, characterId: Long, req: Request) =>
+        validCookie(req).flatMap(user =>
+          checkUserCanAccessMap(user, characterId, mapName)
+            .mapError(Response.text(_).status(Status.Unauthorized))
+            .flatMap(mapId => MapSession(mapId, characterId, user.userId).toResponse)
+        )
+      }
+  ).toHttpApp
 
 def allMapEndpoints
     : List[ZServerEndpoint[EndpointEnv, sttp.capabilities.zio.ZioStreams & sttp.capabilities.WebSockets]] =
   List(
-    createMap.widen[EndpointEnv],
-    mapWebSocket.widen[EndpointEnv]
+    createMap.widen[EndpointEnv]
   )
 
 private def checkUserCanAccessMap(user: LoggedInUser, characterId: Long, mapName: String) =

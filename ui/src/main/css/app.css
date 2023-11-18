@@ -10,8 +10,8 @@
     font-weight: 400;
 
     color-scheme: light dark;
-    color: $gray-lighter;
-    background-color: $bg-color;
+    color: $ gray-lighter;
+    background-color: $ bg-color;
 
     font-synthesis: none;
     text-rendering: optimizeLegibility;
@@ -24,7 +24,7 @@
 
 .character-selection {
     > div {
-        background: $wh-color-magnetar;
+        background: $ wh-color-magnetar;
     }
 }
 
@@ -62,4 +62,112 @@ dialog::backdrop {
     color: $orange-light;
     text-decoration: none;
     cursor: pointer;
+}
+
+/* TODO remove this - just for debugging */
+#debugOverlay {
+    position: absolute;
+    width: 300px;
+    height: 400px;
+    background: $blue-dark;
+    top: 40px;
+    left: 800px;
+}
+
+/* map grid */
+#mapParent {
+    width: 500px;
+    height: 500px;
+    overflow: auto;
+    box-sizing: content-box;
+    border: 1px solid yellow;
+
+
+}
+
+/* TODO removed as wasn't sure this is needed!? */
+#mapInner {
+    position: relative;
+    transform-origin: top left;
+    box-sizing: content-box;
+    height: 100%;
+    width: 100%;
+
+    /* TODO: read about transform-origin */
+    /*transform: scale(50%);*/
+    /*transform-origin: 0 0 0;*/
+}
+
+
+.box {
+    cursor: grab;
+    user-select: none;
+    width: 100px;
+    height: 40px;
+    position: absolute;
+    border: 1px solid $red;
+    box-sizing: border-box; /* important otherwise we need to do math for the border calculation*/
+    box-snap: block-start;
+    border-radius: 5px;
+    background-color: $gray-darkest;
+}
+
+/* FIXME doesn't work https://stackoverflow.com/questions/3540194/how-to-make-a-grid-like-graph-paper-grid-with-just-css
+.dashed-grid-paper {
+
+    --grid-size: 20px;
+    --grid-strength: 1px;
+    --grid-dash: 10px;
+    --grid-gap: 5px;
+    --grid-color: $gray;
+    --paper-color: $gray-darkest;
+
+    background-color: var(--paper-color);
+    background-size: var(--grid-dash) var(--grid-dash), var(--grid-size) var(--grid-size);
+    background-image:
+            linear-gradient(to bottom, transparent var(--grid-gap), var(--paper-color) var(--grid-gap)),
+            linear-gradient(to right, var(--grid-color) var(--grid-strength), transparent var(--grid-strength)),
+            linear-gradient(to right, transparent var(--grid-gap), var(--paper-color) var(--grid-gap)),
+            linear-gradient(to bottom, var(--grid-color) var(--grid-strength), transparent var(--grid-strength));
+    box-sizing: border-box;
+    border: none;
+
+}
+*/
+
+.grid {
+    /*width: 500px;*/
+    /*height: 500px;*/
+    box-sizing: border-box;
+    border: none;
+    background:
+            linear-gradient(0deg, $gray 1px, rgba(0, 0, 0, 0) 1px),
+            linear-gradient(90deg, $gray 1px, rgba(0, 0, 0, 0) 1px),
+            linear-gradient(0deg, rgba(0, 0, 0, 0.05) 1px, rgba(0, 0, 0, 0) 1px),
+            linear-gradient(90deg, rgba(0, 0, 0, 0.05) 1px, rgba(0, 0, 0, 0) 1px)
+
+}
+
+.g-10 {
+    background-size: 10% 10%, 10% 10%, 10% 10%, 10% 10%;
+}
+
+.g-20 {
+    background-size: 5% 5%, 5% 5%, 5% 5%, 5% 5%;
+}
+
+.g-25 {
+    background-size: 4% 4%, 4% 4%, 4% 4%, 4% 4%;
+}
+
+.g-30 {
+    background-size: 3.3% 3.3%, 3.3% 3.3%, 3.3% 3.3%, 3.3% 3.3%;
+}
+
+.g-40 {
+    background-size: 2.5% 2.5%, 2.5% 2.5%, 2.5% 2.5%, 2.5% 2.5%;
+}
+
+.g-50 {
+    background-size: 2% 2%, 2% 2%, 2% 2%, 2% 2%;
 }

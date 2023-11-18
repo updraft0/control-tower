@@ -159,9 +159,11 @@ enum MapSystemSignature(
 
 case class MapSystemSnapshot(
     system: MapSystem,
+    display: Option[SystemDisplayData],
     signatures: Vector[MapSystemSignature],
     notes: Vector[MapSystemNote],
-    structures: Vector[MapSystemStructure]
+    structures: Vector[MapSystemStructure],
+    connections: Vector[MapWormholeConnection]
 )
 
 enum MapRequest:

@@ -8,7 +8,7 @@ object Endpoints:
   import jsoncodec.given
   import schema.given
 
-  private val SessionCookieName = "__Host-CT-Session"
+  private[controltower] val SessionCookieName = "__Host-CT-Session"
   private val SessionCookieOpt =
     cookie[Option[String]](SessionCookieName).map(_.map(SessionCookie.apply))(_.map(_.value))
   private val SessionCookieDef = cookie[String](SessionCookieName).map(SessionCookie.apply)(_.value)

@@ -9,16 +9,16 @@ import scala.util.{Try, Success, Failure}
 
 object Routes:
   private val landingRoute = Route.static(Page.Landing, root)
-  private val mapRoute = Route[Page.Map, (Long, Long)](
-    encode = m => (m.mapId, m.characterId),
-    decode = (mapId, charId) => Page.Map(charId, mapId),
-    pattern = root / "map" / segment[Long] / "char" / segment[Long] / endOfSegments
+  private val mapRoute = Route[Page.Map, (String, Long)](
+    encode = m => (m.name, m.characterId),
+    decode = (name, characterId) => Page.Map(characterId, name),
+    pattern = root / "map" / segment[String] / "char" / segment[Long] / endOfSegments
   )
 
   given ControlTowerBackend = new ControlTowerBackend()
 
   val router = new Router[Page](
-    routes = List(landingRoute, mapRoute),
+    routes = List(mapRoute, landingRoute),
     getPageTitle = _.pageTitle,
     serializePage = _.toJson,
     deserializePage = _.fromJson[Page] match
@@ -26,9 +26,7 @@ object Routes:
       case Right(page) => page
   )(
     popStateEvents = windowEvents(_.onPopState),
-    owner = unsafeWindowOwner,
-    origin = dom.document.location.origin,
-    initialUrl = dom.document.location.href
+    owner = unsafeWindowOwner
   )
 
   private val splitter =
@@ -42,7 +40,7 @@ object Routes:
   // e.g. `a(navigateTo(HomePage), "Back to Home")`
   // See https://github.com/raquo/Waypoint docs for why this modifier is useful in general.
   // Note: for fragment ('#') URLs this isn't actually needed.
-  def navigateTo(page: Page): Binder[HtmlElement] = Binder { el =>
+  def navigateTo(page: Page): Binder[HtmlElement] = Binder: el =>
     val isLinkElement = el.ref.isInstanceOf[dom.html.Anchor]
 
     if (isLinkElement)
@@ -64,4 +62,3 @@ object Routes:
       router.pushState(page)
       dom.window.scrollTo(0, 0) // Scroll to top of page when navigating
     }).bind(el)
-  }

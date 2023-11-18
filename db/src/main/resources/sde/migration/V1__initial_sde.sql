@@ -20,7 +20,7 @@ CREATE TABLE sde.dogma_attribute_type
     unit_id       INTEGER,
     icon_id       INTEGER,
 
-    FOREIGN KEY (category_id) REFERENCES dogma_attribute_category (id)
+    FOREIGN KEY (category_id) REFERENCES dogma_attribute_category (id) DEFERRABLE INITIALLY DEFERRED
 ) STRICT;
 
 -- item_category
@@ -39,7 +39,7 @@ CREATE TABLE sde.item_group
     name        TEXT    NOT NULL,
     icon_id     INTEGER,
 
-    FOREIGN KEY (category_id) REFERENCES item_category (id)
+    FOREIGN KEY (category_id) REFERENCES item_category (id) DEFERRABLE INITIALLY DEFERRED
 ) STRICT;
 
 -- item_name
@@ -49,7 +49,7 @@ CREATE TABLE sde.item_name
     group_id INTEGER NOT NULL,
     name     TEXT    NOT NULL,
 
-    FOREIGN KEY (group_id) REFERENCES item_group (id)
+    FOREIGN KEY (group_id) REFERENCES item_group (id) DEFERRABLE INITIALLY DEFERRED
 ) STRICT;
 
 -- item_type
@@ -62,7 +62,7 @@ CREATE TABLE sde.item_type
     mass        REAL,
     volume      REAL,
 
-    FOREIGN KEY (group_id) REFERENCES item_group (id)
+    FOREIGN KEY (group_id) REFERENCES item_group (id) DEFERRABLE INITIALLY DEFERRED
 ) STRICT;
 
 -- item_dogma_attribute
@@ -72,8 +72,8 @@ CREATE TABLE sde.item_dogma_attribute
     attribute_id INTEGER NOT NULL,
     value        REAL    NOT NULL,
 
-    FOREIGN KEY (item_id) REFERENCES item_type (id),
-    FOREIGN KEY (attribute_id) REFERENCES dogma_attribute_type (id),
+    FOREIGN KEY (item_id) REFERENCES item_type (id) DEFERRABLE INITIALLY DEFERRED,
+    FOREIGN KEY (attribute_id) REFERENCES dogma_attribute_type (id) DEFERRABLE INITIALLY DEFERRED,
     UNIQUE (item_id, attribute_id)
 ) STRICT;
 
@@ -99,8 +99,8 @@ CREATE TABLE sde.station_operation_service
     operation_id INTEGER NOT NULL,
     service_id   INTEGER NOT NULL,
 
-    FOREIGN KEY (operation_id) REFERENCES station_operation,
-    FOREIGN KEY (service_id) REFERENCES station_service,
+    FOREIGN KEY (operation_id) REFERENCES station_operation DEFERRABLE INITIALLY DEFERRED,
+    FOREIGN KEY (service_id) REFERENCES station_service DEFERRABLE INITIALLY DEFERRED,
     UNIQUE (operation_id, service_id)
 ) STRICT;
 
@@ -112,7 +112,7 @@ CREATE TABLE sde.region
     wh_class_id INTEGER,
     faction_id  INTEGER,
 
-    FOREIGN KEY (id) REFERENCES item_name (id),
+    FOREIGN KEY (id) REFERENCES item_name (id) DEFERRABLE INITIALLY DEFERRED,
     CHECK (wh_class_id > 0 AND wh_class_id < 26)
     -- no fk constraint on faction_id due to reference
 ) STRICT;
@@ -125,8 +125,8 @@ CREATE TABLE sde.constellation
     region_id   INTEGER NOT NULL,
     region_name TEXT    NOT NULL,
 
-    FOREIGN KEY (id) REFERENCES item_name (id),
-    FOREIGN KEY (region_id) REFERENCES region (id)
+    FOREIGN KEY (id) REFERENCES item_name (id) DEFERRABLE INITIALLY DEFERRED,
+    FOREIGN KEY (region_id) REFERENCES region (id) DEFERRABLE INITIALLY DEFERRED
 ) STRICT;
 
 -- solar_system_star
@@ -135,7 +135,7 @@ CREATE TABLE sde.solar_system_star
     id      INTEGER PRIMARY KEY,
     type_id INTEGER NOT NULL,
 
-    FOREIGN KEY (type_id) REFERENCES item_type (id)
+    FOREIGN KEY (type_id) REFERENCES item_type (id) DEFERRABLE INITIALLY DEFERRED
 ) STRICT;
 
 -- solar_system
@@ -159,12 +159,12 @@ CREATE TABLE sde.solar_system
     international      INTEGER NOT NULL,
     regional           INTEGER NOT NULL,
 
-    FOREIGN KEY (id) REFERENCES item_name (id),
-    FOREIGN KEY (star_id) REFERENCES solar_system_star (id),
-    FOREIGN KEY (region_id) REFERENCES region (id),
-    FOREIGN KEY (constellation_id) REFERENCES constellation (id),
-    FOREIGN KEY (effect_type_id) REFERENCES item_type (id),
-    FOREIGN KEY (star_type_id) REFERENCES item_type (id),
+    FOREIGN KEY (id) REFERENCES item_name (id) DEFERRABLE INITIALLY DEFERRED,
+    FOREIGN KEY (star_id) REFERENCES solar_system_star (id) DEFERRABLE INITIALLY DEFERRED,
+    FOREIGN KEY (region_id) REFERENCES region (id) DEFERRABLE INITIALLY DEFERRED,
+    FOREIGN KEY (constellation_id) REFERENCES constellation (id) DEFERRABLE INITIALLY DEFERRED,
+    FOREIGN KEY (effect_type_id) REFERENCES item_type (id) DEFERRABLE INITIALLY DEFERRED,
+    FOREIGN KEY (star_type_id) REFERENCES item_type (id) DEFERRABLE INITIALLY DEFERRED,
     CHECK (border == 1 or border == 0),
     CHECK (corridor == 1 or corridor == 0),
     CHECK (fringe == 1 or fringe == 0),
@@ -181,8 +181,8 @@ CREATE TABLE sde.solar_system_planet
     idx       INTEGER NOT NULL,
     type_id   INTEGER NOT NULL,
 
-    FOREIGN KEY (system_id) REFERENCES solar_system (id),
-    FOREIGN KEY (type_id) REFERENCES item_type (id),
+    FOREIGN KEY (system_id) REFERENCES solar_system (id) DEFERRABLE INITIALLY DEFERRED,
+    FOREIGN KEY (type_id) REFERENCES item_type (id) DEFERRABLE INITIALLY DEFERRED,
     UNIQUE (system_id, idx),
     CHECK (idx > 0)
 ) STRICT;
@@ -195,8 +195,8 @@ CREATE TABLE sde.solar_system_moon
     system_id INTEGER NOT NULL,
     idx       INTEGER NOT NULL,
 
-    FOREIGN KEY (planet_id) REFERENCES solar_system_planet (id),
-    FOREIGN KEY (system_id) REFERENCES solar_system (id),
+    FOREIGN KEY (planet_id) REFERENCES solar_system_planet (id) DEFERRABLE INITIALLY DEFERRED,
+    FOREIGN KEY (system_id) REFERENCES solar_system (id) DEFERRABLE INITIALLY DEFERRED,
     UNIQUE (planet_id, idx),
     CHECK (idx > 0)
 ) STRICT;
@@ -208,8 +208,8 @@ CREATE TABLE sde.solar_system_asteroid_belt
     planet_id INTEGER NOT NULL,
     system_id INTEGER NOT NULL,
 
-    FOREIGN KEY (planet_id) REFERENCES solar_system_planet (id),
-    FOREIGN KEY (system_id) REFERENCES solar_system (id)
+    FOREIGN KEY (planet_id) REFERENCES solar_system_planet (id) DEFERRABLE INITIALLY DEFERRED,
+    FOREIGN KEY (system_id) REFERENCES solar_system (id) DEFERRABLE INITIALLY DEFERRED
 ) STRICT;
 
 -- stargate
@@ -219,8 +219,8 @@ CREATE TABLE sde.stargate
     system_id    INTEGER NOT NULL,
     to_system_id INTEGER NOT NULL,
 
-    FOREIGN KEY (system_id) REFERENCES solar_system (id),
-    FOREIGN KEY (to_system_id) REFERENCES solar_system (id)
+    FOREIGN KEY (system_id) REFERENCES solar_system (id) DEFERRABLE INITIALLY DEFERRED,
+    FOREIGN KEY (to_system_id) REFERENCES solar_system (id) DEFERRABLE INITIALLY DEFERRED
 ) STRICT;
 
 -- npc_station
@@ -235,11 +235,11 @@ CREATE TABLE sde.npc_station
     moon_id      INTEGER,
     system_id    INTEGER NOT NULL,
 
-    FOREIGN KEY (planet_id) REFERENCES solar_system_planet (id),
-    FOREIGN KEY (moon_id) REFERENCES solar_system_moon (id),
-    FOREIGN KEY (operation_id) REFERENCES station_operation (id),
-    FOREIGN KEY (system_id) REFERENCES solar_system (id),
-    FOREIGN KEY (type_id) REFERENCES item_type (id)
+    FOREIGN KEY (planet_id) REFERENCES solar_system_planet (id) DEFERRABLE INITIALLY DEFERRED,
+    FOREIGN KEY (moon_id) REFERENCES solar_system_moon (id) DEFERRABLE INITIALLY DEFERRED,
+    FOREIGN KEY (operation_id) REFERENCES station_operation (id) DEFERRABLE INITIALLY DEFERRED,
+    FOREIGN KEY (system_id) REFERENCES solar_system (id) DEFERRABLE INITIALLY DEFERRED,
+    FOREIGN KEY (type_id) REFERENCES item_type (id) DEFERRABLE INITIALLY DEFERRED
 ) STRICT;
 
 -- faction
@@ -259,7 +259,7 @@ CREATE TABLE sde.faction
     -- no cross-referential fk constraints due to no alter table support for adding those
     -- FOREIGN KEY (corporation_id) REFERENCES npc_corporation (id),
     -- FOREIGN KEY (militia_corporation_id) REFERENCES npc_corporation (id),
-    FOREIGN KEY (system_id) REFERENCES solar_system (id),
+    FOREIGN KEY (system_id) REFERENCES solar_system (id) DEFERRABLE INITIALLY DEFERRED,
     CHECK (unique_name == 1 or unique_name == 0)
 ) STRICT;
 
@@ -278,8 +278,8 @@ CREATE table sde.npc_corporation
     ticker          TEXT NOT NULL,
     unique_name     INT  NOT NULL,
 
-    FOREIGN KEY (faction_id) REFERENCES faction (id),
-    FOREIGN KEY (solar_system_id) REFERENCES solar_system (id),
-    FOREIGN KEY (station_id) REFERENCES npc_station (id),
+    FOREIGN KEY (faction_id) REFERENCES faction (id) DEFERRABLE INITIALLY DEFERRED,
+    FOREIGN KEY (solar_system_id) REFERENCES solar_system (id) DEFERRABLE INITIALLY DEFERRED,
+    FOREIGN KEY (station_id) REFERENCES npc_station (id) DEFERRABLE INITIALLY DEFERRED,
     CHECK (unique_name == 1 or unique_name == 0)
 ) STRICT;

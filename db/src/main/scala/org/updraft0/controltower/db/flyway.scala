@@ -40,6 +40,5 @@ private def configureFlyway(dbName: String, dbPath: String, migrationFolder: Str
 private def initSql(dbName: String, dbPath: String) =
   List(
     s"ATTACH DATABASE '${dbPath}' AS $dbName;",
-    s"PRAGMA ${dbName}.journal_mode = WAL;",
-    s"PRAGMA foreign_keys = ON;"
+    s"PRAGMA ${dbName}.journal_mode = WAL;"
   ).mkString(" ")

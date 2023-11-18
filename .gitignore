@@ -17,6 +17,7 @@ target/
 
 # IDEA specific
 /.idea/
+target-idea/
 
 # EVE specific
 /sde/

@@ -80,7 +80,7 @@ lazy val `sde-reader` = project
 
 lazy val ui = project
   .in(file("ui"))
-  .enablePlugins(ScalaJSPlugin, JSDependenciesPlugin)
+  .enablePlugins(ScalaJSPlugin)
   .settings(
     commonSettings,
     scalaJSLinkerConfig ~= {
@@ -94,9 +94,6 @@ lazy val ui = project
       _.withSourceMap(true)
     },
     scalaJSUseMainModuleInitializer := true,
-    jsDependencies ++= Seq(
-      "org.webjars.npm" % "interactjs" % Versions.interactJs / s"${Versions.interactJs}/dist/interact.js"
-    ),
     libraryDependencies ++= Seq(
       // doesn't seem to be a nice way to refer to both scala and scalajs dependencies in one place *sigh*
       "com.raquo" %%% "laminar"  % Versions.laminar,
@@ -108,8 +105,9 @@ lazy val ui = project
       "com.softwaremill.sttp.tapir" %%% "tapir-sttp-client" % Versions.tapir,
       "io.github.cquiroz" %%% "scala-java-time" % Versions.`scala-java-time`, // implementations of java.time classes for Scala.JS
       "com.softwaremill.sttp.client3" %%% "core" % Versions.sttp,
-      // interactjs-scala
-//      "com.github.busti" %%% "scalajs-interactjs" % Versions.interactJsScala, // TODO https://github.com/busti/scalajs-interactjs/issues/4
+
+      // custom sjs-dom for now
+      "org.scala-js" %%% "scalajs-dom" % Versions.`sjs-dom`,
 
       // test
       "dev.zio" %%% "zio-test"          % Versions.zio % Test,

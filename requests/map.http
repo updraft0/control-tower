@@ -37,6 +37,10 @@ Cookie: __Host-CT-Session={{ctsessionid}}
 
 # 1. get map snapshot
 # 2. add jita
+# 3. set coordinates
+# 4. remove jita again
+# 5. readd jita by updating coordinates
+# 6. add amarr
 
 {"GetSnapshot":  {}}
 
@@ -45,7 +49,7 @@ Cookie: __Host-CT-Session={{ctsessionid}}
 {
   "AddSystem": {
     "systemId": 30000142,
-    "name": "TradeHub1",
+    "name": "Jita (trade)",
     "isPinned": true,
     "displayData": {"Manual": {"x": 0, "y": 0}},
     "stance": {"Unknown": {}}
@@ -78,5 +82,40 @@ Cookie: __Host-CT-Session={{ctsessionid}}
   }
 }
 
+===
+
+{
+  "AddSystem": {
+    "systemId": 30002187,
+    "name": "Amarr (trade)",
+    "isPinned": true,
+    "displayData": {"Manual": {"x": 84, "y": 42}},
+    "stance": {"Unknown": {}}
+  }
+}
+
+===
+
+{
+  "AddSystem": {
+    "systemId": 30002659,
+    "name": "Dodixie",
+    "isPinned": true,
+    "displayData": {"Manual": {"x": 42, "y": 200}},
+    "stance": {"Unknown": {}}
+  }
+}
+
+===
+
+{
+  "AddSystem": {
+    "systemId": 30002510,
+    "name": "Rens",
+    "isPinned": true,
+    "displayData": {"Manual": {"x": 42, "y": 240}},
+    "stance": {"Unknown": {}}
+  }
+}
 ###
 
