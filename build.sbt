@@ -117,8 +117,20 @@ lazy val ui = project
   )
   .dependsOn(protocol.js)
 
-lazy val root = (project in file("."))
-  .aggregate(constant.js, constant.jvm, db, `esi-client`, `mini-reactive`, protocol.js, protocol.jvm, server, `sde-reader`, ui)
+lazy val root = project
+  .in(file("."))
+  .aggregate(
+    constant.js,
+    constant.jvm,
+    db,
+    `esi-client`,
+    `mini-reactive`,
+    protocol.js,
+    protocol.jvm,
+    server,
+    `sde-reader`,
+    ui
+  )
   .settings(
     targetSettings,
     // crossScalaVersions must be set to Nil on the aggregating project
