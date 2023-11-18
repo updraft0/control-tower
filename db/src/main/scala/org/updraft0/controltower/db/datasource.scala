@@ -12,7 +12,7 @@ import javax.sql.DataSource
 /** Custom DataSource that attaches multiple SQLite databases into one connection
   */
 object datasource:
-  def layer: ZLayer[Config, Nothing, DataSource] = ZLayer(ZIO.serviceWith[Config](c => apply(c, false)))
+  def layer: ZLayer[Config, Nothing, DataSource]    = ZLayer(ZIO.serviceWith[Config](c => apply(c, false)))
   def layerSde: ZLayer[Config, Nothing, DataSource] = ZLayer(ZIO.serviceWith[Config](c => apply(c, true)))
 
   def apply(c: Config, inSdeLoad: Boolean): DataSource =

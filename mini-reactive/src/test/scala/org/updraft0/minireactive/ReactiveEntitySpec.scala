@@ -16,6 +16,7 @@ object ReactiveEntitySpec extends ZIOSpecDefault:
     case Current(value: Int)
 
   object CounterEntity extends ReactiveEntity[Any, String, Int, CounterMessage, CounterReply]:
+    override def tag                  = "counter"
     override def hydrate(key: String) = ZIO.succeed(0)
     override def handle(key: String, state: Int, in: CounterMessage) =
       in match
@@ -26,7 +27,7 @@ object ReactiveEntitySpec extends ZIOSpecDefault:
     suite("counter reactive entity")(
       test("can respond to a sequence of get/increment messages"):
           for
-            entity <- MiniReactive(CounterEntity, MiniReactiveConfig(16))
+            entity <- MiniReactive(CounterEntity, MiniReactiveConfig(16, Duration.Infinity))
             inQ    <- entity.enqueue("test")
             outQ   <- entity.subscribe("test")
             _      <- ZStream(Get, Incr, Get, Incr, Incr, Get, Incr, Get).mapZIO(inQ.offer).runDrain.forkScoped

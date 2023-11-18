@@ -167,14 +167,12 @@ case class MapSystemSnapshot(
 )
 
 enum MapRequest:
-  /**
-   * A snapshot of the map's systems, signatures, connections + intel data
-   */
+  /** A snapshot of the map's systems, signatures, connections + intel data
+    */
   case GetSnapshot
 
-  /**
-   * (idempotent) Add/update a system on the map
-   */
+  /** (idempotent) Add/update a system on the map
+    */
   case AddSystem(
       systemId: Long,
       name: Option[String],
@@ -183,21 +181,18 @@ enum MapRequest:
       stance: IntelStance
   )
 
-  /**
-   * Change the display of the system (e.g. to move it around on the map)
-   */
+  /** Change the display of the system (e.g. to move it around on the map)
+    */
   case UpdateSystemDisplay(systemId: Long, displayData: SystemDisplayData)
 
-  /**
-   * Remove a system from the map (this only deletes display data and clears the pinned status)
-   */
+  /** Remove a system from the map (this only deletes display data and clears the pinned status)
+    */
   case RemoveSystem(systemId: Long)
 
 // TODO: add wh static information to the system snapshot!
 // TODO: add reference endpoint (if not already existing) to wh statics?
 // TODO: have a think about connections and when they get cleaned up (delete connection *and* delete signature?)
 // TODO: enforce the level of permissions that a user can have! (and document that)
-
 
 enum MapMessage:
   case MapSnapshot(systems: Vector[MapSystemSnapshot], connections: Map[Long, MapWormholeConnection])

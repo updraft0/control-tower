@@ -1,12 +1,10 @@
 package org.updraft0.esi.client
 
+import com.github.plokhotnyuk.jsoniter_scala.core.*
+import com.github.plokhotnyuk.jsoniter_scala.macros.*
 import sttp.tapir.*
 import sttp.tapir.SchemaType.SString
 import sttp.tapir.generic.Configuration
-import com.github.plokhotnyuk.jsoniter_scala.macros.*
-import com.github.plokhotnyuk.jsoniter_scala.core.*
-
-import java.util.Base64
 
 object schema:
   given Configuration = Configuration.default.withSnakeCaseMemberNames
@@ -17,8 +15,8 @@ object schema:
   given Schema[JwtString]         = Schema(SString().as[JwtString])
 
   // character
-  given Schema[CharacterRoles] = Schema.derived
-  given Schema[Character] = Schema.derived
+  given Schema[CharacterRoles]       = Schema.derived
+  given Schema[Character]            = Schema.derived
   given Schema[CharacterAffiliation] = Schema.derived
 
 object jsoncodec:
@@ -40,9 +38,8 @@ object jsoncodec:
   given JsonValueCodec[JwtAuthResponse]   = JsonCodecMaker.make(config)
   given JsonValueCodec[AuthErrorResponse] = JsonCodecMaker.make(config)
 
-
   // character
-  given JsonValueCodec[CharacterRoles] = JsonCodecMaker.make(config)
-  given JsonValueCodec[Character] = JsonCodecMaker.make(config)
-  given listOfLong: JsonValueCodec[List[Long]] = JsonCodecMaker.make
+  given JsonValueCodec[CharacterRoles]             = JsonCodecMaker.make(config)
+  given JsonValueCodec[Character]                  = JsonCodecMaker.make(config)
+  given listOfLong: JsonValueCodec[List[Long]]     = JsonCodecMaker.make
   given JsonValueCodec[List[CharacterAffiliation]] = JsonCodecMaker.make(config)

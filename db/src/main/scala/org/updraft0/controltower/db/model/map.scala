@@ -27,9 +27,8 @@ enum MapDisplayType extends Enum[MapDisplayType]:
   case Manual
 
 enum SystemDisplayData:
-  /**
-   * Manual position of system on grid in (x, y) coordinate (not pixels)
-   */
+  /** Manual position of system on grid in (x, y) coordinate (not pixels)
+    */
   case Manual(x: Int, y: Int)
 
 extension (sd: SystemDisplayData)
@@ -51,11 +50,7 @@ case class MapSystem(
     updatedAt: Instant
 )
 
-case class MapSystemDisplay(
-    mapId: MapId,
-    systemId: SystemId,
-    displayType: MapDisplayType,
-    data: SystemDisplayData)
+case class MapSystemDisplay(mapId: MapId, systemId: SystemId, displayType: MapDisplayType, data: SystemDisplayData)
 
 case class MapSystemStructure(
     mapId: MapId,

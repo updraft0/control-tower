@@ -3,7 +3,6 @@ package org.updraft0.esi.client
 import sttp.tapir.*
 import sttp.tapir.json.jsoniter.*
 import sttp.tapir.model.UsernamePassword
-import java.time.Instant
 
 case class JwtString(value: String)
 
@@ -43,4 +42,3 @@ object Endpoints:
     .in(jsonBody[List[Long]])
     .out(jsonBody[List[CharacterAffiliation]])
     .description("Bulk lookup of character IDs to corporation, alliance and faction")
-

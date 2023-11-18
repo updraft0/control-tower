@@ -2,7 +2,6 @@ package org.updraft0.minireactive
 
 import zio.*
 import zio.logging.LogAnnotation
-import zio.stream.SubscriptionRef
 import zio.metrics.*
 
 import java.util.concurrent.TimeoutException
