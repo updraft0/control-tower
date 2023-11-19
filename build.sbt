@@ -42,7 +42,7 @@ lazy val `mini-reactive` = project
 
 lazy val protocol =
   crossProject(JSPlatform, JVMPlatform)
-    .crossType(CrossType.Pure)
+    .crossType(CrossType.Full)
     .in(file("protocol"))
     .settings(commonSettings)
     .jvmSettings(
@@ -53,6 +53,8 @@ lazy val protocol =
       libraryDependencies ++= Seq(
         "com.softwaremill.sttp.tapir" %%% "tapir-core"     % Versions.tapir,
         "com.softwaremill.sttp.tapir" %%% "tapir-json-zio" % Versions.tapir,
+        // native json object conversion
+        "org.getshaka" %%% "native-converter" % Versions.`native-converter`,
         // tests
         "dev.zio" %%% "zio-json"          % Versions.`zio-json`,
         "dev.zio" %%% "zio-test"          % Versions.zio % Test,

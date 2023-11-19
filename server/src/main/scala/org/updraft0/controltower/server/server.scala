@@ -49,7 +49,15 @@ object Server extends ZIOAppDefault:
       )
 
   private def httpConfigLayer: ZLayer[Config, Throwable, ZServer] =
-    ZLayer(ZIO.service[Config].map(cfg => ZServer.defaultWith(_.binding(cfg.http.host, cfg.http.port)))).flatten
+    ZLayer(
+      ZIO.serviceWith[Config]: cfg =>
+        ZServer.defaultWith(
+          _.binding(cfg.http.host, cfg.http.port).responseCompression(
+            // TODO revisit compression options if needed
+            ZServer.Config.ResponseCompressionConfig(1000, Vector(ZServer.Config.CompressionOptions.gzip(level = 1)))
+          )
+        )
+    ).flatten
 
   private def prometheusRouter =
     import zio.http.*

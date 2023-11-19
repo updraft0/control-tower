@@ -5,13 +5,15 @@ import org.updraft0.controltower.constant.WormholeClass
 /** Pre-loaded reference of types that are commonly needed in the web app
   */
 case class Reference(
-    version: Long,
+    version: Int,
     factions: List[Faction],
     shipTypes: List[ShipType],
     starTypes: List[StarType],
     stationOperations: List[StationOperation],
     wormholeTypes: List[WormholeType]
 )
+
+case class ReferenceSolarSystems(version: Int, solarSystems: List[SolarSystem])
 
 case class StationService(id: Int, name: String)
 

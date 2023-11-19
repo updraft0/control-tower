@@ -6,8 +6,9 @@
 
 # Get authorization config such as server hostname, and parameters for the oauth2 callback.
 # Also sets the session cookie if one is not present.
-# @name GetAuthConfig
-PUT {{api}}/auth/config
+# @name GetAuthUser
+GET {{api}}/user/info
+Cookie: __Host-CT-Session={{ctsessionid}}
 
 ###
 

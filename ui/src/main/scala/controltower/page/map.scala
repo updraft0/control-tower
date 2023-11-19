@@ -14,6 +14,7 @@ import org.updraft0.controltower.protocol.{
   SystemDisplayData
 }
 import controltower.ui.{FakeMapVar, FakeVar, FakeVarM, FakeVectorVar}
+import controltower.db.ReferenceDataStore
 
 import scala.collection.immutable.TreeMap
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -28,6 +29,14 @@ object MapPage:
   def renderPage(map: Page.Map)(using ct: ControlTowerBackend) =
     // TODO: websocket - abstract away? :)
     val owner = ManualOwner()
+
+    val staticData =
+      ReferenceDataStore
+        .usingBackend()
+        .onComplete(res =>
+          org.scalajs.dom.console.info(s"got db backend: $res")
+          res.foreach(_.searchSystemName("Jit").onComplete(res => org.scalajs.dom.console.info(s"got system $res")))
+        )
 
     val reqBus   = EventBus[MapRequest]()
     val mapState = FakeMapVar[Long, MapSystemSnapshot]()

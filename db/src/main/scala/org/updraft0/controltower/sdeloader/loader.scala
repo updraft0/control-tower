@@ -8,7 +8,6 @@ import zio.*
 import zio.stream.ZStream
 
 import javax.sql.DataSource
-import scala.annotation.switch
 
 // fixme how to recover better error handling?
 case class ParserException(message: String, cause: parser.Error) extends RuntimeException(message)
@@ -19,22 +18,25 @@ private[sdeloader] enum ImportState:
 
 /** Loads the whole of the SDE (group) data into the db
   */
-def intoDb(sde: ZStream[Any, parser.Error, GroupedExport]): RIO[DataSource, Chunk[Long]] =
+def intoDb(sde: ZStream[Any, parser.Error, GroupedExport]): RIO[DataSource, (Int, Chunk[Long])] =
   query.transaction(
-    sde
-      .mapError(e => ParserException(s"Parser failed: $e", e))
-      .mapAccumZIO(ImportState.Initial(): ImportState) {
-        case (i: ImportState.Initial, GroupedExport.Ungrouped(names: ExportedData.UniqueNames)) =>
-          loadSingle(names)
-            .map(res => nextState(i.copy(uniqueNames = Some(names))) -> res)
-        case (_: ImportState.Initial, _: GroupedExport.RegionSolarSystems) =>
-          unsupported("BUG: Not seen all the data required to load solar systems yet")
-        case (r: ImportState.ReadyForSolarSystems, rss: GroupedExport.RegionSolarSystems) =>
-          loadSolarSystems(r, rss).map(res => r -> res)
-        case (s, GroupedExport.Ungrouped(other)) =>
-          loadSingle(other).map(res => s -> res)
-      }
-      .runCollect
+    for
+      version <- query.sde.insertVersion(meta = None /* TODO add metadata*/ )
+      res <- sde
+        .mapError(e => ParserException(s"Parser failed: $e", e))
+        .mapAccumZIO(ImportState.Initial(): ImportState) {
+          case (i: ImportState.Initial, GroupedExport.Ungrouped(names: ExportedData.UniqueNames)) =>
+            loadSingle(names)
+              .map(res => nextState(i.copy(uniqueNames = Some(names))) -> res)
+          case (_: ImportState.Initial, _: GroupedExport.RegionSolarSystems) =>
+            unsupported("BUG: Not seen all the data required to load solar systems yet")
+          case (r: ImportState.ReadyForSolarSystems, rss: GroupedExport.RegionSolarSystems) =>
+            loadSolarSystems(r, rss).map(res => r -> res)
+          case (s, GroupedExport.Ungrouped(other)) =>
+            loadSingle(other).map(res => s -> res)
+        }
+        .runCollect
+    yield (version, res)
   )
 
 private[sdeloader] def nextState(state: ImportState): ImportState = state match {

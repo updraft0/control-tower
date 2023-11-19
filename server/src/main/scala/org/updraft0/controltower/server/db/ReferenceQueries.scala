@@ -25,6 +25,9 @@ object ReferenceQueries:
 
   private val ShipCategoryId = 6
 
+  def getVersion: Result[model.Version] =
+    run(quote(version).sortBy(_.createdAt)(Ord.desc).take(1)).map(_.head)
+
   def getFactions: Result[List[protocol.Faction]] =
     run(faction).map(_.map(f => protocol.Faction(f.id, f.name, f.corporationId, f.militiaCorporationId)))
 
@@ -33,9 +36,12 @@ object ReferenceQueries:
       .map(_.map((it, ig) => protocol.ShipType(it.id, it.name, it.groupId, ig.name, it.mass.getOrElse(0.0).toLong)))
 
   def getSolarSystemByName(name: String): Result[List[protocol.SolarSystem]] =
+    getSolarSystemsByName(Some(name))
+
+  def getSolarSystemsByName(name: Option[String]): Result[List[protocol.SolarSystem]] =
     run(quote {
       (for
-        sys <- solarSystem.filter(_.name == lift(name))
+        sys <- solarSystem.filter(s => lift(name).forall(_ == s.name))
         reg <- region.join(_.id == sys.regionId)
         ptj <- (solarSystemPlanet
           .join(itemType)

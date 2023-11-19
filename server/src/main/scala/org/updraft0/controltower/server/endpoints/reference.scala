@@ -7,8 +7,6 @@ import sttp.model.StatusCode
 import sttp.tapir.ztapir.*
 import zio.*
 
-import javax.sql.DataSource
-
 def getSolarSystem = Endpoints.getSolarSystem.zServerLogic { name =>
   ReferenceQueries.getSolarSystemByName(name).mapError(dbError).flatMap {
     case Nil       => ZIO.fail(StatusCode.NotFound -> "")
@@ -17,15 +15,22 @@ def getSolarSystem = Endpoints.getSolarSystem.zServerLogic { name =>
   }
 }
 
-def getVersion = Endpoints.getVersion.zServerLogic[Any](_ => ZIO.succeed(0L /* TODO */ ))
+def getVersion = Endpoints.getVersion.zServerLogic(_ => ReferenceQueries.getVersion.mapBoth(dbError, _.id))
 
 def getAllReference = Endpoints.getAllReference.zServerLogic(_ =>
-  (ReferenceQueries.getFactions <&> ReferenceQueries.getShipTypes <&> ReferenceQueries.getStarTypes <&> ReferenceQueries.getStationOperations <&> ReferenceQueries.getWormholeTypes)
+  (ReferenceQueries.getVersion <&> ReferenceQueries.getFactions <&> ReferenceQueries.getShipTypes <&> ReferenceQueries.getStarTypes <&> ReferenceQueries.getStationOperations <&> ReferenceQueries.getWormholeTypes)
     .mapBoth(
       dbError,
-      { case (factions, shipTypes, starTypes, stationOperations, wormholeTypes) =>
-        Reference(0L /* TODO */, factions, shipTypes, starTypes, stationOperations, wormholeTypes)
-      }
+      (version, factions, shipTypes, starTypes, stationOperations, wormholeTypes) =>
+        Reference(version.id, factions, shipTypes, starTypes, stationOperations, wormholeTypes)
+    )
+)
+
+def getAllSolarSystems = Endpoints.getAllSolarSystems.zServerLogic(_ =>
+  (ReferenceQueries.getVersion <&> ReferenceQueries.getSolarSystemsByName(None))
+    .mapBoth(
+      dbError,
+      (version, solarSystems) => ReferenceSolarSystems(version.id, solarSystems)
     )
 )
 
@@ -41,6 +46,7 @@ def allReferenceEndpoints: List[ZServerEndpoint[EndpointEnv, Any]] =
     getSolarSystem.widen[EndpointEnv],
     getVersion.widen[EndpointEnv],
     getAllReference.widen[EndpointEnv],
+    getAllSolarSystems.widen[EndpointEnv],
     getFactions.widen[EndpointEnv],
     getShipTypes.widen[EndpointEnv],
     getStarTypes.widen[EndpointEnv],

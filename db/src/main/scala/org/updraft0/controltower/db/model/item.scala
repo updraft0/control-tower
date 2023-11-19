@@ -1,5 +1,7 @@
 package org.updraft0.controltower.db.model
 
+import java.time.Instant
+
 case class Faction(
     id: Long,
     name: String,
@@ -40,3 +42,7 @@ case class NpcCorporation(
 case class StationOperation(id: Long, activityId: Int, name: String, description: Option[String])
 case class StationOperationService(operationId: Long, serviceId: Long)
 case class StationService(id: Long, name: String)
+
+/** Metadata about refreshing the SDE import
+  */
+case class Version(id: Int, createdAt: Instant, meta: Option[String])

@@ -24,8 +24,14 @@ object Endpoints:
       .out(jsonBody[SolarSystem])
       .description("Get static data for a given solar system")
 
+  val getAllSolarSystems =
+    reference.get
+      .in("all" / "systems")
+      .out(jsonBody[ReferenceSolarSystems])
+      .description("Get all solar systems")
+
   val getAllReference = reference.get.in("all").out(jsonBody[Reference])
-  val getVersion      = reference.get.in("version").out(jsonBody[Long])
+  val getVersion      = reference.get.in("version").out(jsonBody[Int])
 
   val getFactions          = reference.get.in("factions").out(jsonBody[List[Faction]])
   val getShipTypes         = reference.get.in("shipTypes").out(jsonBody[List[ShipType]])

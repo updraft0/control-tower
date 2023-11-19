@@ -35,6 +35,7 @@ object sde:
     inline def stationOperation        = quote(querySchema[StationOperation]("sde.station_operation"))
     inline def stationOperationService = quote(querySchema[StationOperationService]("sde.station_operation_service"))
     inline def stationService          = quote(querySchema[StationService]("sde.station_service"))
+    inline def version                 = quote(querySchema[Version]("sde.version"))
 
   private inline def insert[T](inline entity: Quoted[EntityQuery[T]], inline value: T): Insert[T] = quote {
     entity.insertValue(value)
@@ -110,3 +111,6 @@ object sde:
 
   def insertNpcStation(s: NpcStation): DbOperation[Long] =
     ctx.run(insert(schema.npcStation, lift(s)))
+
+  def insertVersion(meta: Option[String]): DbOperation[Int] =
+    ctx.run(schema.version.insert(_.createdAt -> unixepoch, _.meta -> lift(meta)).returning(_.id))

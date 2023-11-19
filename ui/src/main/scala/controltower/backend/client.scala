@@ -25,6 +25,10 @@ class ControlTowerBackend(
   private val dummyCookie = SessionCookie("dummy")
 
   // region endpoints
+  val getVersion: () => Future[Int]                           = () => callNormalThrows(Endpoints.getVersion)(())
+  val getSolarSystemsAll: () => Future[ReferenceSolarSystems] = () => callNormalThrows(Endpoints.getAllSolarSystems)(())
+  val getReferenceAll: () => Future[Reference]                = () => callNormalThrows(Endpoints.getAllReference)(())
+
   val getUserInfo: () => Future[Either[String, UserInfo]] = () => callSecure(Endpoints.getUserInfo)(())
 
   val createMap: NewMap => Future[Either[String, MapInfo]] = newMap => callSecure(Endpoints.createMap)(newMap)
@@ -42,7 +46,17 @@ class ControlTowerBackend(
 
   val loginUrl = backendUrlOpt.map(u => uri"$u/api/auth/login").getOrElse(uri"api/auth/login") // FIXME hardcoded url
 
-  def callSecure[I, E, O](
+  inline def callNormal[I, E, O](ep: Endpoint[Unit, I, E, O, Any]): I => Future[Either[E, O]] =
+    val base = SttpClientInterpreter()
+      .toClientThrowDecodeFailures(ep, backendUrlOpt, fetchBackend)
+    (in: I) => base.apply(in)
+
+  inline def callNormalThrows[I, E, O](ep: Endpoint[Unit, I, E, O, Any]): I => Future[O] =
+    val base = SttpClientInterpreter()
+      .toClientThrowErrors(ep, backendUrlOpt, fetchBackend)
+    (in: I) => base.apply(in)
+
+  inline def callSecure[I, E, O](
       ep: Endpoint[SessionCookie, I, E, O, Any]
   ): I => Future[Either[E, O]] =
     val base = SttpClientInterpreter()

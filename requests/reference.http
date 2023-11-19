@@ -14,6 +14,12 @@ GET {{api}}/reference/all
 
 ###
 
+# Used by the client to pre-load solar systems (to avoid doing that request every time)
+# @name GetRefSolarSystemsAll
+GET {{api}}/reference/all/systems
+
+###
+
 # @name GetRefFactions
 GET {{api}}/reference/factions
 

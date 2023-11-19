@@ -264,7 +264,7 @@ CREATE TABLE sde.faction
 ) STRICT;
 
 -- npc_corporation
-CREATE table sde.npc_corporation
+CREATE TABLE sde.npc_corporation
 (
     id              INTEGER PRIMARY KEY,
     name            TEXT NOT NULL,
@@ -282,4 +282,12 @@ CREATE table sde.npc_corporation
     FOREIGN KEY (solar_system_id) REFERENCES solar_system (id) DEFERRABLE INITIALLY DEFERRED,
     FOREIGN KEY (station_id) REFERENCES npc_station (id) DEFERRABLE INITIALLY DEFERRED,
     CHECK (unique_name == 1 or unique_name == 0)
+) STRICT;
+
+-- version
+CREATE TABLE sde.version
+(
+    id         INTEGER PRIMARY KEY,
+    created_at INTEGER NOT NULL,
+    meta       TEXT
 ) STRICT;

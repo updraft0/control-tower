@@ -23,7 +23,8 @@ object schema:
   given Schema[StationOperation] = Schema.derived
   given Schema[WormholeType]     = Schema.derived
 
-  given Schema[Reference] = Schema.derived
+  given Schema[Reference]             = Schema.derived
+  given Schema[ReferenceSolarSystems] = Schema.derived
 
   // system
   given Schema[Planet]         = Schema.derived
@@ -77,7 +78,8 @@ object jsoncodec:
   given JsonCodec[StationOperation] = JsonCodec.derived
   given JsonCodec[WormholeType]     = JsonCodec.derived
 
-  given JsonCodec[Reference] = JsonCodec.derived
+  given JsonCodec[Reference]             = JsonCodec.derived
+  given JsonCodec[ReferenceSolarSystems] = JsonCodec.derived
 
   // system
   given JsonCodec[Planet]         = JsonCodec.derived
