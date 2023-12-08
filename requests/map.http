@@ -41,6 +41,11 @@ Cookie: __Host-CT-Session={{ctsessionid}}
 # 4. remove jita again
 # 5. readd jita by updating coordinates
 # 6. add amarr
+# 7. add rens
+# 8. add dodixie
+# 9. add shattered wh system
+
+===
 
 {"GetSnapshot":  {}}
 
@@ -78,7 +83,7 @@ Cookie: __Host-CT-Session={{ctsessionid}}
 {
   "UpdateSystemDisplay": {
     "systemId": 30000142,
-    "displayData": {"Manual": {"x": 42, "y": 42}}
+    "displayData": {"Manual": {"x": 50, "y": 50}}
   }
 }
 
@@ -89,7 +94,7 @@ Cookie: __Host-CT-Session={{ctsessionid}}
     "systemId": 30002187,
     "name": "Amarr (trade)",
     "isPinned": true,
-    "displayData": {"Manual": {"x": 84, "y": 42}},
+    "displayData": {"Manual": {"x": 90, "y": 40}},
     "stance": {"Unknown": {}}
   }
 }
@@ -101,7 +106,7 @@ Cookie: __Host-CT-Session={{ctsessionid}}
     "systemId": 30002659,
     "name": "Dodixie",
     "isPinned": true,
-    "displayData": {"Manual": {"x": 42, "y": 200}},
+    "displayData": {"Manual": {"x": 90, "y": 200}},
     "stance": {"Unknown": {}}
   }
 }
@@ -113,9 +118,22 @@ Cookie: __Host-CT-Session={{ctsessionid}}
     "systemId": 30002510,
     "name": "Rens",
     "isPinned": true,
-    "displayData": {"Manual": {"x": 42, "y": 240}},
+    "displayData": {"Manual": {"x": 90, "y": 240}},
     "stance": {"Unknown": {}}
   }
 }
+
+===
+
+{
+  "AddSystem": {
+    "systemId": 31002558,
+    "name": "QuickBrownFoxJumps",
+    "isPinned": true,
+    "displayData": {"Manual": {"x": 240, "y": 240}},
+    "stance": {"Friendly": {}}
+  }
+}
+
 ###
 

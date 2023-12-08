@@ -108,6 +108,35 @@ object map:
         )
     )
 
+  def updateMapSystemName(mapId: Long, systemId: Long, name: Option[String], updatedByCharacterId: Long) =
+    ctx.run(
+      mapSystem
+        .filter(ms => ms.mapId == lift(mapId) && ms.systemId == lift(systemId))
+        .update(
+          _.name                 -> lift(name),
+          _.updatedAt            -> unixepoch,
+          _.updatedByCharacterId -> lift(updatedByCharacterId)
+        )
+    )
+
+  def updateMapAttribute(
+      mapId: Long,
+      systemId: Long,
+      isPinned: Option[Boolean],
+      intelStance: Option[IntelStance],
+      updatedByCharacterId: Long
+  ): DbOperation[Long] =
+    ctx.run(
+      mapSystem
+        .filter(ms => ms.mapId == lift(mapId) && ms.systemId == lift(systemId))
+        .update(
+          ms => ms.stance -> lift(intelStance).getOrElse(ms.stance),
+          ms => ms.isPinned -> lift(isPinned).getOrElse(ms.isPinned),
+          _.updatedAt            -> unixepoch,
+          _.updatedByCharacterId -> lift(updatedByCharacterId)
+        )
+    )
+
   def upsertMapSystemDisplay(value: MapSystemDisplay): DbOperation[Long] =
     ctx.run(
       mapSystemDisplay

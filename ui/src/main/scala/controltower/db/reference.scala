@@ -23,6 +23,8 @@ trait ReferenceDataStore:
   // TODO: add fuzzies
   def searchSystemName(value: String): Future[List[SolarSystem]]
 
+  def referenceAll(): Future[Reference]
+
 object ReferenceDataStore:
 
   def usingBackend()(using ct: ControlTowerBackend): Future[ReferenceDataStore] =
@@ -33,16 +35,16 @@ object ReferenceDataStore:
 
 class IdbReferenceDataStore(db: Database, maxSearchHits: Int = 10)(using ct: ControlTowerBackend)
     extends ReferenceDataStore:
-  import IdbReferenceDataStore.{SolarSystem, ReferenceAll, ByNameIndex}
+  import IdbReferenceDataStore.{SolarSystem, ReferenceAll, ByNameIndex, AllReferenceKey}
 
-  def systemForId(systemId: Long): Future[Option[SolarSystem]] =
+  override def systemForId(systemId: Long): Future[Option[SolarSystem]] =
     for
       trx <- solarSystemTx
       res <- inTransaction(trx, SolarSystem, _.get(systemId.toNative)).map(optOr[SolarSystem](_))
       _   <- onFinished(trx)
     yield res
 
-  def systemForName(name: String): Future[Option[SolarSystem]] =
+  override def systemForName(name: String): Future[Option[SolarSystem]] =
     for
       trx <- solarSystemTx
       res <- inTransaction(trx, SolarSystem, _.index(ByNameIndex).get(name)).map(optOr[SolarSystem](_))
@@ -50,7 +52,7 @@ class IdbReferenceDataStore(db: Database, maxSearchHits: Int = 10)(using ct: Con
     yield res
 
   // TODO: add fuzzies
-  def searchSystemName(value: String): Future[List[SolarSystem]] =
+  override def searchSystemName(value: String): Future[List[SolarSystem]] =
     for
       trx <- solarSystemTx
       nextValue = s"${value.dropRight(1)}${(value.charAt(value.length - 1) + 1).toChar}"
@@ -70,7 +72,15 @@ class IdbReferenceDataStore(db: Database, maxSearchHits: Int = 10)(using ct: Con
       _ <- onFinished(trx)
     yield values
 
+  override def referenceAll(): Future[Reference] =
+    for
+      trx <- referenceTx
+      res <- inTransaction(trx, ReferenceAll, _.get(AllReferenceKey)).map(_.asInstanceOf[js.Any].fromNative[Reference])
+      _   <- onFinished(trx)
+    yield res
+
   inline private def solarSystemTx = Future.fromTry(Try(db.transaction(SolarSystem, TransactionMode.readonly)))
+  inline private def referenceTx   = Future.fromTry(Try(db.transaction(ReferenceAll, TransactionMode.readonly)))
   inline private def optOr[A: NativeConverter](valueOr: Any): Option[A] =
     if (js.isUndefined(valueOr)) None else Some(valueOr.asInstanceOf[js.Any].fromNative[A])
 
@@ -99,9 +109,10 @@ class IdbReferenceDataStore(db: Database, maxSearchHits: Int = 10)(using ct: Con
     res.future
 
 object IdbReferenceDataStore:
-  private val SolarSystem  = "solar_system"
-  private val ReferenceAll = "reference_all"
-  private val ByNameIndex  = "byName"
+  private val SolarSystem     = "solar_system"
+  private val ReferenceAll    = "reference_all"
+  private val ByNameIndex     = "byName"
+  private val AllReferenceKey = "all"
 
   // TODO: think of a better algorithm for determining what needs to be updated in the db - maybe a last_updated
   //        timestamp?
@@ -141,7 +152,7 @@ object IdbReferenceDataStore:
       all <- ct.getReferenceAll()
       trx = db.transaction(ReferenceAll, TransactionMode.readwrite)
       _ <- inTransaction(trx, ReferenceAll, _.clear())
-      _ <- inTransaction(trx, ReferenceAll, _.put(all.toNative, "all"))
+      _ <- inTransaction(trx, ReferenceAll, _.put(all.toNative, AllReferenceKey))
       _ <- onFinished(trx)
     yield ()
 

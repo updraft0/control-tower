@@ -28,13 +28,15 @@ enum MapRequest:
       displayData: model.SystemDisplayData,
       stance: model.IntelStance
   )
+  case UpdateSystemAttribute(systemId: SystemId, pinned: Option[Boolean], intelStance: Option[model.IntelStance])
   case UpdateSystemDisplay(systemId: SystemId, displayData: model.SystemDisplayData)
+  case RenameSystem(systemId: SystemId, name: Option[String])
   case RemoveSystem(systemId: SystemId)
 
 enum MapResponse:
   case MapSnapshot(all: Map[SystemId, MapSystemWithAll])
   case SystemSnapshot(systemId: SystemId, sys: MapSystemWithAll)
-  case SystemDisplayUpdate(systemId: SystemId, displayData: model.SystemDisplayData)
+  case SystemDisplayUpdate(systemId: SystemId, name: Option[String], displayData: model.SystemDisplayData)
   case SystemRemoved(systemId: SystemId)
 
 /** Mini-reactive/lightweight actor that has a state of the whole map in memory and makes corresponding db changes
@@ -58,15 +60,25 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
         in match
           case Identified(id, MapRequest.MapSnapshot) =>
             ZIO.succeed(state -> Chunk.single(Identified(id, MapResponse.MapSnapshot(state))))
-          case Identified(Some(sid), add: MapRequest.AddSystem) =>
+          case Identified(Some(sid), add: MapRequest.AddSystem) if state.get(add.systemId).forall(_.display.isEmpty) =>
             identified(sid, "add", addSystem(mapId, state, sid, add))
+          case Identified(_, add: MapRequest.AddSystem) =>
+            ZIO.logDebug(s"no-op adding existing system $add").as(state -> Chunk.empty)
           case Identified(Some(sid), usd: MapRequest.UpdateSystemDisplay) =>
             whenSystemExists(usd.systemId, state)(
               identified(sid, "updateDisplay", updateSystemDisplay(mapId, state, usd))
             )
+          case Identified(Some(sid), usa: MapRequest.UpdateSystemAttribute) =>
+            whenSystemExists(usa.systemId, state)(
+              identified(sid, "updateAttribute", updateSystemAttribute(mapId, state, sid, usa))
+            )
           case Identified(Some(sid), rs: MapRequest.RemoveSystem) =>
             whenSystemExists(rs.systemId, state)(
               identified(sid, "removeFromDisplay", removeSystemFromDisplay(mapId, state, sid, rs))
+            )
+          case Identified(Some(sid), rs: MapRequest.RenameSystem) =>
+            whenSystemExists(rs.systemId, state)(
+              identified(sid, "renameSystem", renameSystem(mapId, state, sid, rs))
             )
           // fall-through case
           case Identified(None, _) => ZIO.logWarning("non-identified request not processed").as(state -> Chunk.empty)
@@ -114,8 +126,21 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
       sys <- loadSingleSystem(mapId, usd.systemId)
       update =
         if (state(usd.systemId).display.isEmpty) MapResponse.SystemSnapshot(sys.sys.systemId, sys)
-        else MapResponse.SystemDisplayUpdate(sys.sys.systemId, sys.display.get)
+        else MapResponse.SystemDisplayUpdate(sys.sys.systemId, sys.sys.name, sys.display.get)
     yield state.updated(sys.sys.systemId, sys) -> Chunk.single(Identified(None, update))
+
+  private def updateSystemAttribute(
+      mapId: MapId,
+      state: MapState,
+      sessionId: MapSessionId,
+      usa: MapRequest.UpdateSystemAttribute
+  ) =
+    for
+      _   <- query.map.updateMapAttribute(mapId, usa.systemId, usa.pinned, usa.intelStance, sessionId.characterId)
+      sys <- loadSingleSystem(mapId, usa.systemId)
+    yield state.updated(sys.sys.systemId, sys) -> sys.display
+      .map(displayData => Chunk.single(Identified(None, MapResponse.SystemSnapshot(sys.sys.systemId, sys))))
+      .getOrElse(Chunk.empty)
 
   private def removeSystemFromDisplay(
       mapId: MapId,
@@ -129,6 +154,16 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
     yield state.updated(sys.sys.systemId, sys) -> Chunk.single(
       Identified(None, MapResponse.SystemRemoved(sys.sys.systemId))
     )
+
+  private def renameSystem(mapId: MapId, state: MapState, sessionId: MapSessionId, rs: MapRequest.RenameSystem) =
+    for
+      _   <- query.map.updateMapSystemName(mapId, rs.systemId, rs.name, sessionId.characterId)
+      sys <- loadSingleSystem(mapId, rs.systemId)
+    yield state.updated(sys.sys.systemId, sys) -> sys.display
+      .map(displayData =>
+        Chunk.single(Identified(None, MapResponse.SystemDisplayUpdate(sys.sys.systemId, sys.sys.name, displayData)))
+      )
+      .getOrElse(Chunk.empty)
 
   private inline def loadSingleSystem(mapId: MapId, systemId: SystemId) =
     MapQueries

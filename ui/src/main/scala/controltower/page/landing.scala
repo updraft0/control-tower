@@ -86,7 +86,7 @@ object LandingPage:
         tpe("button"),
         "New map",
         onClick.preventDefault --> { _ =>
-          Modal.show((closeMe, owner) => NewMapDialogView(char, closeMe)(using ct, owner))
+          Modal.show((closeMe, owner) => NewMapDialogView(char, closeMe)(using ct, owner), clickCloses = false)
         }
       )
     )

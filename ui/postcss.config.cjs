@@ -6,7 +6,8 @@ module.exports = () => {
             require('autoprefixer')(),
             require("postcss-nesting"),
             require('postcss-reporter'),
-            require('postcss-fail-on-warn')
+            require('postcss-fail-on-warn'),
+            require('postcss-hexrgba')
         ],
     };
 };

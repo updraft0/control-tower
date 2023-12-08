@@ -181,23 +181,27 @@ enum MapRequest:
       stance: IntelStance
   )
 
-  /** Change the display of the system (e.g. to move it around on the map)
+  /** Change an aspect of a system (or multiple at the same time)
     */
-  case UpdateSystemDisplay(systemId: Long, displayData: SystemDisplayData)
+  case UpdateSystem(
+      systemId: Long,
+      displayData: Option[SystemDisplayData] = None,
+      isPinned: Option[Boolean] = None,
+      stance: Option[IntelStance] = None,
+      name: Option[Option[String]] = None
+  )
 
   /** Remove a system from the map (this only deletes display data and clears the pinned status)
     */
   case RemoveSystem(systemId: Long)
 
-// TODO: add wh static information to the system snapshot!
-// TODO: add reference endpoint (if not already existing) to wh statics?
 // TODO: have a think about connections and when they get cleaned up (delete connection *and* delete signature?)
 // TODO: enforce the level of permissions that a user can have! (and document that)
 
 enum MapMessage:
   case MapSnapshot(systems: Vector[MapSystemSnapshot], connections: Map[Long, MapWormholeConnection])
   case SystemSnapshot(systemId: Long, system: MapSystemSnapshot, connections: Map[Long, MapWormholeConnection])
-  case SystemDisplayUpdate(systemId: Long, displayData: SystemDisplayData)
+  case SystemDisplayUpdate(systemId: Long, name: Option[String], displayData: SystemDisplayData)
   case SystemRemoved(systemId: Long)
 
 // endregion

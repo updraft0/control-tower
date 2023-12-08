@@ -92,8 +92,39 @@ object MapSession:
       ctx.mapQ.offer(Identified(Some(ctx.sessionId), MapRequest.MapSnapshot))
     case add: protocol.MapRequest.AddSystem =>
       ctx.mapQ.offer(Identified(Some(ctx.sessionId), toAddSystem(add)))
-    case upd: protocol.MapRequest.UpdateSystemDisplay =>
-      ctx.mapQ.offer(Identified(Some(ctx.sessionId), toUpdateSystemDisplay(upd)))
+    case upd: protocol.MapRequest.UpdateSystem =>
+      ZIO.when(upd.name.nonEmpty)(
+        ctx.mapQ.offer(
+          Identified(
+            Some(ctx.sessionId),
+            MapRequest.RenameSystem(
+              systemId = upd.systemId,
+              name = upd.name.get
+            )
+          )
+        )
+      ) *> ZIO.when(upd.displayData.nonEmpty)(
+        ctx.mapQ.offer(
+          Identified(
+            Some(ctx.sessionId),
+            MapRequest.UpdateSystemDisplay(
+              systemId = upd.systemId,
+              displayData = toDisplayData(upd.displayData.get)
+            )
+          )
+        )
+      ) *> ZIO.when(upd.isPinned.nonEmpty || upd.stance.nonEmpty)(
+        ctx.mapQ.offer(
+          Identified(
+            Some(ctx.sessionId),
+            MapRequest.UpdateSystemAttribute(
+              systemId = upd.systemId,
+              pinned = upd.isPinned,
+              intelStance = upd.stance.map(toIntelStance)
+            )
+          )
+        )
+      )
     case protocol.MapRequest.RemoveSystem(systemId) =>
       ctx.mapQ.offer(Identified(Some(ctx.sessionId), MapRequest.RemoveSystem(systemId)))
 
@@ -108,8 +139,8 @@ private def toProto(msg: MapResponse): Option[protocol.MapMessage] = msg match
       protocol.MapMessage
         .SystemSnapshot(systemId, toProtoSystemSnapshot(sys), toProtoConnections(Map(systemId -> sys)))
     )
-  case MapResponse.SystemDisplayUpdate(systemId, displayData) =>
-    Some(protocol.MapMessage.SystemDisplayUpdate(systemId, toProtoDisplay(displayData)))
+  case MapResponse.SystemDisplayUpdate(systemId, name, displayData) =>
+    Some(protocol.MapMessage.SystemDisplayUpdate(systemId, name, toProtoDisplay(displayData)))
   case MapResponse.SystemRemoved(systemId) =>
     Some(protocol.MapMessage.SystemRemoved(systemId))
 
@@ -120,12 +151,6 @@ private def toAddSystem(msg: protocol.MapRequest.AddSystem) =
     isPinned = msg.isPinned,
     displayData = toDisplayData(msg.displayData),
     stance = toIntelStance(msg.stance)
-  )
-
-private def toUpdateSystemDisplay(msg: protocol.MapRequest.UpdateSystemDisplay) =
-  MapRequest.UpdateSystemDisplay(
-    systemId = msg.systemId,
-    displayData = toDisplayData(msg.displayData)
   )
 
 private def toDisplayType(dt: protocol.MapDisplayType) = dt match

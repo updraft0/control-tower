@@ -10,7 +10,15 @@ object ESI:
 
   def characterImage(id: Long, name: String, size: Int = 128) =
     img(
-      src       := uri"$imageBaseUrl/characters/$id/portrait?size=$size".toString,
-      className := "character-image",
-      alt       := s"$name"
+      src := uri"$imageBaseUrl/characters/$id/portrait?size=$size".toString,
+      cls := "character-image",
+      alt := s"$name"
+    )
+
+  def typeIcon(id: Long, size: Int = 16) =
+    img(
+      src := uri"$imageBaseUrl/types/$id/icon".toString,
+      cls := "type-icon",
+      cls := s"type-icon-${size}-round",
+      alt := s"type $id"
     )

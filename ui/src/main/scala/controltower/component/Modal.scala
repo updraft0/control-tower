@@ -1,9 +1,10 @@
 package controltower.component
 
-import com.raquo.laminar.api.L.{*, given}
+import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveHtmlElement
 import com.raquo.airstream.ownership.ManualOwner
 import org.scalajs.dom
+import org.scalajs.dom.MouseEvent
 
 // note: thanks to @yurique for this idea
 //
@@ -40,12 +41,14 @@ object Modal:
 
   def show(
       content: (Observer[Unit], Owner) => Element,
+      clickCloses: Boolean,
       mods: Mod[ReactiveHtmlElement[dom.HTMLDialogElement]]*
   ): Unit =
     val closeBus = new EventBus[Unit]
     val owner    = new ManualOwner()
     val dialog = dialogTag(
       mods,
+      inContext(self => onClick --> (ev => if (clickCloses) onDialogClickClose(ev, self.ref, closeBus))),
       content(closeBus.writer, owner)
     )
     dom.document.body.append(dialog.ref)
@@ -61,3 +64,16 @@ object Modal:
       }
     )
     dialog.ref.showModal()
+
+// thanks to https://stackoverflow.com/a/57463812
+private inline def onDialogClickClose[Ref <: org.scalajs.dom.Element](
+    ev: MouseEvent,
+    ref: Ref,
+    closeBus: EventBus[Unit]
+) =
+  if (ev.target == ref) {
+    val rec = ref.getBoundingClientRect()
+    val inDialog =
+      rec.top <= ev.clientY && ev.clientY <= rec.top + rec.height && rec.left <= ev.clientX && ev.clientX <= rec.left + rec.width
+    if (!inDialog) closeBus.writer.onNext(())
+  }

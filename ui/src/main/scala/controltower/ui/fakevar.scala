@@ -2,11 +2,10 @@ package controltower.ui
 
 import com.raquo.airstream.core.{Observer, Signal}
 import com.raquo.airstream.ownership.Owner
-import com.raquo.airstream.state.Var
-import com.raquo.airstream.state.StrictSignal
 import com.raquo.airstream.split.Splittable
+import com.raquo.airstream.state.{StrictSignal, Var}
 
-import scala.collection.immutable.{SortedMap, TreeMap}
+import scala.collection.immutable.SeqMap
 
 // FIXME current workaround for https://github.com/raquo/Airstream/issues/112
 class FakeVectorVar[A]:
@@ -61,11 +60,14 @@ given Splittable[Iterable] with
   override def empty[A]: Iterable[A]                                        = Iterable.empty
 
 class FakeMapVar[K: Ordering, V]:
-  private val underlying = Var[SortedMap[K, V]](TreeMap.empty[K, V])
+  private val underlying = Var[SeqMap[K, V]](SeqMap.empty[K, V])
 
-  def now(): SortedMap[K, V]                        = underlying.now()
-  def update(f: SortedMap[K, V] => SortedMap[K, V]) = underlying.update(f)
-  def removeKey(k: K)                               = update(_.removed(k))
+  def now(): SeqMap[K, V]                     = underlying.now()
+  def nowAt(k: K): Option[V]                  = now().get(k)
+  def signal: Signal[SeqMap[K, V]]            = underlying.signal
+  def signalK(key: K): Signal[Option[V]]      = underlying.signal.map(_.get(key))
+  def update(f: SeqMap[K, V] => SeqMap[K, V]) = underlying.update(f)
+  def removeKey(k: K)                         = update(_.removed(k))
 
   def splitByKey[U](project: (K, FakeVarM[K, V]) => U)(using owner: Owner): Signal[Iterable[U]] =
     val obs = Observer[Either[K, (K, V)]]:

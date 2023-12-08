@@ -1,6 +1,8 @@
 /* FIXME no way to import normalize. Eh whatever */
 
 @import 'colors.css';
+@import 'fonts.css';
+@import 'icon.css';
 
 /* ok? */
 
@@ -66,6 +68,7 @@ dialog::backdrop {
 
 /* TODO remove this - just for debugging */
 #debugOverlay {
+    display: none;
     position: absolute;
     width: 300px;
     height: 400px;
@@ -74,15 +77,55 @@ dialog::backdrop {
     left: 800px;
 }
 
+/* map page */
+#map-view-inner {
+    display: flex;
+    flex-flow: row wrap;
+}
+
+#map-view-inner > * {
+    flex: 1 100%;
+}
+
+@media all {
+    #mapParent { min-width: 600px; flex: 4 1 auto; order: 3; }
+    #mapLeftSidebar { min-width: 400px; flex: 0 1 auto; order: 2; }
+    #mapRightSidebar { order: 4; }
+    #mapMenu { flex: 1 100%; order: 1; }
+}
+
+
 /* map grid */
+$box-width:     140px;
+$box-height:    40px;
+
+#mapMenu {
+    display: block;
+}
+
+#mapLeftSidebar {
+    padding-left: 2px;
+    padding-right: 6px;
+}
+
+#mapRightSidebar {
+
+}
+
 #mapParent {
-    width: 500px;
-    height: 500px;
+    /*flex: unset; !* TODO not sure ? *!*/
+    /*width: 70%;*/
+    /*width: 500px;*/
+    min-height: 600px;
+    /*height: 500px;*/
     overflow: auto;
     box-sizing: content-box;
-    border: 1px solid yellow;
+    /* material design corners - TODO need to templatise this */
+    box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
+    border: 1px solid $gray-darker;
+    border-radius: 5px;
 
-
+    margin-left: 2px;
 }
 
 /* TODO removed as wasn't sure this is needed!? */
@@ -98,46 +141,267 @@ dialog::backdrop {
     /*transform-origin: 0 0 0;*/
 }
 
+/* TODO - combine the css here */
+.system-error {
+    width: $box-width;
+    height: $box-height;
+    position: absolute;
+    user-select: none;
+}
 
-.box {
+.draggable-box {
     cursor: grab;
     user-select: none;
-    width: 100px;
-    height: 40px;
+    width: $box-width;
+    height: $box-height;
     position: absolute;
-    border: 1px solid $red;
     box-sizing: border-box; /* important otherwise we need to do math for the border calculation*/
     box-snap: block-start;
+}
+
+.system {
+    font-family: Oxygen, Arial, sans-serif;
+    font-weight: 700;
+    font-size: 12px;
+    background-color: $gray-dark;
     border-radius: 5px;
+    /*transition: .5s linear;*/
+}
+
+.system:hover:not(.system-selected) {
+    /*background-color: turquoise;*/
+    box-shadow: 0px 9px 30px rgba($orange, 0.1);
+    /*box-shadow: 0px 0px 100px 0px rgba(255,165,0,1);*/
+    /*transition: .5s linear;*/
+}
+
+.system-selected {
+    /* TODO adjust color effect */
+    box-shadow: 0px 0px 5px 0px rgba($orange,0.7) inset;
+    /*box-shadow: 2px 2px 2px 2px rgba($teal, .45), 1px 1px 1px 1px rgba($teal, .45);*/
+    /*box-shadow: 0px 1px 4px rgba(0, 0, 0, 0.16), 0px 0px 0px 3px rgba(51, 51, 51,1);*/
+}
+
+mark.system-class {
+    background: inherit;
+    margin-left: 2px;
+    margin-right: 2px;
+}
+
+.system-class-h {
+    color: $green;
+}
+
+.system-class-c1, .system-class-c2 {
+    color: $blue;
+}
+
+.system-class-l, .system-class-c3, .system-class-c4 {
+    color: $orange;
+}
+
+.system-class-ns, .system-class-c5, .system-class-c6 {
+    color: $red;
+}
+
+.system-class-pochven {
+    color: $red-darker;
+}
+
+.system-class-sentineldrifter, .system-class-barbicandrifter, .system-class-videttedrifter, .system-class-confluxdrifter, .system-class-videttedrifter  {
+    color: $teal;
+}
+
+/* TODO more system classes */
+
+mark.system-effect {
+    background: inherit;
+
+}
+
+.system-status-line > mark.system-effect {
+    margin-right: 2px;
+    margin-top: 2px;
+}
+
+
+mark.system-pin-status {
+    background: inherit;
+    margin-right: 2px;
+    margin-top: 2px;
+    color: $gray-lighter;
+}
+
+.system-effect-magnetar {
+    color: $wh-color-magnetar;
+}
+
+.system-effect-blackhole {
+    color: $wh-color-blackhole;
+}
+
+.system-effect-redgiant {
+    color: $wh-color-redgiant;
+}
+
+.system-effect-pulsar {
+    color: $wh-color-pulsar;
+}
+
+.system-effect-cataclysmic {
+    color: $wh-color-cataclysmic;
+}
+
+.system-effect-wolfrayet {
+    color: $wh-color-wolfrayet;
+}
+
+mark.system-name {
+    background: inherit;
+    color: $gray-lighter;
+    margin-left: 2px;
+    margin-right: auto;
+}
+
+mark.system-map-name {
+    background: inherit;
+    color: $gray-lightest;
+    margin-left: 2px;
+    margin-right: auto;
+    overflow: hidden;
+}
+
+mark.system-wormhole-static {
+    background: inherit;
+    margin-left: 2px;
+    margin-right: 2px;
+}
+
+mark.system-wormhole-static:last-of-type {
+    margin-right: 0;
+}
+
+/* FIXME colors wrong here */
+.system-stance-hostile {
+    border: 2px solid $red;
+}
+
+.system-stance-friendly {
+    border: 2px solid $blue;
+}
+
+.system-stance-unknown {
+    border: 2px solid $gray-light;
+}
+
+.system-occupied {
+    border: 2px solid $orange;
+}
+
+.system-status-line {
+    display: flex;
+    min-width: 100%;
+}
+
+/* solar system info */
+.left-sidebar-view {
+    background-color: $gray-darker;
+    border-radius: 4px;
+    border: 1px $gray-dark solid;
+    /* material design shadow ooh */
+    box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
+    width: 100%;
+    padding: 4px;
+}
+
+.left-sidebar-view:not(:first-of-type) {
+    margin-top: 10px;
+}
+
+tr.solar-system-name {
+    display: flex;
+    flex-flow: row;
+}
+
+tr.solar-system-name > * {
+    flex: 1 100%;
+}
+
+tr.solar-system-name > span {
+    margin-right: auto;
+    color: $gray-lighter;
+    font-weight: bold;
+}
+
+span.solar-system-name-default {
+    color: $gray-light;
+}
+
+
+tr.solar-system-name > a:first-of-type {
+    margin-left: auto;
+    flex: 0;
+}
+
+tr.solar-system-name > a:last-of-type {
+    margin-right: 0;
+}
+
+tr.solar-system-name > a {
+    margin-right: 2px;
+    margin-left: 2px;
+    flex: 0;
+}
+
+tr.solar-system-location {
+    user-select: none;
+    color: $gray-lighter;
+}
+
+tr.solar-system-properties {
+    display: flex;
+}
+
+tr.solar-system-properties > mark {
     background-color: $gray-darkest;
+    border-radius: 5px;
+    margin-left: 2px;
+    margin-right: 2px;
+    padding-left: 4px;
+    padding-right: 4px;
+    user-select: none;
+    font-size: 0.9em;
 }
 
-/* FIXME doesn't work https://stackoverflow.com/questions/3540194/how-to-make-a-grid-like-graph-paper-grid-with-just-css
-.dashed-grid-paper {
-
-    --grid-size: 20px;
-    --grid-strength: 1px;
-    --grid-dash: 10px;
-    --grid-gap: 5px;
-    --grid-color: $gray;
-    --paper-color: $gray-darkest;
-
-    background-color: var(--paper-color);
-    background-size: var(--grid-dash) var(--grid-dash), var(--grid-size) var(--grid-size);
-    background-image:
-            linear-gradient(to bottom, transparent var(--grid-gap), var(--paper-color) var(--grid-gap)),
-            linear-gradient(to right, var(--grid-color) var(--grid-strength), transparent var(--grid-strength)),
-            linear-gradient(to right, transparent var(--grid-gap), var(--paper-color) var(--grid-gap)),
-            linear-gradient(to bottom, var(--grid-color) var(--grid-strength), transparent var(--grid-strength));
-    box-sizing: border-box;
-    border: none;
-
+tr.solar-system-properties > mark:first-of-type {
+    margin-left: 0;
 }
-*/
 
+tr.solar-system-properties > mark.system-planets {
+    margin-right: auto;
+}
+
+mark.system-planets {
+    color: $gray-lighter;
+}
+
+img.type-icon-16-round {
+    height: 0.9em; /* FIXME this is not 16px ofc */
+    width: 0.9em;
+    border-radius: 10px 3px 3px 3px;
+}
+
+dialog.system-rename-dialog {
+    width: 20%;
+    min-width: 200px;
+}
+
+input.input-system-name {
+    /*width: 100%;*/
+}
+
+/* grid pattern */
 .grid {
-    /*width: 500px;*/
-    /*height: 500px;*/
     box-sizing: border-box;
     border: none;
     background:
@@ -148,26 +412,154 @@ dialog::backdrop {
 
 }
 
-.g-10 {
-    background-size: 10% 10%, 10% 10%, 10% 10%, 10% 10%;
+.g-20px {
+    background-size: 20px 20px;
 }
 
-.g-20 {
-    background-size: 5% 5%, 5% 5%, 5% 5%, 5% 5%;
+/* map toolbar */
+
+#map-toolbar {
+    /* material design corners - TODO need to templatise this */
+    /*box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);*/
+    /*border: 1px solid $gray-darker;*/
+    border-radius: 5px;
+    /*font-size: 1.4em;*/
+    /*background-color: $gray-darkest;*/
+    /*padding: 5px;*/
+    margin-left: 0;
+    margin-bottom: 5px;
+    /* TODO not sure about the look of this */
+    box-shadow: 20px 0 10px -20px rgba(0,0,0,0.45) inset;
 }
 
-.g-25 {
-    background-size: 4% 4%, 4% 4%, 4% 4%, 4% 4%;
+#map-toolbar button {
+    padding: 2px;
+    border-top: 1px solid $gray-dark;
+    border-bottom: 1px solid $gray-dark;
+    border-left: 1px solid $gray;
+    border-right: 1px solid $gray;
+    border-radius: 0px 0px 0px 0px;
+    background-color: $gray;
+    font-size: 1.3em;
+    transition: background-color 0.3s;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, .6); /* TODO this looks a bit weird */
+    color: $indigo-light;
 }
 
-.g-30 {
-    background-size: 3.3% 3.3%, 3.3% 3.3%, 3.3% 3.3%, 3.3% 3.3%;
+#map-toolbar button:first-of-type {
+    border-left: 1px solid $gray-dark;
+    border-radius: 3px 0 0 3px;
 }
 
-.g-40 {
-    background-size: 2.5% 2.5%, 2.5% 2.5%, 2.5% 2.5%, 2.5% 2.5%;
+#map-toolbar button:last-of-type {
+    border-right: 1px solid $gray-dark;
+    border-radius: 0 3px 3px 0;
 }
 
-.g-50 {
-    background-size: 2% 2%, 2% 2%, 2% 2%, 2% 2%;
+#map-toolbar button:hover:not(:disabled) {
+    background-color: $gray-dark;
+    border: 1px solid $indigo-dark;
+    color: $orange-dark;
+}
+
+#map-toolbar button:disabled {
+    color: $gray-light;
+}
+
+/* new system dialog */
+
+dialog.system-add-dialog {
+    width: 300px;
+    padding: 2px;
+}
+
+.system-add-view div.table {
+    font-size: 0.8em;
+}
+
+div.table {
+    display: table;
+    border-spacing: 5px 2px;
+    width: 100%;
+}
+
+div.table div.row {
+    display: table-row;
+}
+
+div.table div.row * {
+    display: table-cell;
+}
+
+div.table div.row input {
+    margin: 0;
+    padding: 0;
+}
+
+div.table div.row input[type=text] {
+    width: 100%;
+}
+
+div.table div.row label {
+    width: 60px;
+    text-align: right;
+}
+
+div.submit {
+    padding-top: 5px;
+    padding-bottom: 5px;
+}
+
+div.submit mark.form-error {
+    display: inline-block;
+    background: inherit;
+    color: $red;
+    min-width: 50%;
+}
+
+div.dialog-view {
+    margin: 5px;
+}
+
+
+button.add-button {
+    background-color: $green-dark;
+    border: 0;
+    border-radius: 2px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, .6);
+    float: right;
+    transition: background-color 0.3s;
+    font-weight: bold;
+    margin-right: 5px;
+}
+
+button.add-button:hover {
+    filter: brightness(130%);
+}
+
+button.add-button:focus-visible {
+    outline: 1px solid $orange;
+}
+
+input:focus-visible {
+    outline: 1px solid $orange;
+}
+
+dialog.system-remove-dialog {
+    width: 220px;
+}
+
+button.remove-button {
+    background-color: $red-dark;
+    border: 0;
+    border-radius: 2px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, .6);
+}
+
+button.remove-button:hover {
+    filter: brightness(130%);
+}
+
+button.remove-button:focus-visible {
+    outline: 1px solid $orange;
 }
