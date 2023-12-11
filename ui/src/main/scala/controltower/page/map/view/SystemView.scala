@@ -1,30 +1,30 @@
-package controltower.page.map
+package controltower.page.map.view
 
 import com.raquo.laminar.api.L.*
 import controltower.component.Modal
-import controltower.ui.FakeVarM
+import controltower.ui.{FakeVarM, ViewController, onEnterPress}
 import controltower.Constant
+import controltower.page.map.{MapAction, RoleController}
 import org.updraft0.controltower.constant.WormholeEffects
 import org.updraft0.controltower.protocol.*
 
 import scala.collection.MapView
-import org.scalajs.dom
 
 private type SystemVar = FakeVarM[Long, MapSystemSnapshot]
-// arbitrary limit to system names (on UI side)
-private val MaxSystemNameLength = 30
 
 case class SystemStaticData(solarSystemMap: MapView[Long, SolarSystem], wormholeTypes: Map[Long, WormholeType])
 
-/** View (controller) for displaying a single system "box"
+/** Display a single system on the map and interact with it
   */
 class SystemView(
-    bus: WriteBus[MapRequest],
+    actions: WriteBus[MapAction],
     staticData: SystemStaticData,
-    selectedSystem: Var[Option[Long]]
-):
+    selectedSystem: Signal[Option[Long]],
+    mapRole: Signal[MapRole]
+)(systemId: Long, system: SystemVar)(using Owner)
+    extends ViewController:
 
-  def view(systemId: Long, system: SystemVar)(using Owner): HtmlElement =
+  override def view =
     if (!staticData.solarSystemMap.contains(systemId))
       div(
         idAttr := s"system-$systemId",
@@ -33,22 +33,19 @@ class SystemView(
       )
     else
       val solarSystem = staticData.solarSystemMap(systemId)
-      val currentPos  = systemPosition(system)
+      val currentPos  = systemPosition(system) // TODO: use position controller here
+      val canDrag = mapRole
+        .combineWith(system.signal.map(_.system.isPinned))
+        .map((role, pinned) => !pinned && RoleController.canRepositionSystem(role))
 
       inDraggable(
         currentPos,
+        canDrag,
         { (isDragging, box) =>
           isDragging
             .compose(_.withCurrentValueOf(currentPos.signal))
             .changes
-            .foreach((isDragging, pos) =>
-              if (!isDragging)
-                bus
-                  .onNext(
-                    MapRequest
-                      .UpdateSystem(systemId, displayData = Some(SystemDisplayData.Manual(pos.x.toInt, pos.y.toInt)))
-                  )
-            )
+            .foreach((isDragging, pos) => if (!isDragging) actions.onNext(MapAction.Reposition(systemId, pos.x, pos.y)))
 
           val firstLine = div(
             cls := "system-status-line",
@@ -68,16 +65,19 @@ class SystemView(
           box.amend(
             idAttr := s"system-$systemId",
             cls    := "system",
-            cls <-- selectedSystem.signal.map {
+            cls <-- selectedSystem.map {
               case Some(`systemId`) => "system-selected"
               case _                => ""
             },
             // FIXME: this is also fired when we drag the element so selection is always changing
-            onClick.preventDefault.stopPropagation.mapToUnit --> (_ => selectedSystem.set(Some(systemId))),
-            onDblClick.preventDefault.stopPropagation.mapToUnit --> (_ =>
+            onClick.preventDefault.stopPropagation.mapToUnit --> actions.contramap(_ =>
+              MapAction.Select(Some(systemId))
+            ),
+            onDblClick.preventDefault.stopPropagation
+              .compose(_.sample(mapRole).filter(RoleController.canRenameSystem)) --> (_ =>
               Modal.show(
                 (closeMe, owner) =>
-                  systemRenameView(systemId, system.now().system.name.getOrElse(""), bus, closeMe)(using owner),
+                  systemRenameView(systemId, system.now().system.name.getOrElse(""), actions, closeMe)(using owner),
                 clickCloses = true,
                 cls := "system-rename-dialog"
               )
@@ -160,7 +160,7 @@ private inline def systemWhStatics(ss: SolarSystem, wormholeTypes: Map[Long, Wor
     )
   }
 
-private def systemRenameView(systemId: Long, name: String, bus: WriteBus[MapRequest], closeMe: Observer[Unit])(using
+private def systemRenameView(systemId: Long, name: String, actions: WriteBus[MapAction], closeMe: Observer[Unit])(using
     Owner
 ) =
   val nameVar = Var(name)
@@ -170,17 +170,17 @@ private def systemRenameView(systemId: Long, name: String, bus: WriteBus[MapRequ
     systemNameInput(
       nameVar,
       autoFocus := true,
-      onKeyPress.filter(_.keyCode == dom.KeyCode.Enter) --> { _ =>
+      onEnterPress --> { _ =>
         val newName = nameVar.now()
         if (newName != name) {
-          bus.onNext(MapRequest.UpdateSystem(systemId, name = Some(Option.when(!newName.isBlank)(newName))))
+          actions.onNext(MapAction.Rename(systemId, name = Option.when(!newName.isBlank)(newName.trim)))
         }
         closeMe.onNext(())
       }
     )
   )
 
-private[map] inline def systemNameInput(nameVar: Var[String], mods: Modifier[Input]*) =
+private[view] inline def systemNameInput(nameVar: Var[String], mods: Modifier[Input]*) =
   input(
     cls := "input-system-name",
     tpe := "text",

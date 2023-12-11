@@ -3,14 +3,12 @@ package org.updraft0.controltower.db.query
 import io.getquill.*
 import org.updraft0.controltower.constant.*
 import org.updraft0.controltower.db.model.*
-import org.updraft0.controltower.db.query.ctx.*
 import zio.ZIO
 
 object map:
   import schema.*
   import ctx.{*, given}
-  import zio.json.{*, given}
-  import scala.reflect.classTag
+  import zio.json.*
 
   private val WormholeGroupId = 988L
 

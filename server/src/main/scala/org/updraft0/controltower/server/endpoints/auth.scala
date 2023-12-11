@@ -6,7 +6,7 @@ import org.updraft0.controltower.server.Server.EndpointEnv
 import org.updraft0.controltower.server.auth.*
 import org.updraft0.esi.client.EsiClient
 import sttp.client3.UriContext
-import sttp.model.{Uri, StatusCode}
+import sttp.model.Uri
 import sttp.model.headers.{Cookie, CookieValueWithMeta}
 import sttp.tapir.ztapir.*
 import zio.{Config as _, *}

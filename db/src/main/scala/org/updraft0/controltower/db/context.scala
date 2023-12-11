@@ -3,10 +3,7 @@ package org.updraft0.controltower.db
 import io.getquill.*
 import io.getquill.context.jdbc.{Decoders, Encoders, JdbcContextTypes, SqliteJdbcTypes}
 import io.getquill.context.qzio.{ZioJdbcContext, ZioJdbcUnderlyingContext}
-import zio.json.ast.Json
 import zio.json.{JsonDecoder, JsonEncoder}
-
-import java.sql.Types
 
 trait StringJsonExtensions extends Encoders with Decoders:
   this: JdbcContextTypes[_, _] =>
@@ -272,7 +269,7 @@ object SqliteJsonZioJdbcContext:
 trait SqliteModifiedDialect extends SqliteDialect { self =>
   import io.getquill.ast.Ast
   import io.getquill.idiom.StatementInterpolator.*
-  import io.getquill.context.sql.{FlattenSqlQuery, SetOperationSqlQuery, SqlQuery, UnaryOperationSqlQuery}
+  import io.getquill.context.sql.{SetOperationSqlQuery, SqlQuery}
 
   def parentTokenizer(implicit astTokenizer: Tokenizer[Ast], strategy: NamingStrategy, idiomContext: IdiomContext) =
     super.sqlQueryTokenizer

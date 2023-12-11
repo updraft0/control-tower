@@ -1,11 +1,14 @@
 package org.updraft0.controltower.server.map
 
 import org.updraft0.controltower.db.model
+import org.updraft0.controltower.db.query
 import org.updraft0.controltower.protocol
 import org.updraft0.controltower.protocol.jsoncodec.given
 import org.updraft0.controltower.server.Log
-import org.updraft0.controltower.server.db.MapSystemWithAll
+import org.updraft0.controltower.server.endpoints.{toMapInfo, toProtocolRole}
+import org.updraft0.controltower.server.db.{MapQueries, MapSystemWithAll}
 import zio.*
+import zio.http.ChannelEvent.UserEvent
 import zio.http.{ChannelEvent, Handler, WebSocketChannelEvent, WebSocketFrame}
 import zio.json.*
 
@@ -17,29 +20,38 @@ import zio.json.*
   *   socket closure (here we do `Channel.awaitShutdown` to close the manually-created scope and release the resources)
   */
 object MapSession:
-  type Env = MapReactive.Service
+  type Env = MapReactive.Service & javax.sql.DataSource
+
+  /** queue size for messages that are generated internally
+    */
+  private val OurQueueSize = 16
 
   private case class Context(
       mapId: MapId,
       sessionId: MapSessionId,
       userId: Long,
+      mapRole: Ref[model.MapRole],
       mapQ: Enqueue[Identified[MapRequest]],
-      resQ: Dequeue[Identified[MapResponse]]
+      resQ: Dequeue[Identified[MapResponse]],
+      ourQ: Queue[protocol.MapMessage]
   )
 
   def apply(
       mapId: MapId,
       characterId: Long,
-      userId: Long
+      userId: Long,
+      initialRole: model.MapRole
   ) = Handler.webSocket: chan =>
     inContext(mapId, characterId, userId)(
       for
-        sid  <- ZIO.service[MapSessionId]
-        _    <- ZIO.logDebug("started map session")
-        mapE <- ZIO.service[MapReactive.Service]
-        mapQ <- mapE.enqueue(mapId)
-        resQ <- mapE.subscribe(mapId)
-        ctx = Context(mapId, sid, userId, mapQ, resQ)
+        sid     <- ZIO.service[MapSessionId]
+        _       <- ZIO.logDebug("started map session")
+        mapE    <- ZIO.service[MapReactive.Service]
+        mapQ    <- mapE.enqueue(mapId)
+        resQ    <- mapE.subscribe(mapId)
+        ourQ    <- Queue.bounded[protocol.MapMessage](OurQueueSize)
+        mapRole <- Ref.make(initialRole)
+        ctx = Context(mapId, sid, userId, mapRole, mapQ, resQ, ourQ)
         // close the scope (and the subscription) if the websocket is closed
         _ <- ZIO
           .serviceWithZIO[Scope.Closeable](scope =>
@@ -61,12 +73,17 @@ object MapSession:
             case None      => ZIO.unit
           })(identity)
           .forkScoped
+        sendOurs <- ZIO
+          .whileLoop(true)(ourQ.take.flatMap(msg => chan.send(ChannelEvent.Read(WebSocketFrame.Text(msg.toJson)))))(
+            identity
+          )
+          .forkScoped
         _ <- recv.join
         _ <- send.join
       yield ()
     )
 
-  private def inContext[R: Tag](mapId: MapId, characterId: Long, userId: Long)(
+  private def inContext[R](mapId: MapId, characterId: Long, userId: Long)(
       f: ZIO[R & Scope.Closeable & MapSessionId, Throwable, Any]
   ): ZIO[R, Throwable, Any] =
     for
@@ -78,18 +95,26 @@ object MapSession:
     yield res
 
   private inline def decodeMessage(ev: WebSocketChannelEvent): Task[Option[protocol.MapRequest]] = ev match
+    case ChannelEvent.UserEventTriggered(UserEvent.HandshakeComplete) =>
+      ZIO.succeed(Some(protocol.MapRequest.GetMapInfo))
     case ChannelEvent.Read(WebSocketFrame.Text(msgText)) =>
       msgText.fromJson[protocol.MapRequest] match
         case Left(error) => ZIO.logError(s"Unable to decode json: $error").as(None)
         case Right(msg)  => ZIO.succeed(Some(msg))
     case ChannelEvent.ExceptionCaught(ex) => ZIO.logErrorCause("Received exception, logging", Cause.fail(ex)).as(None)
     case ChannelEvent.Unregistered        => ZIO.none
-    case ChannelEvent.UserEventTriggered(ChannelEvent.UserEvent.HandshakeComplete) => ZIO.none
-    case other => ZIO.logError(s"BUG - don't know what to do with message $other").as(None)
+    case other                            => ZIO.logError(s"BUG - don't know what to do with message $other").as(None)
 
   private inline def processMessage(ctx: Context, msg: protocol.MapRequest) = msg match
     case protocol.MapRequest.GetSnapshot =>
       ctx.mapQ.offer(Identified(Some(ctx.sessionId), MapRequest.MapSnapshot))
+    case protocol.MapRequest.GetMapInfo =>
+      // TODO: not sure if it's right to propagate this or not
+      (query.transaction(MapQueries.getMap(ctx.mapId)) <&> ctx.mapRole.get).flatMap {
+        case (Some(map: model.MapModel), role) =>
+          ctx.ourQ.offer(protocol.MapMessage.MapMeta(toMapInfo(map), toProtocolRole(role)))
+        case _ => ZIO.logError("BUG: map not set")
+      }
     case add: protocol.MapRequest.AddSystem =>
       ctx.mapQ.offer(Identified(Some(ctx.sessionId), toAddSystem(add)))
     case upd: protocol.MapRequest.UpdateSystem =>

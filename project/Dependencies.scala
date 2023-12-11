@@ -20,7 +20,7 @@ object Dependencies {
     val snakeyaml          = "2.7"
     val sqlite             = "3.42.0.0"
     val sttp               = "3.9.1"
-    val tapir              = "1.9.3"
+    val tapir              = "1.9.4"
     val waypoint           = "8.0.0-M1"
     val zio                = "2.0.19"
     val `zio-config`       = "4.0.0-RC16"

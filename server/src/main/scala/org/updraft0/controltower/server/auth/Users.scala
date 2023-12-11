@@ -9,6 +9,7 @@ import org.updraft0.esi.client.{EsiClient, JwtAuthResponse}
 import zio.*
 
 import java.util.UUID
+import scala.annotation.unused
 
 object Users:
   type Env = Config & javax.sql.DataSource & EsiClient
@@ -40,25 +41,25 @@ object Users:
     yield ()
 
   private def newSession(
-      jwt: JwtAuthResponse,
-      tokenMeta: EsiTokenMeta,
+      @unused jwt: JwtAuthResponse,
+      @unused tokenMeta: EsiTokenMeta,
       user: AuthUser,
-      char: AuthCharacter,
+      @unused char: AuthCharacter,
       sessionId: UUID
   ): ZIO[Env, Throwable, Unit] =
     newUserSession(user.id, sessionId).flatMap(auth.insertUserSession).unit
 
   private def addCharacterToUser(
-      jwt: JwtAuthResponse,
-      tokenMeta: EsiTokenMeta,
-      user: AuthUser
+      @unused jwt: JwtAuthResponse,
+      @unused tokenMeta: EsiTokenMeta,
+      @unused user: AuthUser
   ): ZIO[Env, Throwable, Unit] = ???
 
   private def updateRefreshToken(
-      jwt: JwtAuthResponse,
-      tokenMeta: EsiTokenMeta,
-      user: AuthUser,
-      char: AuthCharacter
+      @unused jwt: JwtAuthResponse,
+      @unused tokenMeta: EsiTokenMeta,
+      @unused user: AuthUser,
+      @unused char: AuthCharacter
   ): ZIO[Env, Throwable, Unit] = ZIO.unit // FIXME implement this?
 
   private def newUserSession(userId: Long, sessionId: UUID) =

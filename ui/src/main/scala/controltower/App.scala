@@ -1,6 +1,6 @@
 package controltower
 
-import com.raquo.laminar.api.L.{*, given}
+import com.raquo.laminar.api.L.*
 import org.scalajs.dom
 import org.scalajs.dom.document
 

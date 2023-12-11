@@ -4,7 +4,7 @@ import org.updraft0.controltower.constant.*
 import org.updraft0.controltower.sde.yaml.{Cursor, KeyType, YAML, YamlArray, YamlObject, YamlValue, given}
 import zio.*
 
-import org.snakeyaml.engine.v2.api.{Load, LoadSettings}
+import org.snakeyaml.engine.v2.api.LoadSettings
 
 /** Parser of SDE data export types
   */

@@ -3,18 +3,11 @@ package org.updraft0.controltower.server.endpoints
 import org.updraft0.controltower.protocol
 import org.updraft0.controltower.protocol.Endpoints
 import org.updraft0.controltower.db.model
-import org.updraft0.controltower.server.Config
 import org.updraft0.controltower.server.Server.EndpointEnv
 import org.updraft0.controltower.server.auth.*
 import org.updraft0.controltower.server.db.AuthQueries
-import org.updraft0.esi.client.EsiClient
-import sttp.client3.UriContext
-import sttp.model.{StatusCode, Uri}
-import sttp.model.headers.{Cookie, CookieValueWithMeta}
 import sttp.tapir.ztapir.*
 import zio.{Config as _, *}
-
-import java.util.UUID
 
 def validateSession(
     cookie: protocol.SessionCookie

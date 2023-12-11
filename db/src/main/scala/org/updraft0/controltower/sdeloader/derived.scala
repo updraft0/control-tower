@@ -9,7 +9,6 @@ import zio.stream.{ZPipeline, ZStream}
 
 import java.io.IOException
 import javax.sql.DataSource
-import java.time.Instant
 
 /** Load data derived from the SDE export (including static mappings not found elsewhere such as wormhole statics)
   */
@@ -60,7 +59,7 @@ private def readSystemStatics(
   ZStream
     .fromInputStreamZIO(
       ZIO
-        .attemptBlockingIO(getClass.getResourceAsStream("/map/reference/ref_system_static_wormhole.csv"))
+        .attemptBlockingIO(ImportState.getClass.getResourceAsStream("/map/reference/ref_system_static_wormhole.csv"))
         .filterOrFail(_ != null)(new IOException("BUG: Could not read the static csv file"))
     )
     .via(ZPipeline.utf8Decode)

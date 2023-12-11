@@ -1,7 +1,6 @@
 package controltower.backend
 
 import com.raquo.airstream.core.*
-import com.raquo.airstream.custom.CustomStreamSource
 import com.raquo.airstream.ownership.Owner
 import sttp.capabilities.{Streams, WebSockets}
 import sttp.tapir.client.sttp.WebSocketToPipe

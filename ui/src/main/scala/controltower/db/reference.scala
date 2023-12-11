@@ -1,19 +1,17 @@
 package controltower.db
 
 import controltower.backend.ControlTowerBackend
-import org.getshaka.nativeconverter.NativeConverter
+import org.getshaka.nativeconverter.NativeConverter.given
+import org.getshaka.nativeconverter.{NativeConverter, fromNative}
+import org.scalajs.dom.idb.*
 import org.updraft0.controltower.protocol.*
 import org.updraft0.controltower.protocol.native.given
 
-import scala.concurrent.Future
-import scala.concurrent.Promise
+import scala.annotation.unused
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.{Future, Promise}
+import scala.scalajs.js
 import scala.util.{Failure, Success, Try}
-import org.scalajs.dom.idb.*
-
-import scalajs.js
-import org.getshaka.nativeconverter.NativeConverter.given
-import org.getshaka.nativeconverter.fromNative
 
 trait ReferenceDataStore:
 
@@ -33,9 +31,8 @@ object ReferenceDataStore:
       ds      <- IdbReferenceDataStore(version)
     yield ds
 
-class IdbReferenceDataStore(db: Database, maxSearchHits: Int = 10)(using ct: ControlTowerBackend)
-    extends ReferenceDataStore:
-  import IdbReferenceDataStore.{SolarSystem, ReferenceAll, ByNameIndex, AllReferenceKey}
+class IdbReferenceDataStore(db: Database, maxSearchHits: Int = 10) extends ReferenceDataStore:
+  import IdbReferenceDataStore.{AllReferenceKey, ByNameIndex, ReferenceAll, SolarSystem}
 
   override def systemForId(systemId: Long): Future[Option[SolarSystem]] =
     for
@@ -179,7 +176,7 @@ object IdbReferenceDataStore:
       val _ = db.createObjectStore(ReferenceAll)
     }
 
-class IndexedDbError(msg: String, cause: org.scalajs.dom.Event) extends RuntimeException(msg)
+class IndexedDbError(msg: String, @unused cause: org.scalajs.dom.Event) extends RuntimeException(msg)
 
 private def indexedDb: Try[org.scalajs.dom.idb.Factory] =
   org.scalajs.dom.window.indexedDB.toRight(new UnsupportedOperationException("window.indexedDB not set")).toTry

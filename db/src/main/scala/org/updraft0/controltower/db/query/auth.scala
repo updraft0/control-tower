@@ -1,15 +1,12 @@
 package org.updraft0.controltower.db.query
 
 import io.getquill.*
-import org.updraft0.controltower.constant.*
 import org.updraft0.controltower.db.model.*
-import org.updraft0.controltower.db.query.ctx.*
 import zio.ZIO
 
 object auth:
   import schema.*
-  import ctx.{*, given}
-  import zio.json.{*, given}
+  import ctx.*
 
   // TODO: not sure about location of these
   given MappedEncoding[String, MapRole] = MappedEncoding {

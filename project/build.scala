@@ -33,7 +33,14 @@ object build {
     scalaVersion := "3.3.1",
     manifestSetting,
     crossVersion := CrossVersion.binary,
-    scalacOptions ++= Seq( /*"-explain",*/ "-feature", "-deprecation", "-Wunused:all")
+    scalacOptions ++= Seq(
+      "-Wunused:all",
+      "-feature",
+      "-deprecation",
+      "-Wunused:imports,privates,locals,implicits",
+      "-Werror"
+//      "-explain"
+    )
   ) ++ targetSettings
 
 }

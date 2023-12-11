@@ -1,7 +1,6 @@
 package org.updraft0.controltower.db
 
 import org.flywaydb.core.Flyway
-import org.flywaydb.core.api.Location
 import org.flywaydb.core.api.output.MigrateResult
 import zio.{ZIO, Config as _, *}
 

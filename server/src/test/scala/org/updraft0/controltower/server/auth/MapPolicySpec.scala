@@ -1,7 +1,6 @@
 package org.updraft0.controltower.server.auth
 
 import org.updraft0.controltower.db.model
-import org.updraft0.controltower.server.auth.MapPolicy.resolveCharacterPoliciesToMapIds
 import zio.*
 import zio.test.*
 

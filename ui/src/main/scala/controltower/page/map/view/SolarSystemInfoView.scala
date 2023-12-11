@@ -1,30 +1,35 @@
-package controltower.page.map
+package controltower.page.map.view
 
 import com.raquo.laminar.api.L.*
 import controltower.backend.{ESI, ThirdParty}
-import controltower.ui.FakeVarM
-import org.updraft0.controltower.constant.{SpaceType, WormholeEffects}
+import controltower.ui.ViewController
+import org.updraft0.controltower.constant.SpaceType
 import org.updraft0.controltower.protocol.*
 
 case class SystemInfo(systemId: Long, name: Option[String])
 
-class SystemInfoView(staticData: SystemStaticData, selectedSystem: Observable[Option[SystemInfo]]):
+/** Basic solar system information panel
+  */
+class SolarSystemInfoView(staticData: SystemStaticData, selectedSystem: Observable[Option[SystemInfo]])
+    extends ViewController:
 
-  def view: Modifier[Element] =
-    child <-- selectedSystem.map {
-      case Some(info) if staticData.solarSystemMap.contains(info.systemId) =>
-        solarSystemInfo(staticData.solarSystemMap(info.systemId), info.name, staticData.wormholeTypes)
-      case _ => div(cls := "solar-system-info", cls := "left-sidebar-view", "select a system")
-    }
+  override def view =
+    table(
+      cls := "solar-system-info-view",
+      cls := "left-sidebar-view",
+      children <-- selectedSystem.map {
+        case Some(info) if staticData.solarSystemMap.contains(info.systemId) =>
+          solarSystemInfo(staticData.solarSystemMap(info.systemId), info.name, staticData.wormholeTypes)
+        case _ => nodeSeq(tr("select a system"))
+      }
+    )
 
 private inline def solarSystemInfo(
     solarSystem: SolarSystem,
     name: Option[String],
     wormholeTypes: Map[Long, WormholeType]
 ) =
-  table(
-    cls := "solar-system-info-view",
-    cls := "left-sidebar-view",
+  nodeSeq(
     tr(
       cls := "solar-system-name",
       span(cls("solar-system-name-default")(name.isEmpty), name.getOrElse(solarSystem.name)),

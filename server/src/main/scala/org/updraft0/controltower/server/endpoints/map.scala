@@ -18,9 +18,14 @@ def createMap = Endpoints.createMap
   .serverLogic(user =>
     newMap =>
       dbquery
-        .transaction(checkNewMapCharacterMatches(user.userId, newMap) *> insertNewMap(user.userId, newMap))
+        .transaction(
+          for
+            _   <- checkNewMapCharacterMatches(user.userId, newMap)
+            map <- insertNewMap(user.userId, newMap)
+          yield toMapInfo(map) // cannot determine map role here because we have no character id associated
+        )
         .tapErrorCause(ZIO.logWarningCause("failed while creating map", _))
-        .mapBoth(toUserError, toMapInfo)
+        .mapError(toUserError)
   )
 
 // NOTE: See comments in MapSession for why this doesn't use sttp's websocket interop
@@ -43,7 +48,7 @@ def mapWebSocket: zio.http.HttpApp[EndpointEnv] =
         validCookie(req).flatMap(user =>
           checkUserCanAccessMap(user, characterId, mapName)
             .mapError(Response.text(_).status(Status.Unauthorized))
-            .flatMap(mapId => MapSession(mapId, characterId, user.userId).toResponse)
+            .flatMap((mapId, mapRole) => MapSession(mapId, characterId, user.userId, mapRole).toResponse)
         )
       }
   ).toHttpApp
@@ -54,7 +59,11 @@ def allMapEndpoints
     createMap.widen[EndpointEnv]
   )
 
-private def checkUserCanAccessMap(user: LoggedInUser, characterId: Long, mapName: String) =
+private def checkUserCanAccessMap(
+    user: LoggedInUser,
+    characterId: Long,
+    mapName: String
+): ZIO[javax.sql.DataSource, String, (model.MapId, model.MapRole)] =
   dbquery
     .transaction {
       for
@@ -62,7 +71,7 @@ private def checkUserCanAccessMap(user: LoggedInUser, characterId: Long, mapName
         mapNames <- MapQueries.getMapNamesByIds(maps.map(_._2))
         _        <- ZIO.when(mapNames.isEmpty)(ZIO.fail(ValidationError("No maps found")))
         _        <- ZIO.when(mapNames.size > 1)(ZIO.fail(ValidationError("Map name is ambiguous")))
-      yield mapNames.head._1
+      yield (maps.head._2, maps.head._3)
     }
     .tapErrorCause(ZIO.logWarningCause("failed while checking user access", _))
     .mapError(toUserError)
@@ -115,6 +124,11 @@ def toMapRole(m: MapRole): model.MapRole = m match
   case MapRole.Viewer => model.MapRole.Viewer
   case MapRole.Editor => model.MapRole.Editor
   case MapRole.Admin  => model.MapRole.Admin
+
+def toProtocolRole(m: model.MapRole): MapRole = m match
+  case model.MapRole.Admin  => MapRole.Admin
+  case model.MapRole.Editor => MapRole.Editor
+  case model.MapRole.Viewer => MapRole.Viewer
 
 def toUserError(t: Throwable) = t match
   case ValidationError(msg) => msg

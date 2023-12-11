@@ -1,54 +1,76 @@
-package controltower.page.map
+package controltower.page.map.view
 
 import com.raquo.laminar.api.L.*
-import org.updraft0.controltower.protocol.{IntelStance, MapRequest, MapSystemSnapshot, SolarSystem, SystemDisplayData}
-import controltower.component.Modal
 import controltower.Constant
-import controltower.ui.*
+import controltower.component.Modal
 import controltower.db.ReferenceDataStore
+import controltower.page.map.{MapAction, RoleController}
+import controltower.ui.*
+import org.updraft0.controltower.protocol.*
 
-import scala.util.{Failure, Success}
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.util.{Failure, Success}
 
-class ToolbarView(currentSystem: StrictSignal[Option[Long]], bus: WriteBus[MapRequest], rds: ReferenceDataStore):
+/** Render + control the toolbar of icons to perform map actions (e.g. add, delete, etc.)
+  */
+class ToolbarView(
+    selected: Signal[Option[MapSystemSnapshot]],
+    actions: WriteBus[MapAction],
+    mapRole: Signal[MapRole],
+    rds: ReferenceDataStore
+) extends ViewController:
 
-  def view = div(
-    idAttr := "map-toolbar",
-    toolbarButton(
-      "add-system",
-      "ti-circle-plus",
-      onClick.stopPropagation.mapToUnit --> (_ =>
-        Modal.show(
-          (closeMe, owner) => systemAddView(bus, closeMe, rds)(using owner),
-          clickCloses = true,
-          cls := "system-add-dialog"
+  override def view: Element =
+    div(
+      idAttr := "map-toolbar",
+      toolbarButton(
+        "add-system",
+        "ti-circle-plus",
+        disabled <-- mapRole.map(!RoleController.canAddSystem(_)),
+        onClick.stopPropagation --> (_ =>
+          Modal.show(
+            (closeMe, owner) => systemAddView(actions, closeMe, rds)(using owner),
+            clickCloses = true,
+            cls := "system-add-dialog"
+          )
         )
-      )
-    ),
-    toolbarButton(
-      id = "remove-system",
-      "ti-trash",
-      disabled <-- currentSystem.map(_.isEmpty),
-      onClick.stopPropagation.mapToUnit --> (_ =>
-        Modal.show(
-          (closeMe, owner) => systemConfirmRemoveView(bus, currentSystem.now().get, closeMe, rds)(using owner),
-          clickCloses = true,
-          cls := "system-remove-dialog"
-        ),
-      )
-    ),
-    toolbarButton(
-      id = "pin-system",
-      "ti-pin-filled",
-      disabled <-- currentSystem.map(_.isEmpty),
-      onClick.stopPropagation.mapToUnit --> (_ =>
-        bus.onNext(MapRequest.UpdateSystem(currentSystem.now().get, isPinned = Some(true) /* FIXME */ ))
+      ),
+      toolbarButton(
+        id = "remove-system",
+        "ti-trash",
+        disableWhenNotSelectedAndRole(selected, mapRole, RoleController.canRemoveSystem),
+        onClick.stopPropagation.compose(_.sampleCollectSome(selected)) --> (system =>
+          Modal.show(
+            (closeMe, owner) => systemConfirmRemoveView(actions, system.system.systemId, closeMe, rds)(using owner),
+            clickCloses = true,
+            cls := "system-remove-dialog"
+          ),
+        )
+      ),
+      toolbarButtonS(
+        id = "pin-system",
+        selected.map(_.exists(_.system.isPinned)).map {
+          case true  => "ti-pin-filled"
+          case false => "ti-pin"
+        },
+        disableWhenNotSelectedAndRole(selected, mapRole, RoleController.canPinUnpinSystem),
+        onClick.stopPropagation.compose(_.sampleCollectSome(selected)) -->
+          actions.contramap[MapSystemSnapshot](s => MapAction.TogglePinned(s.system.systemId))
       )
     )
-  )
+
+private inline def disableWhenNotSelectedAndRole[A](
+    selected: Signal[Option[A]],
+    role: Signal[MapRole],
+    roleAllows: MapRole => Boolean
+) =
+  disabled <-- selected.combineWith(role).map(sr => sr._1.forall(_ => !roleAllows(sr._2)))
 
 private inline def toolbarButton(id: String, icon: String, mods: Modifier[Button]*) =
   button(idAttr := id, typ := "button", cls := "ti", cls := icon, cls := "toolbar-button", mods)
+
+private inline def toolbarButtonS(id: String, icon: Signal[String], mods: Modifier[Button]*) =
+  button(idAttr := id, typ := "button", cls := "ti", cls <-- icon, cls := "toolbar-button", mods)
 
 private object ErrorText:
   val NoSolarSystem        = "No solar system"
@@ -56,7 +78,7 @@ private object ErrorText:
   val MultipleSystemsFound = "Multiple systems found"
   val Backend              = "Could not lookup systems"
 
-private def systemAddView(bus: WriteBus[MapRequest], closeMe: Observer[Unit], rds: ReferenceDataStore)(using Owner) =
+private def systemAddView(bus: WriteBus[MapAction], closeMe: Observer[Unit], rds: ReferenceDataStore)(using Owner) =
   val systemVar = Var("")
   val nameVar   = Var("")
   val pinnedVar = Var(false)
@@ -70,12 +92,14 @@ private def systemAddView(bus: WriteBus[MapRequest], closeMe: Observer[Unit], rd
     else
       rds.searchSystemName(solarSystemName).onComplete {
         case Success(List(solarSystem)) =>
-          val req = MapRequest.AddSystem(
-            systemId = solarSystem.id,
-            name = Option.when(!mapName.isBlank)(mapName),
-            isPinned = pinnedVar.now(),
-            displayData = SystemDisplayData.Manual(0, 0), // FIXME manual display of system data
-            stance = IntelStance.Unknown
+          val req = MapAction.Direct(
+            MapRequest.AddSystem(
+              systemId = solarSystem.id,
+              name = Option.when(!mapName.isBlank)(mapName),
+              isPinned = pinnedVar.now(),
+              displayData = SystemDisplayData.Manual(0, 0), // FIXME manual display of system data
+              stance = IntelStance.Unknown
+            )
           )
           bus.onNext(req)
           closeMe.onNext(())
@@ -145,7 +169,7 @@ private def systemAddView(bus: WriteBus[MapRequest], closeMe: Observer[Unit], rd
   )
 
 private def systemConfirmRemoveView(
-    bus: WriteBus[MapRequest],
+    bus: WriteBus[MapAction],
     systemId: Long,
     closeMe: Observer[Unit],
     rds: ReferenceDataStore
@@ -168,7 +192,7 @@ private def systemConfirmRemoveView(
       cls := "remove-button",
       "Remove",
       onClick.mapToUnit --> { _ =>
-        bus.onNext(MapRequest.RemoveSystem(systemId))
+        bus.onNext(MapAction.Remove(systemId))
         closeMe.onNext(())
       }
     )

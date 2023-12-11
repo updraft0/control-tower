@@ -1,7 +1,7 @@
 package org.updraft0.controltower.server.auth
 
 import org.updraft0.controltower.server.auth.EsiError.{InvalidJwt, UpstreamAuth, UpstreamError, ValidationError}
-import org.updraft0.esi.client.{AuthErrorResponse, EsiClient, JwtAuthResponse, JwtString}
+import org.updraft0.esi.client.{AuthErrorResponse, EsiClient, JwtAuthResponse}
 import org.updraft0.controltower.server.{Config, EsiKeys}
 import pdi.jwt.{JwtAlgorithm, JwtOptions, JwtZIOJson}
 import pdi.jwt.algorithms.JwtAsymmetricAlgorithm

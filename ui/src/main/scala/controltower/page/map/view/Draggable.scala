@@ -1,4 +1,4 @@
-package controltower.page.map
+package controltower.page.map.view
 
 import com.raquo.laminar.api.L.*
 
@@ -16,6 +16,8 @@ private val MouseButtonLeft   = 0
 /** Make a draggable content element with grid snapping
   * @param pos
   *   The bidirectional var with the position of the box on the parent element
+  * @param canDrag
+  *   Whether to allow dragging or not
   * @param f
   *   The function that draws the content of the element (isDragging, parent) => ()
   * @param gridSnap
@@ -23,6 +25,7 @@ private val MouseButtonLeft   = 0
   */
 private def inDraggable(
     pos: FakeVarM[Long, Coord],
+    canDrag: Signal[Boolean],
     f: (Signal[Boolean], HtmlElement) => Unit,
     gridSnap: Int = DefaultGridSnapPx
 ): HtmlElement =
@@ -30,11 +33,14 @@ private def inDraggable(
   val isDragging     = downMouseCoord.signal.map(_.isDefined)
   val coordSig       = pos.signal
   div(
-    cls := "draggable-box",
+    cls <-- canDrag.map {
+      case true  => "draggable-box"
+      case false => "pinned-box"
+    },
     inContext(self =>
       List(
-        onPointerDown.filter(_.isPrimary) --> { pev =>
-          if (pev.button == MouseButtonLeft) {
+        onPointerDown.filter(_.isPrimary).compose(_.withCurrentValueOf(canDrag)) --> { (pev, canDrag) =>
+          if (canDrag && pev.button == MouseButtonLeft) {
             self.ref.setPointerCapture(pev.pointerId)
             val bbox  = self.ref.getBoundingClientRect()
             val coord = Coord(x = pev.clientX - bbox.x, y = pev.clientY - bbox.y)

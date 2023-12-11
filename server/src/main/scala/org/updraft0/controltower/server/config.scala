@@ -10,7 +10,6 @@ import zio.config.typesafe.TypesafeConfigProvider.fromTypesafeConfig
 import zio.{ZIO, ZLayer}
 
 import java.math.BigInteger
-import java.nio.charset.Charset
 import java.security.{KeyFactory, PublicKey}
 import java.security.spec.RSAPublicKeySpec
 import java.time.Duration

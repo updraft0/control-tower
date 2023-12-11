@@ -88,10 +88,9 @@ dialog::backdrop {
 }
 
 @media all {
-    #mapParent { min-width: 600px; flex: 4 1 auto; order: 3; }
-    #mapLeftSidebar { min-width: 400px; flex: 0 1 auto; order: 2; }
-    #mapRightSidebar { order: 4; }
-    #mapMenu { flex: 1 100%; order: 1; }
+    #map-parent { min-width: 600px; flex: 4 1 auto; order: 3; }
+    #map-left-sidebar { min-width: 400px; flex: 0 1 auto; order: 2; }
+    #map-menu { flex: 1 100%; order: 1; }
 }
 
 
@@ -99,20 +98,16 @@ dialog::backdrop {
 $box-width:     140px;
 $box-height:    40px;
 
-#mapMenu {
+#map-menu {
     display: block;
 }
 
-#mapLeftSidebar {
+#map-left-sidebar {
     padding-left: 2px;
     padding-right: 6px;
 }
 
-#mapRightSidebar {
-
-}
-
-#mapParent {
+#map-parent {
     /*flex: unset; !* TODO not sure ? *!*/
     /*width: 70%;*/
     /*width: 500px;*/
@@ -129,7 +124,7 @@ $box-height:    40px;
 }
 
 /* TODO removed as wasn't sure this is needed!? */
-#mapInner {
+#map-inner {
     position: relative;
     transform-origin: top left;
     box-sizing: content-box;
@@ -149,14 +144,22 @@ $box-height:    40px;
     user-select: none;
 }
 
-.draggable-box {
-    cursor: grab;
+.system {
     user-select: none;
     width: $box-width;
     height: $box-height;
     position: absolute;
     box-sizing: border-box; /* important otherwise we need to do math for the border calculation*/
     box-snap: block-start;
+}
+
+.draggable-box {
+    cursor: grab;
+}
+
+.pinned-box {
+    cursor: pointer;
+    /*cursor: not-allowed; !* TODO not sure whether this is good *!*/
 }
 
 .system {

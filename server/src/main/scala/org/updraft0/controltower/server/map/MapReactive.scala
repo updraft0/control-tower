@@ -5,10 +5,12 @@ import org.updraft0.controltower.db.{model, query}
 import org.updraft0.controltower.server.db.{MapQueries, MapSystemWithAll}
 import org.updraft0.minireactive.*
 import zio.*
+
 import java.util.UUID
 import org.updraft0.controltower.server.Log
 
 import java.time.Instant
+import scala.annotation.unused
 
 type MapId    = Long
 type MapEnv   = javax.sql.DataSource
@@ -145,7 +147,7 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
   private def removeSystemFromDisplay(
       mapId: MapId,
       state: MapState,
-      sessionId: MapSessionId,
+      @unused sessionId: MapSessionId,
       rs: MapRequest.RemoveSystem
   ) =
     for

@@ -4,7 +4,7 @@ import zio.{LogAnnotation as _, *}
 import zio.logging.*
 import zio.logging.slf4j.bridge.Slf4jBridge
 
-import java.time.format.{DateTimeFormatter, DateTimeFormatterBuilder}
+import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 private[server] def desktopLogFormat = {

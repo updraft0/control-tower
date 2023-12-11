@@ -5,12 +5,8 @@ import io.getquill.extras.*
 import org.updraft0.controltower.db.model
 import org.updraft0.controltower.db.model.MapDisplayType
 import org.updraft0.controltower.db.query.*
-import org.updraft0.controltower.protocol
-import org.updraft0.controltower.protocol.jsoncodec.given
 import zio.*
 
-import java.nio.file.Paths
-import java.util.UUID
 import javax.sql.DataSource
 
 case class MapSystemWithAll(
@@ -28,8 +24,7 @@ object MapQueries:
   import ctx.{*, given}
   import map.given
   import map.schema.*
-  import zio.json.ast.Json.given
-  import zio.json.{*, given}
+  import zio.json.*
 
   // json codecs for json_array_agg usage (some logic duplicated between the MappedEntity and the codec here)
   private given JsonCodec[model.MapSystemStructure] = JsonCodec.derived

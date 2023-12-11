@@ -99,19 +99,19 @@ enum WormholeConnectionType:
   case Known(typeId: Long)
 
 enum MapSystemSignature(
-    id: String,
-    createdAt: Instant,
-    createdByCharacterId: Long,
-    updatedAt: Instant,
-    updatedByCharacterId: Long,
-    signatureGroup: SignatureGroup
+    val id: String,
+    val createdAt: Instant,
+    val createdByCharacterId: Long,
+    val updatedAt: Instant,
+    val updatedByCharacterId: Long,
+    val signatureGroup: SignatureGroup
 ):
   case Unknown(
-      id: String,
-      createdAt: Instant,
-      createdByCharacterId: Long,
-      updatedAt: Instant,
-      updatedByCharacterId: Long
+      override val id: String,
+      override val createdAt: Instant,
+      override val createdByCharacterId: Long,
+      override val updatedAt: Instant,
+      override val updatedByCharacterId: Long
   ) extends MapSystemSignature(
         id,
         createdAt,
@@ -121,17 +121,17 @@ enum MapSystemSignature(
         SignatureGroup.Unknown
       )
   case Wormhole(
-      id: String,
+      override val id: String,
       isEol: Option[Boolean],
       eolAt: Option[Instant],
       connectionType: WormholeConnectionType,
       massStatus: WormholeMassStatus,
       massSize: WormholeMassSize,
       connectionId: Option[Long],
-      createdAt: Instant,
-      createdByCharacterId: Long,
-      updatedAt: Instant,
-      updatedByCharacterId: Long
+      override val createdAt: Instant,
+      override val createdByCharacterId: Long,
+      override val updatedAt: Instant,
+      override val updatedByCharacterId: Long
   ) extends MapSystemSignature(
         id,
         createdAt,
@@ -141,13 +141,13 @@ enum MapSystemSignature(
         SignatureGroup.Wormhole
       )
   case Site(
-      id: String,
+      override val id: String,
       group: SignatureGroup,
       name: Option[String],
-      createdAt: Instant,
-      createdByCharacterId: Long,
-      updatedAt: Instant,
-      updatedByCharacterId: Long
+      override val createdAt: Instant,
+      override val createdByCharacterId: Long,
+      override val updatedAt: Instant,
+      override val updatedByCharacterId: Long
   ) extends MapSystemSignature(
         id,
         createdAt,
@@ -170,6 +170,10 @@ enum MapRequest:
   /** A snapshot of the map's systems, signatures, connections + intel data
     */
   case GetSnapshot
+
+  /** Get current map information (usually triggered server-side)
+    */
+  case GetMapInfo
 
   /** (idempotent) Add/update a system on the map
     */
@@ -200,6 +204,7 @@ enum MapRequest:
 
 enum MapMessage:
   case MapSnapshot(systems: Vector[MapSystemSnapshot], connections: Map[Long, MapWormholeConnection])
+  case MapMeta(info: MapInfo, role: MapRole)
   case SystemSnapshot(systemId: Long, system: MapSystemSnapshot, connections: Map[Long, MapWormholeConnection])
   case SystemDisplayUpdate(systemId: Long, name: Option[String], displayData: SystemDisplayData)
   case SystemRemoved(systemId: Long)

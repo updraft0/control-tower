@@ -1,8 +1,7 @@
 package controltower.backend
 
-import com.raquo.laminar.api.L.{*, given}
+import com.raquo.laminar.api.L.*
 import sttp.client3.UriContext
-import sttp.model.Uri
 
 object ESI:
 

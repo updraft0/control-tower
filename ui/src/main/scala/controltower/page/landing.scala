@@ -1,14 +1,11 @@
 package controltower.page
 
-import com.raquo.airstream.ownership.DynamicOwner
-import com.raquo.laminar.api.L.{*, given}
-import com.raquo.laminar.nodes.ReactiveElement
+import com.raquo.laminar.api.L.*
 import controltower.*
 import controltower.backend.{ControlTowerBackend, ESI}
-import controltower.component.{*, given}
+import controltower.component.*
 import controltower.ui.*
 import org.scalajs.dom
-import org.scalajs.dom.document
 import org.updraft0.controltower.protocol.*
 import sttp.model.Uri
 
@@ -54,7 +51,7 @@ object LandingPage:
                 )
               )
             case Some(maps) =>
-              (maps.sortBy(_.mapName).zipWithIndex.map { case (map, 0) =>
+              (maps.sortBy(_.mapName).map { map =>
                 tr(
                   td(cls := "character", rowSpan := maps.length + 1, renderCharacter(char)),
                   td(cls := "map-link", mapLink(map))
@@ -101,7 +98,6 @@ object LandingPage:
 object NewMapDialogView:
 
   def apply(char: UserCharacter, closeMe: Observer[Unit])(using ct: ControlTowerBackend, owner: Owner): HtmlElement =
-    val currIdx     = Var(1)
     val nameVar     = Var("")
     val defaultPerm = MapPolicyMember(0L, PolicyMemberType.Character, isDeny = false, MapRole.Viewer)
 

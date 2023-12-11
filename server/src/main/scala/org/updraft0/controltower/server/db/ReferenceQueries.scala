@@ -1,7 +1,6 @@
 package org.updraft0.controltower.server.db
 
 import io.getquill.*
-import io.getquill.extras.*
 import org.updraft0.controltower.constant.{WormholeClasses, WormholeEffects}
 import org.updraft0.controltower.db.model
 import org.updraft0.controltower.db.query.*
@@ -10,9 +9,6 @@ import org.updraft0.controltower.protocol.jsoncodec.given
 import org.updraft0.controltower.protocol.{StationOperation, StationService}
 import zio.*
 
-import java.nio.file.Paths
-import javax.sql.DataSource
-
 /** Queries for "reference" data (not map-dependent)
   */
 object ReferenceQueries:
@@ -20,8 +16,7 @@ object ReferenceQueries:
   import map.given
   import map.schema.*
   import sde.schema.*
-  import zio.json.ast.Json.given
-  import zio.json.{*, given}
+  import zio.json.*
 
   private val ShipCategoryId = 6
 

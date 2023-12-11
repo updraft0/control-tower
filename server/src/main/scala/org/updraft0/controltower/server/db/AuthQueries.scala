@@ -6,7 +6,6 @@ import org.updraft0.controltower.db.model
 import org.updraft0.controltower.db.query.*
 import zio.*
 
-import java.nio.file.Paths
 import javax.sql.DataSource
 import java.util.UUID
 
@@ -15,7 +14,7 @@ case class CharacterMapRole(characterId: Long, mapId: Long, role: model.MapRole)
 /** Queries for user/auth related operations
   */
 object AuthQueries:
-  import ctx.{*, given}
+  import ctx.*
   import auth.given
   import auth.schema.*
 

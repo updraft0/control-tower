@@ -2,7 +2,6 @@ package controltower.backend
 
 import com.raquo.airstream.core.{EventStream, Observable}
 import com.raquo.airstream.ownership.Owner
-import controltower.backend.given
 import org.scalajs.dom.RequestCredentials
 import org.updraft0.controltower.protocol.*
 import sttp.capabilities.WebSockets
