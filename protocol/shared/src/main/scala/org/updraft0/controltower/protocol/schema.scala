@@ -31,6 +31,7 @@ object schema:
   given Schema[Station]        = Schema.derived
   given Schema[SolarSystem]    = Schema.derived
   given Schema[WormholeStatic] = Schema.derived
+  given Schema[NewSystemName]  = Schema.derived
 
   // user
   given Schema[MapRole]          = Schema.derived
@@ -86,6 +87,7 @@ object jsoncodec:
   given JsonCodec[Station]        = JsonCodec.derived
   given JsonCodec[SolarSystem]    = JsonCodec.derived
   given JsonCodec[WormholeStatic] = JsonCodec.derived
+  given JsonCodec[NewSystemName]  = JsonCodec.derived
 
   // user
   given JsonCodec[MapRole]          = JsonCodec.derived

@@ -59,7 +59,7 @@ private inline def solarSystemInfo(
       mark(
         cls := "system-class",
         cls := s"system-class-${solarSystem.systemClass.get.toString.toLowerCase}",
-        solarSystem.systemClass.get.toString
+        systemClassString(solarSystem.systemClass.get)
       ),
       mark(
         cls := "system-security",

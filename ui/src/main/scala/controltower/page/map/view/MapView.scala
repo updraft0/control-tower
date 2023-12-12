@@ -17,6 +17,7 @@ import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.Success
+import scala.language.implicitConversions
 
 private class MapView(
     id: Int,
@@ -140,11 +141,15 @@ private class MapView(
               Option.when(mss.system.stance != newStance)(MapRequest.UpdateSystem(systemId, stance = Some(newStance)))
             )
         case (MapAction.Rename(systemId, newName), _) =>
-          Some(MapRequest.UpdateSystem(systemId, name = Some(newName)))
+          Some(
+            MapRequest
+              .UpdateSystem(systemId, name = Some(newName.map(NewSystemName.Name(_)).getOrElse(NewSystemName.None)))
+          )
         case (MapAction.Remove(systemId), _) =>
           Some(MapRequest.RemoveSystem(systemId))
-        case (MapAction.Reposition(systemId, x, y), _) =>
-          Some(MapRequest.UpdateSystem(systemId, displayData = Some(SystemDisplayData.Manual(x.toInt, y.toInt))))
+        case (MapAction.Reposition(systemId, x, y), allSystems) =>
+          val newDisplayData = SystemDisplayData.Manual(x.toInt, y.toInt) // TODO: position controller
+          Some(MapRequest.UpdateSystem(systemId, displayData = Some(newDisplayData)))
         case (MapAction.Select(systemIdOpt), _) =>
           selectedSystem.set(systemIdOpt)
           None
@@ -164,12 +169,12 @@ private class MapView(
 
     div(
       idAttr := "map-view-inner",
-      toolbarView.view,
       div(
         idAttr := "map-parent",
         cls    := "grid",
         cls    := "g-20px",
         inContext(self => onClick --> (ev => if (ev.currentTarget == self.ref) selectedSystem.set(None))),
+        toolbarView.view,
         div(
           idAttr := "map-inner",
           children <-- allSystems

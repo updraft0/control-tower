@@ -1,6 +1,7 @@
 package org.updraft0.controltower.protocol
 
 import java.time.Instant
+import scala.language.implicitConversions
 
 enum PolicyMemberType:
   case Character, Corporation, Alliance
@@ -166,6 +167,14 @@ case class MapSystemSnapshot(
     connections: Vector[MapWormholeConnection]
 )
 
+enum NewSystemName:
+  case None
+  case Name(value: String)
+
+  def toOption: Option[String] = this match
+    case None        => Option.empty
+    case Name(value) => Some(value)
+
 enum MapRequest:
   /** A snapshot of the map's systems, signatures, connections + intel data
     */
@@ -192,7 +201,7 @@ enum MapRequest:
       displayData: Option[SystemDisplayData] = None,
       isPinned: Option[Boolean] = None,
       stance: Option[IntelStance] = None,
-      name: Option[Option[String]] = None
+      name: Option[NewSystemName] = None // TODO: weirdly cannot nest Option[Option[_]]
   )
 
   /** Remove a system from the map (this only deletes display data and clears the pinned status)

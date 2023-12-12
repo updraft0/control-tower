@@ -5,7 +5,7 @@ import controltower.component.Modal
 import controltower.ui.{FakeVarM, ViewController, onEnterPress}
 import controltower.Constant
 import controltower.page.map.{MapAction, RoleController}
-import org.updraft0.controltower.constant.WormholeEffects
+import org.updraft0.controltower.constant.*
 import org.updraft0.controltower.protocol.*
 
 import scala.collection.MapView
@@ -51,6 +51,7 @@ class SystemView(
             cls := "system-status-line",
             systemClass(solarSystem),
             systemMapName(system, solarSystem),
+            systemShattered(solarSystem),
             systemEffect(solarSystem),
             systemIsPinned(system)
           )
@@ -110,7 +111,7 @@ private inline def systemClass(ss: SolarSystem, hide: Boolean = false) =
     cls        := "system-class",
     cls        := s"system-class-${systemClass.toString.toLowerCase}",
     visibility := Option.when(hide)("hidden").getOrElse(""),
-    systemClass.toString
+    systemClassString(systemClass)
   )
 
 private inline def systemName(ss: SolarSystem) =
@@ -127,9 +128,14 @@ private inline def systemEffect(ss: SolarSystem) =
         cls := "system-effect",
         cls := s"system-effect-${effect.toString.toLowerCase}",
         cls := "ti",
-        cls := "ti-square-filled" // hmnn this does not work otherwise
+        cls := "ti-square-filled"
       )
     }
+
+private inline def systemShattered(ss: SolarSystem) =
+  Option.when(ss.name.startsWith("J0"))(
+    mark(cls := "system-shattered", cls := "ti", cls := "ti-chart-pie-filled")
+  )
 
 private inline def systemMapName(v: SystemVar, solarSystem: SolarSystem) =
   val nameSignal = v.signal.map(_.system.name)
@@ -192,3 +198,13 @@ private[view] inline def systemNameInput(nameVar: Var[String], mods: Modifier[In
     maxLength   := Constant.MaxSystemNameLength,
     mods
   )
+
+private[view] inline def systemClassString(cls: WormholeClass) =
+  cls match
+    case WormholeClass.ShatteredFrig => "C13"
+    case WormholeClass.Pochven       => "P"
+    case WormholeClass.Thera         => "T"
+    case WormholeClass.BarbicanDrifter | WormholeClass.ConfluxDrifter | WormholeClass.RedoubtDrifter |
+        WormholeClass.VidetteDrifter | WormholeClass.SentinelDrifter =>
+      "D"
+    case other => other.toString

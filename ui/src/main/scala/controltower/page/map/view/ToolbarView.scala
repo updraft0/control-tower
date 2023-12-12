@@ -56,6 +56,30 @@ class ToolbarView(
         disableWhenNotSelectedAndRole(selected, mapRole, RoleController.canPinUnpinSystem),
         onClick.stopPropagation.compose(_.sampleCollectSome(selected)) -->
           actions.contramap[MapSystemSnapshot](s => MapAction.TogglePinned(s.system.systemId))
+      ),
+      toolbarButton(
+        id = "stance-friendly",
+        icon = "ti-friends",
+        disableWhenNotSelectedAndRole(selected, mapRole, RoleController.canUpdateIntelStance),
+        onClick.stopPropagation.compose(_.sampleCollectSome(selected)) -->
+          actions.contramap[MapSystemSnapshot](s =>
+            MapAction.IntelChange(
+              s.system.systemId,
+              if (s.system.stance == IntelStance.Friendly) IntelStance.Unknown else IntelStance.Friendly
+            )
+          )
+      ),
+      toolbarButton(
+        id = "stance-hostile",
+        icon = "ti-friends-off",
+        disableWhenNotSelectedAndRole(selected, mapRole, RoleController.canUpdateIntelStance),
+        onClick.stopPropagation.compose(_.sampleCollectSome(selected)) -->
+          actions.contramap[MapSystemSnapshot](s =>
+            MapAction.IntelChange(
+              s.system.systemId,
+              if (s.system.stance == IntelStance.Hostile) IntelStance.Unknown else IntelStance.Hostile
+            )
+          )
       )
     )
 

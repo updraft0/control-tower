@@ -124,7 +124,7 @@ object MapSession:
             Some(ctx.sessionId),
             MapRequest.RenameSystem(
               systemId = upd.systemId,
-              name = upd.name.get
+              name = upd.name.get.toOption
             )
           )
         )
