@@ -1,10 +1,10 @@
 package controltower.page.map.view
 
 import com.raquo.laminar.api.L.*
-import controltower.component.Modal
-import controltower.ui.{FakeVarM, ViewController, onEnterPress}
 import controltower.Constant
-import controltower.page.map.{MapAction, RoleController}
+import controltower.component.Modal
+import controltower.page.map.{Coord, MapAction, RoleController}
+import controltower.ui.{FakeVarM, ViewController, onEnterPress}
 import org.updraft0.controltower.constant.*
 import org.updraft0.controltower.protocol.*
 
@@ -41,11 +41,14 @@ class SystemView(
       inDraggable(
         currentPos,
         canDrag,
-        { (isDragging, box) =>
-          isDragging
+        { (stateVar, box) =>
+          stateVar
             .compose(_.withCurrentValueOf(currentPos.signal))
             .changes
-            .foreach((isDragging, pos) => if (!isDragging) actions.onNext(MapAction.Reposition(systemId, pos.x, pos.y)))
+            .foreach((state, pos) =>
+              if (!state.isDragging && state.initial != pos)
+                actions.onNext(MapAction.Reposition(systemId, pos.x, pos.y))
+            )
 
           val firstLine = div(
             cls := "system-status-line",

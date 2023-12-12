@@ -1,17 +1,13 @@
 package controltower.page.map.view
 
 import com.raquo.laminar.api.L.*
-
+import controltower.page.map.Coord
 import controltower.ui.FakeVarM
-
-case class Coord(x: Double, y: Double)
-
-object Coord:
-  val Hidden = Coord(-1, -1)
-  val Origin = Coord(0, 0)
 
 private val DefaultGridSnapPx = 10
 private val MouseButtonLeft   = 0
+
+case class DragState(isDragging: Boolean, initial: Coord)
 
 /** Make a draggable content element with grid snapping
   * @param pos
@@ -26,31 +22,41 @@ private val MouseButtonLeft   = 0
 private def inDraggable(
     pos: FakeVarM[Long, Coord],
     canDrag: Signal[Boolean],
-    f: (Signal[Boolean], HtmlElement) => Unit,
+    f: (Signal[DragState], HtmlElement) => Unit,
     gridSnap: Int = DefaultGridSnapPx
 ): HtmlElement =
-  val downMouseCoord = Var(Option.empty[Coord])
-  val isDragging     = downMouseCoord.signal.map(_.isDefined)
-  val coordSig       = pos.signal
+  val downMouse = Var[Option[Coord]](None)
+  val stateVar  = Var(DragState(isDragging = false, initial = pos.now()))
+  val coordSig  = pos.signal
   div(
     cls <-- canDrag.map {
       case true  => "draggable-box"
       case false => "pinned-box"
     },
     inContext(self =>
-      List(
-        onPointerDown.filter(_.isPrimary).compose(_.withCurrentValueOf(canDrag)) --> { (pev, canDrag) =>
-          if (canDrag && pev.button == MouseButtonLeft) {
-            self.ref.setPointerCapture(pev.pointerId)
-            val bbox  = self.ref.getBoundingClientRect()
-            val coord = Coord(x = pev.clientX - bbox.x, y = pev.clientY - bbox.y)
-            downMouseCoord.set(Some(coord))
-          }
+      modSeq(
+        onPointerDown
+          .filter(_.isPrimary)
+          .compose(
+            _.delay(200).withCurrentValueOf(canDrag).filter(_._2).filter(_._1.button == MouseButtonLeft).map(_._1)
+          ) --> { pev =>
+          self.ref.setPointerCapture(pev.pointerId)
+          val bbox       = self.ref.getBoundingClientRect()
+          val mouseCoord = Coord(x = pev.clientX - bbox.x, y = pev.clientY - bbox.y)
+          Var.set(
+            downMouse -> Some(mouseCoord),
+            stateVar  -> DragState(isDragging = true, initial = pos.now())
+          )
         },
-        onPointerUp.mapToUnit --> (_ => downMouseCoord.set(None)),
+        onPointerUp.mapToUnit --> (_ =>
+          Var.update(
+            downMouse -> ((_: Option[Coord]) => None),
+            stateVar  -> ((prev: DragState) => prev.copy(isDragging = false))
+          )
+        ),
         onPointerMove
           .compose(
-            _.withCurrentValueOf(downMouseCoord.signal, coordSig)
+            _.withCurrentValueOf(downMouse.signal, coordSig)
               .filter(_._2.isDefined)
               .map((ev, mopt, cpos) => (ev, mopt.get, cpos))
           ) --> { (pev, mouseOffset, currentPos) =>
@@ -74,6 +80,6 @@ private def inDraggable(
         left <-- coordSig.map(c => s"${c.x}px"),
         top <-- coordSig.map(c => s"${c.y}px")
       )
-      f(isDragging, self)
+      f(stateVar.signal, self)
     })
   )
