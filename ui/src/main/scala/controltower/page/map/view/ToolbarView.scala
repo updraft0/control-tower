@@ -4,7 +4,7 @@ import com.raquo.laminar.api.L.*
 import controltower.Constant
 import controltower.component.Modal
 import controltower.db.ReferenceDataStore
-import controltower.page.map.{MapAction, RoleController}
+import controltower.page.map.{MapAction, PositionController, RoleController}
 import controltower.ui.*
 import org.updraft0.controltower.protocol.*
 
@@ -17,7 +17,8 @@ class ToolbarView(
     selected: Signal[Option[MapSystemSnapshot]],
     actions: WriteBus[MapAction],
     mapRole: Signal[MapRole],
-    rds: ReferenceDataStore
+    rds: ReferenceDataStore,
+    positionController: PositionController
 ) extends ViewController:
 
   override def view: Element =
@@ -29,7 +30,7 @@ class ToolbarView(
         disabled <-- mapRole.map(!RoleController.canAddSystem(_)),
         onClick.stopPropagation --> (_ =>
           Modal.show(
-            (closeMe, owner) => systemAddView(actions, closeMe, rds)(using owner),
+            (closeMe, owner) => systemAddView(actions, closeMe, rds, positionController)(using owner),
             clickCloses = true,
             cls := "system-add-dialog"
           )
@@ -102,7 +103,12 @@ private object ErrorText:
   val MultipleSystemsFound = "Multiple systems found"
   val Backend              = "Could not lookup systems"
 
-private def systemAddView(bus: WriteBus[MapAction], closeMe: Observer[Unit], rds: ReferenceDataStore)(using Owner) =
+private def systemAddView(
+    bus: WriteBus[MapAction],
+    closeMe: Observer[Unit],
+    rds: ReferenceDataStore,
+    pc: PositionController
+)(using Owner) =
   val systemVar = Var("")
   val nameVar   = Var("")
   val pinnedVar = Var(false)
@@ -119,10 +125,10 @@ private def systemAddView(bus: WriteBus[MapAction], closeMe: Observer[Unit], rds
           val req = MapAction.Direct(
             MapRequest.AddSystem(
               systemId = solarSystem.id,
-              name = Option.when(!mapName.isBlank)(mapName),
+              name = Option.when(!mapName.isBlank)(NewSystemName.Name(mapName.trim)),
               isPinned = pinnedVar.now(),
-              displayData = SystemDisplayData.Manual(0, 0), // FIXME manual display of system data
-              stance = IntelStance.Unknown
+              displayData = pc.newSystemDisplay,
+              stance = None // FIXME add select for this
             )
           )
           bus.onNext(req)

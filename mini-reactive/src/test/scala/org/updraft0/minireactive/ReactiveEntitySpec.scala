@@ -32,5 +32,5 @@ object ReactiveEntitySpec extends ZIOSpecDefault:
             outQ   <- entity.subscribe("test")
             _      <- ZStream(Get, Incr, Get, Incr, Incr, Get, Incr, Get).mapZIO(inQ.offer).runDrain.forkScoped
             res    <- ZStream.fromQueue(outQ).take(4).runCollect
-          yield assertTrue(res == Chunk(0, 1, 3, 4).map(CounterReply.Current))
+          yield assertTrue(res == Chunk(0, 1, 3, 4).map(CounterReply.Current.apply))
     )

@@ -119,7 +119,8 @@ private class MapView(
     // do not clear the caches of static data?
 
   private def renderTop(using Owner) =
-    val mapRole = mapMeta.signal.map(_.map(_._2).getOrElse(MapRole.Viewer))
+    val positionController = PositionController
+    val mapRole            = mapMeta.signal.map(_.map(_._2).getOrElse(MapRole.Viewer))
     val static = SystemStaticData(
       cacheSolarSystem.view,
       cacheReference.map(_.wormholeTypes.map(wt => wt.typeId -> wt).toMap).getOrElse(Map.empty)
@@ -157,7 +158,7 @@ private class MapView(
       }
     )
 
-    val toolbarView = ToolbarView(selectedSystemSnapshot, actions, mapRole, rds)
+    val toolbarView = ToolbarView(selectedSystemSnapshot, actions, mapRole, rds, positionController)
 
     val systemInfoView =
       SolarSystemInfoView(
@@ -177,7 +178,9 @@ private class MapView(
         div(
           idAttr := "map-inner",
           children <-- allSystems
-            .splitByKey((k, v) => SystemView(actions, static, selectedSystem.signal, mapRole)(k, v).view)
+            .splitByKey((k, v) =>
+              SystemView(actions, static, positionController, selectedSystem.signal, mapRole)(k, v).view
+            )
             .map(_.toSeq)
         )
       ),

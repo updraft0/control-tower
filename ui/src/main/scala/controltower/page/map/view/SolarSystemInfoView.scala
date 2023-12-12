@@ -24,6 +24,8 @@ class SolarSystemInfoView(staticData: SystemStaticData, selectedSystem: Observab
       }
     )
 
+private val IgnoredSpaceTypes = Set(SpaceType.Known, SpaceType.Pochven)
+
 private inline def solarSystemInfo(
     solarSystem: SolarSystem,
     name: Option[String],
@@ -42,7 +44,7 @@ private inline def solarSystemInfo(
     ),
     tr(
       cls := "solar-system-location",
-      Option.when(!solarSystem.systemClass.exists(_.spaceType == SpaceType.Known))(
+      Option.when(!solarSystem.systemClass.exists(wc => IgnoredSpaceTypes.contains(wc.spaceType)))(
         modSeq(
           span(solarSystem.systemClass.map(_.spaceType.toString).getOrElse("Unknown")),
           i(cls := "ti", cls := "ti-arrow-badge-right-filled")

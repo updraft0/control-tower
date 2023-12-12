@@ -172,10 +172,10 @@ private def toProto(msg: MapResponse): Option[protocol.MapMessage] = msg match
 private def toAddSystem(msg: protocol.MapRequest.AddSystem) =
   MapRequest.AddSystem(
     systemId = msg.systemId,
-    name = msg.name,
+    name = msg.name.flatMap(_.toOption),
     isPinned = msg.isPinned,
     displayData = toDisplayData(msg.displayData),
-    stance = toIntelStance(msg.stance)
+    stance = msg.stance.map(toIntelStance)
   )
 
 private def toDisplayType(dt: protocol.MapDisplayType) = dt match

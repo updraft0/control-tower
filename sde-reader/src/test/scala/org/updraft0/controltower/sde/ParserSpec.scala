@@ -494,6 +494,7 @@ object ParserSpec extends ZIOSpecDefault:
               )
             ),
             secondaryEffect = None,
+            wormholeClass = Some(WormholeClass.L),
             planets = Vector(
               Planet(
                 id = 40012324,

@@ -38,7 +38,7 @@ private def inDraggable(
         onPointerDown
           .filter(_.isPrimary)
           .compose(
-            _.delay(200).withCurrentValueOf(canDrag).filter(_._2).filter(_._1.button == MouseButtonLeft).map(_._1)
+            _.withCurrentValueOf(canDrag).filter(_._2).filter(_._1.button == MouseButtonLeft).map(_._1)
           ) --> { pev =>
           self.ref.setPointerCapture(pev.pointerId)
           val bbox       = self.ref.getBoundingClientRect()

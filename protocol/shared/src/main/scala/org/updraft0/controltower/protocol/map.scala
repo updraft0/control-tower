@@ -188,10 +188,10 @@ enum MapRequest:
     */
   case AddSystem(
       systemId: Long,
-      name: Option[String],
+      name: Option[NewSystemName],
       isPinned: Boolean,
       displayData: SystemDisplayData,
-      stance: IntelStance
+      stance: Option[IntelStance]
   )
 
   /** Change an aspect of a system (or multiple at the same time)

@@ -3,7 +3,7 @@ package controltower.page.map.view
 import com.raquo.laminar.api.L.*
 import controltower.Constant
 import controltower.component.Modal
-import controltower.page.map.{Coord, MapAction, RoleController}
+import controltower.page.map.{Coord, MapAction, PositionController, RoleController}
 import controltower.ui.{FakeVarM, ViewController, onEnterPress}
 import org.updraft0.controltower.constant.*
 import org.updraft0.controltower.protocol.*
@@ -19,6 +19,7 @@ case class SystemStaticData(solarSystemMap: MapView[Long, SolarSystem], wormhole
 class SystemView(
     actions: WriteBus[MapAction],
     staticData: SystemStaticData,
+    positionController: PositionController,
     selectedSystem: Signal[Option[Long]],
     mapRole: Signal[MapRole]
 )(systemId: Long, system: SystemVar)(using Owner)
@@ -33,7 +34,13 @@ class SystemView(
       )
     else
       val solarSystem = staticData.solarSystemMap(systemId)
-      val currentPos  = systemPosition(system) // TODO: use position controller here
+      val currentPos = system.zoomIn(mss =>
+        mss.display.map(sdd => positionController.positionOfSystem(mss.system.systemId, sdd)).getOrElse(Coord.Hidden)
+      )((mss, coord) =>
+        mss.copy(display =
+          mss.display.map(prev => positionController.updateDisplayFromPosition(mss.system.systemId, prev, coord))
+        )
+      )
       val canDrag = mapRole
         .combineWith(system.signal.map(_.system.isPinned))
         .map((role, pinned) => !pinned && RoleController.canRepositionSystem(role))
@@ -92,13 +99,6 @@ class SystemView(
           )
         }
       )
-
-private def systemPosition(v: SystemVar): FakeVarM[Long, Coord] =
-  v.zoomIn({
-    _.display match
-      case Some(SystemDisplayData.Manual(x, y)) => Coord(x.toDouble, y.toDouble)
-      case None                                 => Coord.Hidden // TODO support other display types
-  })((mss, coord) => mss.copy(display = Some(SystemDisplayData.Manual(coord.x.toInt, coord.y.toInt))))
 
 private inline def intelStance(v: SystemVar) =
   cls <-- v.signal.map(s => (s.structures.nonEmpty, s.system.stance)).map {

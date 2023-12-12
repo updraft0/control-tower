@@ -1,6 +1,6 @@
 package org.updraft0.controltower.server.map
 
-import org.updraft0.controltower.db.model.{ChainNamingStrategy, SystemDisplayData, displayType}
+import org.updraft0.controltower.db.model.displayType
 import org.updraft0.controltower.db.{model, query}
 import org.updraft0.controltower.server.db.{MapQueries, MapSystemWithAll}
 import org.updraft0.minireactive.*
@@ -28,7 +28,7 @@ enum MapRequest:
       name: Option[String],
       isPinned: Boolean,
       displayData: model.SystemDisplayData,
-      stance: model.IntelStance
+      stance: Option[model.IntelStance]
   )
   case UpdateSystemAttribute(systemId: SystemId, pinned: Option[Boolean], intelStance: Option[model.IntelStance])
   case UpdateSystemDisplay(systemId: SystemId, displayData: model.SystemDisplayData)
@@ -94,15 +94,16 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
 
   private def addSystem(mapId: MapId, state: MapState, sessionId: MapSessionId, add: MapRequest.AddSystem) =
     for
+      curr <- query.map.getMapSystem(mapId, add.systemId) // need to get system to not override existing params
       _ <- query.map.upsertMapSystem(
         model.MapSystem(
           mapId = mapId,
           systemId = add.systemId,
-          name = add.name,
+          name = add.name.orElse(curr.flatMap(_.name)),
           isPinned = add.isPinned,
-          chainNamingStrategy = ChainNamingStrategy.Manual,
-          description = None,
-          stance = add.stance,
+          chainNamingStrategy = curr.map(_.chainNamingStrategy).getOrElse(model.ChainNamingStrategy.Manual),
+          description = curr.flatMap(_.description),
+          stance = add.stance.orElse(curr.map(_.stance)).getOrElse(model.IntelStance.Unknown),
           updatedByCharacterId = sessionId.characterId,
           updatedAt = Instant.EPOCH
         )

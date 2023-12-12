@@ -19,7 +19,7 @@ enum WormholeClass(val value: Int, val spaceType: SpaceType):
   case Internal10 extends WormholeClass(10, SpaceType.Internal)
   case Internal11 extends WormholeClass(11, SpaceType.Internal)
   // thera
-  case Thera extends WormholeClass(12, SpaceType.Known)
+  case Thera extends WormholeClass(12, SpaceType.Wormhole)
   // frig shattered
   case ShatteredFrig extends WormholeClass(13, SpaceType.Wormhole)
   // drifter

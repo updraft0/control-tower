@@ -80,6 +80,11 @@ object map:
   def getWormholeTypeNames: DbOperation[List[(String, Long)]] =
     ctx.run(sde.schema.itemType.filter(_.groupId == lift(WormholeGroupId)).map(it => it.name -> it.id))
 
+  def getMapSystem(mapId: Long, systemId: Long) =
+    ctx
+      .run(mapSystem.filter(ms => ms.mapId == lift(mapId) && ms.systemId == lift(systemId)))
+      .map(_.headOption)
+
   // upserts
   def upsertMap(value: MapModel): DbOperation[Long] =
     ctx.run(
