@@ -6,7 +6,6 @@ import controltower.Page
 import controltower.backend.ControlTowerBackend
 import controltower.db.ReferenceDataStore
 import controltower.page.map.*
-import controltower.page.map.view.*
 import controltower.ui.*
 import io.laminext.websocket.*
 import org.updraft0.controltower.protocol.*

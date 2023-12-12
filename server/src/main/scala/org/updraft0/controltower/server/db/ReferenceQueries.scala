@@ -117,7 +117,7 @@ object ReferenceQueries:
           stations = stations.value,
           planets = planets.value,
           effect = sys.effectTypeId.map(WormholeEffects.ById.apply),
-          systemClass = reg.whClassId.map(WormholeClasses.ById.apply),
+          systemClass = sys.whClassId.orElse(reg.whClassId).map(WormholeClasses.ById.apply),
           wormholeStatics = wormholeStatics.value,
           security = sys.security,
           starTypeId = sys.starTypeId

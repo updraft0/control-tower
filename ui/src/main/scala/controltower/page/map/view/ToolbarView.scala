@@ -50,8 +50,8 @@ class ToolbarView(
       toolbarButtonS(
         id = "pin-system",
         selected.map(_.exists(_.system.isPinned)).map {
-          case true  => "ti-pin-filled"
-          case false => "ti-pin"
+          case false => "ti-pin-filled"
+          case true  => "ti-pin"
         },
         disableWhenNotSelectedAndRole(selected, mapRole, RoleController.canPinUnpinSystem),
         onClick.stopPropagation.compose(_.sampleCollectSome(selected)) -->
@@ -59,7 +59,7 @@ class ToolbarView(
       ),
       toolbarButton(
         id = "stance-friendly",
-        icon = "ti-friends",
+        icon = "ti-heart",
         disableWhenNotSelectedAndRole(selected, mapRole, RoleController.canUpdateIntelStance),
         onClick.stopPropagation.compose(_.sampleCollectSome(selected)) -->
           actions.contramap[MapSystemSnapshot](s =>
@@ -71,7 +71,7 @@ class ToolbarView(
       ),
       toolbarButton(
         id = "stance-hostile",
-        icon = "ti-friends-off",
+        icon = "ti-tank",
         disableWhenNotSelectedAndRole(selected, mapRole, RoleController.canUpdateIntelStance),
         onClick.stopPropagation.compose(_.sampleCollectSome(selected)) -->
           actions.contramap[MapSystemSnapshot](s =>

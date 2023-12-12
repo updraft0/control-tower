@@ -30,6 +30,7 @@ case class SolarSystem(
     constellationName: String,
     constellationId: Long,
     effectTypeId: Option[Long],
+    whClassId: Option[Int],
     securityClass: Option[String],
     security: Option[Double],
     border: Boolean,

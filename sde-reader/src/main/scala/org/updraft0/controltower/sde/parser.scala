@@ -301,6 +301,7 @@ object parser:
       nameId         <- c.downField("solarSystemNameID").as[Long]
       star           <- c.downField("star").mapOptional(parseStar)
       wormholeEffect <- c.downField("secondarySun").downField("typeID").as[Option[Long]].map(toWhEffect)
+      wormholeClass  <- c.downField("wormholeClassID").as[Option[Int]].map(_.map(whClassFromId))
       planets        <- parsePlanets(c.downField("planets"))
       stargates      <- parseStargates(c.downField("stargates"))
       securityClass  <- c.downField("securityClass").as[Option[String]]
@@ -319,6 +320,7 @@ object parser:
       nameId = nameId,
       star = star,
       secondaryEffect = wormholeEffect,
+      wormholeClass = wormholeClass,
       planets = planets,
       stargates = stargates,
       securityClass = securityClass,

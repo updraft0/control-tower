@@ -150,6 +150,7 @@ CREATE TABLE sde.solar_system
     constellation_name TEXT    NOT NULL,
     constellation_id   INTEGER NOT NULL,
     effect_type_id     INTEGER,
+    wh_class_id        INTEGER,
     security_class     TEXT,
     security           REAL,
     border             INTEGER NOT NULL,
@@ -170,7 +171,8 @@ CREATE TABLE sde.solar_system
     CHECK (fringe == 1 or fringe == 0),
     CHECK (hub == 1 or hub == 0),
     CHECK (international == 1 or international == 0),
-    CHECK (regional == 1 or regional == 0)
+    CHECK (regional == 1 or regional == 0),
+    CHECK (wh_class_id > 0 AND wh_class_id < 26)
 ) STRICT;
 
 -- solar_system_planet

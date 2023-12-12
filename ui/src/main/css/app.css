@@ -66,17 +66,6 @@ dialog::backdrop {
     cursor: pointer;
 }
 
-/* TODO remove this - just for debugging */
-#debugOverlay {
-    display: none;
-    position: absolute;
-    width: 300px;
-    height: 400px;
-    background: $blue-dark;
-    top: 40px;
-    left: 800px;
-}
-
 /* map page */
 #map-view-inner {
     display: flex;
@@ -209,7 +198,11 @@ mark.system-class {
 }
 
 .system-class-pochven {
-    color: $red-darker;
+    color: $red-dark;
+}
+
+.system-class-thera {
+    color: $yellow;
 }
 
 .system-class-sentineldrifter, .system-class-barbicandrifter, .system-class-videttedrifter, .system-class-confluxdrifter, .system-class-videttedrifter  {
@@ -224,7 +217,7 @@ mark.system-effect {
 }
 
 .system-status-line mark {
-    margin-right: 2px;
+    margin-right: 1px;
     background: inherit;
 }
 
@@ -280,6 +273,7 @@ mark.system-map-name {
     margin-left: 2px;
     margin-right: auto;
     overflow: hidden;
+    white-space: nowrap;
 }
 
 mark.system-wormhole-static {

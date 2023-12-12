@@ -165,6 +165,7 @@ private def toSolarSystem(
     constellationName = names(c.id).name,
     constellationId = c.id,
     effectTypeId = s.secondaryEffect.map(_.typeId),
+    whClassId = s.wormholeClass.map(_.value),
     securityClass = s.securityClass,
     security = s.security,
     border = s.border,

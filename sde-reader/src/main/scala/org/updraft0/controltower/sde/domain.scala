@@ -28,6 +28,7 @@ enum ExportedData:
       nameId: Long,
       star: Option[Star],
       secondaryEffect: Option[WormholeEffect],
+      wormholeClass: Option[WormholeClass],
       // planets + stargates
       planets: Vector[Planet],
       stargates: Vector[Stargate],
