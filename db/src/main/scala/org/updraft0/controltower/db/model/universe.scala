@@ -52,6 +52,7 @@ case class SystemStaticWormhole(
     validUntil: Option[Instant] = None,
     updatedAt: Option[Instant] = None
 )
+
 case class Wormhole(
     typeId: Long,
     name: String,
@@ -61,3 +62,5 @@ case class Wormhole(
     maxStableTime: Long,
     targetClass: WormholeClass
 )
+
+case class SignatureInGroup(signatureGroup: SignatureGroup, name: String, targetClasses: Set[WormholeClass])

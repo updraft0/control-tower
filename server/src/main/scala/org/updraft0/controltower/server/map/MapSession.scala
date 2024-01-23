@@ -1,16 +1,16 @@
 package org.updraft0.controltower.server.map
 
-import org.updraft0.controltower.db.model
-import org.updraft0.controltower.db.query
+import org.updraft0.controltower.db.{model, query}
 import org.updraft0.controltower.protocol
 import org.updraft0.controltower.protocol.jsoncodec.given
 import org.updraft0.controltower.server.Log
-import org.updraft0.controltower.server.endpoints.{toMapInfo, toProtocolRole}
 import org.updraft0.controltower.server.db.{MapQueries, MapSystemWithAll}
+import org.updraft0.controltower.server.endpoints.{toMapInfo, toProtocolRole}
 import zio.*
 import zio.http.ChannelEvent.UserEvent
 import zio.http.{ChannelEvent, Handler, WebSocketChannelEvent, WebSocketFrame}
 import zio.json.*
+import zio.logging.LogAnnotation
 
 /** Loosely, a map "session" is an open WebSocket for a single (character, map)
   *
@@ -21,6 +21,9 @@ import zio.json.*
   */
 object MapSession:
   type Env = MapReactive.Service & javax.sql.DataSource
+
+  private val jsonContent  = LogAnnotation[String]("json", (_, b) => b, identity)
+  private val errorMessage = LogAnnotation[String]("error", (_, b) => b, identity)
 
   /** queue size for messages that are generated internally
     */
@@ -63,8 +66,8 @@ object MapSession:
         // run the receive from websocket -> queue of inbox and receive from outbox --> websocket in parallel, in scope
         recv <- ZIO
           .whileLoop(true)(chan.receive.flatMap(decodeMessage(_)).flatMap {
-            case Some(msg) => processMessage(ctx, msg).unit
-            case None      => ZIO.unit
+            case Right(msg)  => processMessage(ctx, msg).unit
+            case Left(error) => ourQ.offer(protocol.MapMessage.Error(error)).ignoreLogged
           })(identity)
           .forkScoped
         send <- ZIO
@@ -94,16 +97,19 @@ object MapSession:
       ) @@ Log.MapId(mapId) @@ Log.UserId(userId) @@ Log.CharacterId(sessionId.characterId)
     yield res
 
-  private inline def decodeMessage(ev: WebSocketChannelEvent): Task[Option[protocol.MapRequest]] = ev match
+  private inline def decodeMessage(ev: WebSocketChannelEvent): Task[Either[String, protocol.MapRequest]] = ev match
     case ChannelEvent.UserEventTriggered(UserEvent.HandshakeComplete) =>
-      ZIO.succeed(Some(protocol.MapRequest.GetMapInfo))
+      ZIO.right(protocol.MapRequest.GetMapInfo)
     case ChannelEvent.Read(WebSocketFrame.Text(msgText)) =>
       msgText.fromJson[protocol.MapRequest] match
-        case Left(error) => ZIO.logError(s"Unable to decode json: $error").as(None)
-        case Right(msg)  => ZIO.succeed(Some(msg))
-    case ChannelEvent.ExceptionCaught(ex) => ZIO.logErrorCause("Received exception, logging", Cause.fail(ex)).as(None)
-    case ChannelEvent.Unregistered        => ZIO.none
-    case other                            => ZIO.logError(s"BUG - don't know what to do with message $other").as(None)
+        case Left(error) =>
+          ZIO.logError(s"Unable to decode json content").as(Left("Unable to decode json content")) @@
+            jsonContent(msgText) @@ errorMessage(error)
+        case Right(msg) => ZIO.right(msg)
+    case ChannelEvent.ExceptionCaught(ex) =>
+      ZIO.logErrorCause("Received exception, logging", Cause.fail(ex)).as(Left("Unknown error"))
+    case ChannelEvent.Unregistered => ZIO.left("Channel closed")
+    case other => ZIO.logError(s"BUG - don't know what to do with message $other").as(Left("Bug: Unexpected message"))
 
   private inline def processMessage(ctx: Context, msg: protocol.MapRequest) = msg match
     case protocol.MapRequest.GetSnapshot =>
@@ -115,6 +121,7 @@ object MapSession:
           ctx.ourQ.offer(protocol.MapMessage.MapMeta(toMapInfo(map), toProtocolRole(role)))
         case _ => ZIO.logError("BUG: map not set")
       }
+    // system
     case add: protocol.MapRequest.AddSystem =>
       ctx.mapQ.offer(Identified(Some(ctx.sessionId), toAddSystem(add)))
     case upd: protocol.MapRequest.UpdateSystem =>
@@ -152,11 +159,41 @@ object MapSession:
       )
     case protocol.MapRequest.RemoveSystem(systemId) =>
       ctx.mapQ.offer(Identified(Some(ctx.sessionId), MapRequest.RemoveSystem(systemId)))
+    // signatures
+    case addSig: protocol.MapRequest.AddSystemSignature =>
+      ctx.mapQ.offer(
+        Identified(
+          Some(ctx.sessionId),
+          MapRequest.AddSystemSignature(addSig.systemId, toNewMapSystemSignature(addSig.sig))
+        )
+      )
+    case protocol.MapRequest.UpdateSystemSignatures(systemId, replaceAll, scanned) =>
+      ctx.mapQ.offer(
+        Identified(
+          Some(ctx.sessionId),
+          MapRequest.UpdateSystemSignatures(systemId, replaceAll, scanned.map(toNewMapSystemSignature))
+        )
+      )
+    case protocol.MapRequest.RemoveSystemSignatures(systemId, sigIds) =>
+      ctx.mapQ.offer(
+        Identified(
+          Some(ctx.sessionId),
+          MapRequest.RemoveSystemSignatures(systemId, Chunk(sigIds.map(s => s: String)*).nonEmptyOrElse(None)(Some(_)))
+        )
+      )
+    case protocol.MapRequest.RemoveAllSystemSignatures(systemId) =>
+      ctx.mapQ.offer(
+        Identified(
+          Some(ctx.sessionId),
+          MapRequest.RemoveSystemSignatures(systemId, None)
+        )
+      )
 
 private def filterToProto(sessionId: MapSessionId)(msg: Identified[MapResponse]): Option[protocol.MapMessage] =
   if (msg.sessionId.forall(_ == sessionId)) toProto(msg.value) else None
 
 private def toProto(msg: MapResponse): Option[protocol.MapMessage] = msg match
+  case MapResponse.Error(message) => Some(protocol.MapMessage.Error(message))
   case MapResponse.MapSnapshot(all) =>
     Some(protocol.MapMessage.MapSnapshot(toProtoSystems(all), toProtoConnections(all)))
   case MapResponse.SystemSnapshot(systemId, sys) =>
@@ -178,6 +215,30 @@ private def toAddSystem(msg: protocol.MapRequest.AddSystem) =
     stance = msg.stance.map(toIntelStance)
   )
 
+private def toNewMapSystemSignature(sig: protocol.NewSystemSignature) = sig match
+  case protocol.NewSystemSignature.Unknown(signatureId, _) =>
+    NewMapSystemSignature(signatureId, model.SignatureGroup.Unknown)
+  case protocol.NewSystemSignature.Site(signatureId, _, group, name) =>
+    NewMapSystemSignature(signatureId, toSignatureGroup(group), name)
+  case wh: protocol.NewSystemSignature.Wormhole =>
+    NewMapSystemSignature(
+      signatureId = wh.id,
+      signatureGroup = model.SignatureGroup.Wormhole,
+      signatureTypeName = None,
+      wormholeIsEol = Some(wh.isEol),
+      wormholeTypeId = wh.connectionType match
+        case protocol.WormholeConnectionType.Known(typeId) => Some(typeId)
+        case _                                             => None
+      ,
+      wormholeMassSize = toWhMassSize(wh.massSize),
+      wormholeMassStatus = toWhMassStatus(wh.massStatus),
+      wormholeK162Type = wh.connectionType match
+        case protocol.WormholeConnectionType.K162(typ) => Some(toWhK162Type(typ))
+        case _                                         => None
+      ,
+      wormholeConnectionId = wh.connectionId
+    )
+
 private def toDisplayType(dt: protocol.MapDisplayType) = dt match
   case protocol.MapDisplayType.Manual => model.MapDisplayType.Manual
 
@@ -188,6 +249,38 @@ private def toIntelStance(is: protocol.IntelStance) = is match
   case protocol.IntelStance.Unknown  => model.IntelStance.Unknown
   case protocol.IntelStance.Hostile  => model.IntelStance.Hostile
   case protocol.IntelStance.Friendly => model.IntelStance.Friendly
+
+private def toSignatureGroup(sg: protocol.SignatureGroup) = sg match
+  case protocol.SignatureGroup.Unknown  => model.SignatureGroup.Unknown
+  case protocol.SignatureGroup.Gas      => model.SignatureGroup.Gas
+  case protocol.SignatureGroup.Ghost    => model.SignatureGroup.Ghost
+  case protocol.SignatureGroup.Data     => model.SignatureGroup.Data
+  case protocol.SignatureGroup.Combat   => model.SignatureGroup.Combat
+  case protocol.SignatureGroup.Relic    => model.SignatureGroup.Relic
+  case protocol.SignatureGroup.Ore      => model.SignatureGroup.Ore
+  case protocol.SignatureGroup.Wormhole => model.SignatureGroup.Wormhole
+
+private def toWhMassStatus(ms: protocol.WormholeMassStatus) = ms match
+  case protocol.WormholeMassStatus.Unknown  => model.WormholeMassStatus.Unknown
+  case protocol.WormholeMassStatus.Critical => model.WormholeMassStatus.Critical
+  case protocol.WormholeMassStatus.Fresh    => model.WormholeMassStatus.Fresh
+  case protocol.WormholeMassStatus.Reduced  => model.WormholeMassStatus.Reduced
+
+private def toWhMassSize(size: protocol.WormholeMassSize) = size match
+  case protocol.WormholeMassSize.Unknown => model.WormholeMassSize.Unknown
+  case protocol.WormholeMassSize.S       => model.WormholeMassSize.S
+  case protocol.WormholeMassSize.M       => model.WormholeMassSize.M
+  case protocol.WormholeMassSize.L       => model.WormholeMassSize.L
+  case protocol.WormholeMassSize.XL      => model.WormholeMassSize.XL
+
+private def toWhK162Type(tpe: protocol.WormholeK162Type) = tpe match
+  case protocol.WormholeK162Type.Dangerous => model.WormholeK162Type.Dangerous
+  case protocol.WormholeK162Type.Deadly    => model.WormholeK162Type.Deadly
+  case protocol.WormholeK162Type.Unknown   => model.WormholeK162Type.Unknown
+  case protocol.WormholeK162Type.Hisec     => model.WormholeK162Type.Hisec
+  case protocol.WormholeK162Type.Losec     => model.WormholeK162Type.Losec
+  case protocol.WormholeK162Type.Nullsec   => model.WormholeK162Type.Nullsec
+  case protocol.WormholeK162Type.Thera     => model.WormholeK162Type.Thera
 
 private def toProtoSystems(all: Map[SystemId, MapSystemWithAll]): Vector[protocol.MapSystemSnapshot] =
   all.values.map(toProtoSystemSnapshot).toVector
@@ -228,7 +321,6 @@ private def toProtoSignature(value: model.MapSystemSignature): protocol.MapSyste
     case model.SignatureGroup.Wormhole =>
       protocol.MapSystemSignature.Wormhole(
         id = value.signatureId,
-        isEol = value.wormholeIsEol,
         eolAt = value.wormholeEolAt,
         connectionType = toProtoConnectionType(value),
         massStatus =
@@ -258,6 +350,10 @@ private def toProtoConnectionType(value: model.MapSystemSignature): protocol.Wor
         case model.WormholeK162Type.Unknown   => protocol.WormholeK162Type.Unknown
         case model.WormholeK162Type.Dangerous => protocol.WormholeK162Type.Dangerous
         case model.WormholeK162Type.Deadly    => protocol.WormholeK162Type.Deadly
+        case model.WormholeK162Type.Hisec     => protocol.WormholeK162Type.Hisec
+        case model.WormholeK162Type.Losec     => protocol.WormholeK162Type.Losec
+        case model.WormholeK162Type.Nullsec   => protocol.WormholeK162Type.Nullsec
+        case model.WormholeK162Type.Thera     => protocol.WormholeK162Type.Thera
       )
     case (None, Some(typeId)) => protocol.WormholeConnectionType.Known(typeId)
     case _                    => protocol.WormholeConnectionType.Unknown

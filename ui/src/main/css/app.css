@@ -4,7 +4,19 @@
 @import 'fonts.css';
 @import 'icon.css';
 
+/* controls */
+@import 'components/option-dropdown.css';
+
+/* map views */
+@import 'views/map-system-signature-view.css';
+
 /* ok? */
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
 
 :root {
     font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
@@ -14,6 +26,7 @@
     color-scheme: light dark;
     color: $ gray-lighter;
     background-color: $ bg-color;
+    border: none;
 
     font-synthesis: none;
     text-rendering: optimizeLegibility;
@@ -22,11 +35,15 @@
     -webkit-text-size-adjust: 100%;
 }
 
+table {
+    border-collapse: collapse;
+}
+
 /* character */
 
 .character-selection {
     > div {
-        background: $ wh-color-magnetar;
+        background: $wh-color-magnetar;
     }
 }
 
@@ -78,7 +95,7 @@ dialog::backdrop {
 
 @media all {
     #map-parent { min-width: 600px; flex: 4 1 auto; order: 3; }
-    #map-left-sidebar { min-width: 400px; flex: 0 1 auto; order: 2; }
+    #map-left-sidebar { min-width: 460px; flex: 0 1 auto; order: 2; }
     #map-menu { flex: 1 100%; order: 1; }
 }
 
@@ -88,12 +105,12 @@ $box-width:     140px;
 $box-height:    40px;
 
 #map-menu {
-    display: block;
+
 }
 
 #map-left-sidebar {
-    padding-left: 2px;
-    padding-right: 6px;
+    margin-left: 3px;
+    margin-right: 3px;
 }
 
 #map-parent {
@@ -231,6 +248,22 @@ mark.system-pin-status {
     color: $gray-lighter;
 }
 
+mark.system-scan-status {
+    margin-top: 2px;
+
+    &[data-scan-status="Unscanned"] {
+        color: $red-dark;
+    }
+
+    &[data-scan-status="FullyScanned"] {
+        color: $green-dark;
+    }
+
+    &[data-scan-status="PartiallyScanned"] {
+        color: $orange-dark;
+    }
+}
+
 mark.system-shattered {
     margin-top: 2px;
     color: $blue;
@@ -315,12 +348,14 @@ mark.system-wormhole-static {
     border: 1px $gray-dark solid;
     /* material design shadow ooh */
     box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
-    width: 100%;
-    padding: 4px;
+    /*width: 100%;*/
+    padding: 5px;
+    margin-bottom: 10px;
+    margin-right: 6px;
 }
 
-.left-sidebar-view:not(:first-of-type) {
-    margin-top: 10px;
+.left-sidebar-view table {
+    width: 100%;
 }
 
 tr.solar-system-name {

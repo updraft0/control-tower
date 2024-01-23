@@ -14,14 +14,15 @@ class SolarSystemInfoView(staticData: SystemStaticData, selectedSystem: Observab
     extends ViewController:
 
   override def view =
-    table(
-      cls := "solar-system-info-view",
-      cls := "left-sidebar-view",
-      children <-- selectedSystem.map {
+    div(
+      idAttr := "solarys-system-info-view",
+      cls    := "solar-system-info-view",
+      cls    := "left-sidebar-view",
+      table(children <-- selectedSystem.map {
         case Some(info) if staticData.solarSystemMap.contains(info.systemId) =>
           solarSystemInfo(staticData.solarSystemMap(info.systemId), info.name, staticData.wormholeTypes)
         case _ => nodeSeq(tr("select a system"))
-      }
+      })
     )
 
 private val IgnoredSpaceTypes = Set(SpaceType.Known, SpaceType.Pochven)

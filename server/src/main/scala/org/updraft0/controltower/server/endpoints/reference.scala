@@ -18,11 +18,11 @@ def getSolarSystem = Endpoints.getSolarSystem.zServerLogic { name =>
 def getVersion = Endpoints.getVersion.zServerLogic(_ => ReferenceQueries.getVersion.mapBoth(dbError, _.id))
 
 def getAllReference = Endpoints.getAllReference.zServerLogic(_ =>
-  (ReferenceQueries.getVersion <&> ReferenceQueries.getFactions <&> ReferenceQueries.getShipTypes <&> ReferenceQueries.getStarTypes <&> ReferenceQueries.getStationOperations <&> ReferenceQueries.getWormholeTypes)
+  (ReferenceQueries.getVersion <&> ReferenceQueries.getFactions <&> ReferenceQueries.getSignaturesInGroup <&> ReferenceQueries.getShipTypes <&> ReferenceQueries.getStarTypes <&> ReferenceQueries.getStationOperations <&> ReferenceQueries.getWormholeTypes)
     .mapBoth(
       dbError,
-      (version, factions, shipTypes, starTypes, stationOperations, wormholeTypes) =>
-        Reference(version.id, factions, shipTypes, starTypes, stationOperations, wormholeTypes)
+      (version, factions, signaturesInGroup, shipTypes, starTypes, stationOperations, wormholeTypes) =>
+        Reference(version.id, factions, signaturesInGroup, shipTypes, starTypes, stationOperations, wormholeTypes)
     )
 )
 
@@ -40,6 +40,8 @@ def getStarTypes = Endpoints.getStarTypes.zServerLogic(_ => ReferenceQueries.get
 def getStationOperations =
   Endpoints.getStationOperations.zServerLogic(_ => ReferenceQueries.getStationOperations.mapError(dbError))
 def getWormholeTypes = Endpoints.getWormholeTypes.zServerLogic(_ => ReferenceQueries.getWormholeTypes.mapError(dbError))
+def getSignaturesInGroup =
+  Endpoints.getSignaturesInGroup.zServerLogic(_ => ReferenceQueries.getSignaturesInGroup.mapError(dbError))
 
 def allReferenceEndpoints: List[ZServerEndpoint[EndpointEnv, Any]] =
   List(
@@ -51,5 +53,6 @@ def allReferenceEndpoints: List[ZServerEndpoint[EndpointEnv, Any]] =
     getShipTypes.widen[EndpointEnv],
     getStarTypes.widen[EndpointEnv],
     getStationOperations.widen[EndpointEnv],
-    getWormholeTypes.widen[EndpointEnv]
+    getWormholeTypes.widen[EndpointEnv],
+    getSignaturesInGroup.widen[EndpointEnv]
   )

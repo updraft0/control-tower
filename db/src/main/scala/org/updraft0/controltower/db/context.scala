@@ -268,8 +268,8 @@ object SqliteJsonZioJdbcContext:
 
 trait SqliteModifiedDialect extends SqliteDialect { self =>
   import io.getquill.ast.Ast
-  import io.getquill.idiom.StatementInterpolator.*
   import io.getquill.context.sql.{SetOperationSqlQuery, SqlQuery}
+  import io.getquill.idiom.StatementInterpolator.*
 
   def parentTokenizer(implicit astTokenizer: Tokenizer[Ast], strategy: NamingStrategy, idiomContext: IdiomContext) =
     super.sqlQueryTokenizer

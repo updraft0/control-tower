@@ -1,0 +1,442 @@
+# All signatures that are selectable
+# SDE export does not contain this information, sources include Pathfinder and also
+#   https://wiki.eveuniversity.org/Wormhole_sites
+# SignatureGroup;Name;WormholeClass,...
+Combat;Perimeter Ambush Point;C1
+Combat;Perimeter Camp;C1
+Combat;Phase Catalyst Node;C1
+Combat;The Line;C1
+Combat;Perimeter Checkpoint;C2
+Combat;Perimeter Hangar;C2
+Combat;The Ruins of Enclave Cohort 27;C2
+Combat;Sleeper Data Sanctuary;C2
+Combat;Fortification Frontier Stronghold;C3
+Combat;Outpost Frontier Stronghold;C3
+Combat;Solar Cell;C3
+Combat;The Oruze Construct;C3
+Combat;Frontier Barracks;C4
+Combat;Frontier Command Post;C4
+Combat;Integrated Terminus;C4
+Combat;Sleeper Information Sanctum;C4
+Combat;Core Garrison;C5
+Combat;Core Stronghold;C5
+Combat;Oruze Osobnyk;C5
+Combat;Quarantine Area;C5
+Combat;Core Citadel;C6
+Combat;Core Bastion;C6
+Combat;Strange Energy Readings;C6
+Combat;The Mirror;C6
+Combat;Epicenter;Thera,ShatteredFrig
+Combat;Expedition Command Outpost Wreck;Thera,ShatteredFrig
+Combat;Planetary Colonization Office Wreck;Thera,ShatteredFrig
+Combat;Testing Facilities;Thera,ShatteredFrig
+Combat;Monolith;SentinelDrifter
+Combat;Wormhole in Rock Circle;SentinelDrifter
+Combat;Opposing Spatial Rifts;SentinelDrifter
+Combat;Sleeper Enclave Debris;SentinelDrifter
+Combat;Crystal Resource;SentinelDrifter
+Combat;Wrecked Ships;BarbicanDrifter
+Combat;Unstable Wormhole;BarbicanDrifter
+Combat;Spatial Rift;BarbicanDrifter
+Combat;Heavily Guarded Spatial Rift;BarbicanDrifter
+Combat;Crystals;BarbicanDrifter
+Combat;Ship Graveyard;VidetteDrifter
+Combat;Sleeper Engineering Station;VidetteDrifter
+Combat;Spatial Rift;VidetteDrifter
+Combat;Sleeper Enclave in Coral Rock;VidetteDrifter
+Combat;Crystals and Stone Circle;VidetteDrifter
+Combat;Monolith;ConfluxDrifter
+Combat;Caged Wormhole;ConfluxDrifter
+Combat;Rock Formation and Wormhole;ConfluxDrifter
+Combat;Particle Acceleration Array;ConfluxDrifter
+Combat;Guarded Asteroid Station;ConfluxDrifter
+Combat;Ship Graveyard;RedoubtDrifter
+Combat;Caged Wormhole;RedoubtDrifter
+Combat;Spatial Rift Generator;RedoubtDrifter
+Combat;Sleeper Enclave;RedoubtDrifter
+Combat;Hollow Asteroid;RedoubtDrifter
+Relic;Forgotten Perimeter Coronation Platform;C1
+Relic;Forgotten Perimeter Power Array;C1
+Relic;Forgotten Perimeter Gateway;C2
+Relic;Forgotten Perimeter Habitation Coils;C2
+Relic;Forgotten Frontier Quarantine Outpost;C3
+Relic;Forgotten Frontier Recursive Depot;C3
+Relic;Forgotten Frontier Conversion Module;C4
+Relic;Forgotten Frontier Evacuation Center;C4
+Relic;Forgotten Core Data Field;C5
+Relic;Forgotten Core Information Pen;C5
+Relic;Forgotten Core Assembly Hall;C6
+Relic;Forgotten Core Circuitry Disassembler;C6
+Relic;Ancient Ruins;NS
+Relic;Bloated Ruins;NS
+Relic;Crumbling Ruins;NS
+Relic;Festering Ruins;NS
+Relic;Forgotten Ruins;NS
+Relic;Hidden Ruins;NS
+Relic;Wispy Ruins;NS
+Relic;Ruined Angel Crystal Quarry;NS,C1,C2,C3,ShatteredFrig
+Relic;Ruined Angel Monument Site;NS,C1,C2,C3,ShatteredFrig
+Relic;Ruined Angel Science Outpost;NS,C1,C2,C3,ShatteredFrig
+Relic;Ruined Angel Temple Site;NS,C1,C2,C3,ShatteredFrig
+Relic;Ruined Blood Raider Crystal Quarry;NS,C1,C2,C3,ShatteredFrig
+Relic;Ruined Blood Raider Monument Site;NS,C1,C2,C3,ShatteredFrig
+Relic;Ruined Blood Raider Science Outpost;NS,C1,C2,C3,ShatteredFrig
+Relic;Ruined Blood Raider Temple Site;NS,C1,C2,C3,ShatteredFrig
+Relic;Ruined Guristas Crystal Quarry;NS,C1,C2,C3,ShatteredFrig
+Relic;Ruined Guristas Monument Site;NS,C1,C2,C3,ShatteredFrig
+Relic;Ruined Guristas Science Outpost;NS,C1,C2,C3,ShatteredFrig
+Relic;Ruined Guristas Temple Site;NS,C1,C2,C3,ShatteredFrig
+Relic;Ruined Sansha Crystal Quarry;NS,C1,C2,C3,ShatteredFrig
+Relic;Ruined Sansha Monument Site;NS,C1,C2,C3,ShatteredFrig
+Relic;Ruined Sansha Science Outpost;NS,C1,C2,C3,ShatteredFrig
+Relic;Ruined Sansha Temple Site;NS,C1,C2,C3,ShatteredFrig
+Relic;Ruined Serpentis Crystal Quarry;NS,C1,C2,C3,ShatteredFrig
+Relic;Ruined Serpentis Monument Site;NS,C1,C2,C3,ShatteredFrig
+Relic;Ruined Serpentis Science Outpost;NS,C1,C2,C3,ShatteredFrig
+Relic;Ruined Serpentis Temple Site;NS,C1,C2,C3,ShatteredFrig
+Relic;Decayed Angel Excavation;L
+Relic;Decayed Angel Particle Accelerator;L
+Relic;Decayed Angel Collision Site;L
+Relic;Decayed Angel Mass Grave;L
+Relic;Decayed Angel Lone Vessel;L
+Relic;Decayed Angel Rock Formation;L
+Relic;Decayed Angel Mining Installation;L
+Relic;Decayed Angel Quarry;L
+Relic;Decayed Blood Raider Excavation;L
+Relic;Decayed Blood Raider Particle Accelerator;L
+Relic;Decayed Blood Raider Collision Site;L
+Relic;Decayed Blood Raider Mass Grave;L
+Relic;Decayed Blood Raider Lone Vessel;L
+Relic;Decayed Blood Raider Rock Formation;L
+Relic;Decayed Blood Raider Mining Installation;L
+Relic;Decayed Blood Raider Quarry;L
+Relic;Decayed Guristas Excavation;L
+Relic;Decayed Guristas Particle Accelerator;L
+Relic;Decayed Guristas Collision Site;L
+Relic;Decayed Guristas Mass Grave;L
+Relic;Decayed Guristas Lone Vessel;L
+Relic;Decayed Guristas Rock Formation;L
+Relic;Decayed Guristas Mining Installation;L
+Relic;Decayed Guristas Quarry;L
+Relic;Decayed Sansha Excavation;L
+Relic;Decayed Sansha Particle Accelerator;L
+Relic;Decayed Sansha Collision Site;L
+Relic;Decayed Sansha Mass Grave;L
+Relic;Decayed Sansha Lone Vessel;L
+Relic;Decayed Sansha Rock Formation;L
+Relic;Decayed Sansha Mining Installation;L
+Relic;Decayed Sansha Quarry;L
+Relic;Decayed Serpentis Excavation;L
+Relic;Decayed Serpentis Particle Accelerator;L
+Relic;Decayed Serpentis Collision Site;L
+Relic;Decayed Serpentis Mass Grave;L
+Relic;Decayed Serpentis Lone Vessel;L
+Relic;Decayed Serpentis Rock Formation;L
+Relic;Decayed Serpentis Mining Installation;L
+Relic;Decayed Serpentis Quarry;L
+Relic;Crumbling Angel Antiquated Outpost;H
+Relic;Crumbling Angel Excavation;H
+Relic;Crumbling Angel Crystal Quarry;H
+Relic;Crumbling Angel Solar Harvesters;H
+Relic;Crumbling Angel Explosive Debris;H
+Relic;Crumbling Angel Stone Formation;H
+Relic;Crumbling Angel Abandoned Colony;H
+Relic;Crumbling Angel Mining Installation;H
+Relic;Crumbling Blood Raider Antiquated Outpost;H
+Relic;Crumbling Blood Raider Excavation;H
+Relic;Crumbling Blood Raider Crystal Quarry;H
+Relic;Crumbling Blood Raider Solar Harvesters;H
+Relic;Crumbling Blood Raider Explosive Debris;H
+Relic;Crumbling Blood Raider Stone Formation;H
+Relic;Crumbling Blood Raider Abandoned Colony;H
+Relic;Crumbling Blood Raider Mining Installation;H
+Relic;Crumbling Guristas Antiquated Outpost;H
+Relic;Crumbling Guristas Excavation;H
+Relic;Crumbling Guristas Crystal Quarry;H
+Relic;Crumbling Guristas Solar Harvesters;H
+Relic;Crumbling Guristas Explosive Debris;H
+Relic;Crumbling Guristas Stone Formation;H
+Relic;Crumbling Guristas Abandoned Colony;H
+Relic;Crumbling Guristas Mining Installation;H
+Relic;Crumbling Sansha Antiquated Outpost;H
+Relic;Crumbling Sansha Excavation;H
+Relic;Crumbling Sansha Crystal Quarry;H
+Relic;Crumbling Sansha Solar Harvesters;H
+Relic;Crumbling Sansha Explosive Debris;H
+Relic;Crumbling Sansha Stone Formation;H
+Relic;Crumbling Sansha Abandoned Colony;H
+Relic;Crumbling Sansha Mining Installation;H
+Relic;Crumbling Serpentis Antiquated Outpost;H
+Relic;Crumbling Serpentis Excavation;H
+Relic;Crumbling Serpentis Crystal Quarry;H
+Relic;Crumbling Serpentis Solar Harvesters;H
+Relic;Crumbling Serpentis Explosive Debris;H
+Relic;Crumbling Serpentis Stone Formation;H
+Relic;Crumbling Serpentis Abandoned Colony;H
+Relic;Crumbling Serpentis Mining Installation;H
+Data;Local Angel Mainframe;H
+Data;Local Angel Virus Test Site;H
+Data;Local Angel Data Processing Center;H
+Data;Local Angel Shattered Life-Support Unit;H
+Data;Local Angel Data Terminal;H
+Data;Local Angel Production Installation;H
+Data;Local Angel Backup Server;H
+Data;Local Angel Minor Shipyard;H
+Data;Local Blood Raider Mainframe;H
+Data;Local Blood Raider Virus Test Site;H
+Data;Local Blood Raider Data Processing Center;H
+Data;Local Blood Raider Shattered Life-Support Unit;H
+Data;Local Blood Raider Data Terminal;H
+Data;Local Blood Raider Production Installation;H
+Data;Local Blood Raider Backup Server;H
+Data;Local Blood Raider Minor Shipyard;H
+Data;Local Guristas Mainframe;H
+Data;Local Guristas Virus Test Site;H
+Data;Local Guristas Data Processing Center;H
+Data;Local Guristas Shattered Life-Support Unit;H
+Data;Local Guristas Data Terminal;H
+Data;Local Guristas Production Installation;H
+Data;Local Guristas Backup Server;H
+Data;Local Guristas Minor Shipyard;H
+Data;Local Sansha Mainframe;H
+Data;Local Sansha Virus Test Site;H
+Data;Local Sansha Data Processing Center;H
+Data;Local Sansha Shattered Life-Support Unit;H
+Data;Local Sansha Data Terminal;H
+Data;Local Sansha Production Installation;H
+Data;Local Sansha Backup Server;H
+Data;Local Sansha Minor Shipyard;H
+Data;Local Serpentis Mainframe;H
+Data;Local Serpentis Virus Test Site;H
+Data;Local Serpentis Data Processing Center;H
+Data;Local Serpentis Shattered Life-Support Unit;H
+Data;Local Serpentis Data Terminal;H
+Data;Local Serpentis Production Installation;H
+Data;Local Serpentis Backup Server;H
+Data;Local Serpentis Minor Shipyard;H
+Data;Regional Angel Data Fortress;L
+Data;Regional Angel Mainframe;L
+Data;Regional Angel Command Center;L
+Data;Regional Angel Data Processing Center;L
+Data;Regional Angel Data Mining Site;L
+Data;Regional Angel Data Terminal;L
+Data;Regional Angel Backup Server;L
+Data;Regional Angel Data Mining Site;L
+Data;Regional Angel Secure Server;L
+Data;Regional Blood Raider Data Fortress;L
+Data;Regional Blood Raider Mainframe;L
+Data;Regional Blood Raider Command Center;L
+Data;Regional Blood Raider Data Processing Center;L
+Data;Regional Blood Raider Data Mining Site;L
+Data;Regional Blood Raider Data Terminal;L
+Data;Regional Blood Raider Backup Server;L
+Data;Regional Blood Raider Data Mining Site;L
+Data;Regional Blood Raider Secure Server;L
+Data;Regional Guristas Data Fortress;L
+Data;Regional Guristas Mainframe;L
+Data;Regional Guristas Command Center;L
+Data;Regional Guristas Data Processing Center;L
+Data;Regional Guristas Data Mining Site;L
+Data;Regional Guristas Data Terminal;L
+Data;Regional Guristas Backup Server;L
+Data;Regional Guristas Data Mining Site;L
+Data;Regional Guristas Secure Server;L
+Data;Regional Sansha Data Fortress;L
+Data;Regional Sansha Mainframe;L
+Data;Regional Sansha Command Center;L
+Data;Regional Sansha Data Processing Center;L
+Data;Regional Sansha Data Mining Site;L
+Data;Regional Sansha Data Terminal;L
+Data;Regional Sansha Backup Server;L
+Data;Regional Sansha Data Mining Site;L
+Data;Regional Sansha Secure Server;L
+Data;Regional Serpentis Data Fortress;L
+Data;Regional Serpentis Mainframe;L
+Data;Regional Serpentis Command Center;L
+Data;Regional Serpentis Data Processing Center;L
+Data;Regional Serpentis Data Mining Site;L
+Data;Regional Serpentis Data Terminal;L
+Data;Regional Serpentis Backup Server;L
+Data;Regional Serpentis Data Mining Site;L
+Data;Regional Serpentis Secure Server;L
+Data;Central Angel Sparking Transmitter;NS,C1,C2,C3,ShatteredFrig
+Data;Central Angel Survey Site;NS,C1,C2,C3,ShatteredFrig
+Data;Central Angel Command Center;NS,C1,C2,C3,ShatteredFrig
+Data;Central Angel Data Mining Site;NS,C1,C2,C3,ShatteredFrig
+Data;Central Blood Raider Sparking Transmitter;NS,C1,C2,C3,ShatteredFrig
+Data;Central Blood Raider Survey Site;NS,C1,C2,C3,ShatteredFrig
+Data;Central Blood Raider Command Center;NS,C1,C2,C3,ShatteredFrig
+Data;Central Blood Raider Data Mining Site;NS,C1,C2,C3,ShatteredFrig
+Data;Central Guristas Sparking Transmitter;NS,C1,C2,C3,ShatteredFrig
+Data;Central Guristas Survey Site;NS,C1,C2,C3,ShatteredFrig
+Data;Central Guristas Command Center;NS,C1,C2,C3,ShatteredFrig
+Data;Central Guristas Data Mining Site;NS,C1,C2,C3,ShatteredFrig
+Data;Central Sansha Sparking Transmitter;NS,C1,C2,C3,ShatteredFrig
+Data;Central Sansha Survey Site;NS,C1,C2,C3,ShatteredFrig
+Data;Central Sansha Command Center;NS,C1,C2,C3,ShatteredFrig
+Data;Central Sansha Data Mining Site;NS,C1,C2,C3,ShatteredFrig
+Data;Central Serpentis Sparking Transmitter;NS,C1,C2,C3,ShatteredFrig
+Data;Central Serpentis Survey Site;NS,C1,C2,C3,ShatteredFrig
+Data;Central Serpentis Command Center;NS,C1,C2,C3,ShatteredFrig
+Data;Central Serpentis Data Mining Site;NS,C1,C2,C3,ShatteredFrig
+Data;Unsecured Perimeter Amplifier;C1
+Data;Unsecured Perimeter Information Center;C1
+Data;Unsecured Perimeter Comms Relay;C2
+Data;Unsecured Perimeter Transponder Farm;C2
+Data;Unsecured Frontier Database;C3
+Data;Unsecured Frontier Receiver;C3
+Data;Unsecured Frontier Digital Nexus;C4
+Data;Unsecured Frontier Trinary Hub;C4
+Data;Unsecured Frontier Enclave Relay;C5
+Data;Unsecured Frontier Server Bank;C5
+Data;Unsecured Core Backup Array;C6
+Data;Unsecured Core Emergence;C6
+Data;Abandoned Research Complex DA005;NS
+Data;Abandoned Research Complex DA015;NS
+Data;Abandoned Research Complex DA025;NS
+Data;Abandoned Research Complex DG003;NS
+Data;Abandoned Research Complex DG018;NS
+Data;Abandoned Research Complex DC007;NS
+Data;Abandoned Research Complex DM083;NS
+Data;AEGIS Capital Ship Security Facility;L,NS
+Data;AEGIS Secure Transfer Facility;L,NS,C1,C2,C3
+Data;AEGIS Secure Capital Construction Forge;L,NS
+Data;SCC Secure Key Storage;L
+Data;Limited Sleeper Cache;H,L,NS,C1,C2,C3,C4,C5,C6,Thera
+Data;Standard Sleeper Cache;H,L,NS,C1,C2,C3,C4,C5,C6,Thera
+Data;Superior Sleeper Cache;H,L,NS,C1,C2,C3,C4,C5,C6,Thera
+Ghost;Lesser Angel Covert Research Facility;H
+Ghost;Lesser Blood Raider Covert Research Facility;H
+Ghost;Lesser Guristas Covert Research Facility;H
+Ghost;Lesser Sansha Covert Research Facility;H
+Ghost;Lesser Serpentis Covert Research Facility;H
+Ghost;Standard Angel Covert Research Facility;L
+Ghost;Standard Blood Raider Covert Research Facility;L
+Ghost;Standard Guristas Covert Research Facility;L
+Ghost;Standard Sansha Covert Research Facility;L
+Ghost;Standard Serpentis Covert Research Facility;L
+Ghost;Improved Angel Covert Research Facility;NS
+Ghost;Improved Blood Raider Covert Research Facility;NS
+Ghost;Improved Guristas Covert Research Facility;NS
+Ghost;Improved Sansha Covert Research Facility;NS
+Ghost;Improved Serpentis Covert Research Facility;NS
+Ghost;Superior Angel Covert Research Facility;C1,C2,C3,C4,C5,C6
+Ghost;Superior Blood Raider Covert Research Facility;C1,C2,C3,C4,C5,C6
+Ghost;Superior Guristas Covert Research Facility;C1,C2,C3,C4,C5,C6
+Ghost;Superior Sansha Covert Research Facility;C1,C2,C3,C4,C5,C6
+Ghost;Superior Serpentis Covert Research Facility;C1,C2,C3,C4,C5,C6
+Gas;Barren Perimeter Reservoir;C1,C2,C3,C4
+Gas;Minor Perimeter Reservoir;C1,C2,C3,C4
+Gas;Ordinary Perimeter Reservoir;C1,C2,C3,C4
+Gas;Sizeable Perimeter Reservoir;C1,C2,C3,C4
+Gas;Token Perimeter Reservoir;C1,C2,C3,C4
+Gas;Bountiful Frontier Reservoir;C3,C4,C5,C6
+Gas;Vast Frontier Reservoir;C3,C4,C5,C6
+Gas;Instrumental Core Reservoir;C5,C6
+Gas;Vital Core Reservoir;C5,C6
+Ore;Common Perimeter Deposit;C1,C2,C3,C4,C5,C6
+Ore;Ordinary Perimeter Deposit;C1,C2,C3,C4,C5,C6
+Ore;Average Frontier Deposit;C1,C2,C3,C4,C5,C6
+Ore;Unexceptional Frontier Deposit;C1,C2,C3,C4,C5,C6
+Ore;Exceptional Core Deposit;C1,C2,C3,C4,C5,C6
+Ore;Infrequent Core Deposit;C1,C2,C3,C4,C5,C6
+Ore;Isolated Core Deposit;C1,C2,C3,C4,C5,C6
+Ore;Rarified Core Deposit;C1,C2,C3,C4,C5,C6
+Ore;Uncommon Core Deposit;C1,C2,C3,C4,C5,C6
+Ore;Unusual Core Deposit;C1,C2,C3,C4,C5,C6
+Wormhole;F353;C1
+Wormhole;F135;C2,C3,C4,C5,C6
+Wormhole;F216;C1,C2,C3
+Wormhole;J377;C1,C2
+Wormhole;E004;C1,C2,C3,C4,C5,C6,Thera,ShatteredFrig
+Wormhole;L005;C1,C2,C3,C4,C5,C6,Thera,ShatteredFrig
+Wormhole;Z006;C1,C2,C3,C4,C5,C6,Thera,ShatteredFrig
+Wormhole;M001;C1,C2,C3,C4,C5,C6,Thera,ShatteredFrig
+Wormhole;C008;C1,C2,C3,C4,C5,C6,Thera,ShatteredFrig
+Wormhole;G008;C1,C2,C3,C4,C5,C6,Thera,ShatteredFrig
+Wormhole;Q003;C1,C2,C3,C4,C5,C6,Thera,ShatteredFrig
+Wormhole;A009;C1,C2,C3,C4,C5,C6,Thera,ShatteredFrig
+Wormhole;H121;C1
+Wormhole;C125;C1
+Wormhole;O883;C1
+Wormhole;M609;C1
+Wormhole;L614;C1
+Wormhole;N110;C1,ShatteredFrig
+Wormhole;J244;C1,ShatteredFrig
+Wormhole;Z060;C1,ShatteredFrig
+Wormhole;S804;C1
+Wormhole;Z647;C2,ShatteredFrig
+Wormhole;D382;C2,ShatteredFrig
+Wormhole;O477;C2,ShatteredFrig
+Wormhole;Y683;C2,ShatteredFrig
+Wormhole;N062;C2,ShatteredFrig
+Wormhole;R474;C2
+Wormhole;B274;C2,ShatteredFrig
+Wormhole;A239;C2,ShatteredFrig
+Wormhole;E545;C2,ShatteredFrig
+Wormhole;V301;C3
+Wormhole;I182;C3
+Wormhole;N968;C3
+Wormhole;T405;C3
+Wormhole;N770;C3
+Wormhole;A982;C3
+Wormhole;D845;C3,ShatteredFrig
+Wormhole;U210;C3,ShatteredFrig
+Wormhole;K346;C3,ShatteredFrig
+Wormhole;P060;C4,ShatteredFrig
+Wormhole;N766;C4,ShatteredFrig
+Wormhole;C247;C4,ShatteredFrig
+Wormhole;X877;C4,ShatteredFrig
+Wormhole;H900;C4,ShatteredFrig
+Wormhole;U574;C4,ShatteredFrig
+Wormhole;S047;C4
+Wormhole;N290;C4
+Wormhole;K329;C4
+Wormhole;Y790;C5
+Wormhole;D364;C5
+Wormhole;M267;C5,ShatteredFrig
+Wormhole;E175;C5
+Wormhole;H296;C5,ShatteredFrig
+Wormhole;V753;C5,ShatteredFrig
+Wormhole;D792;C5,C6,ShatteredFrig
+Wormhole;C140;C5,C6
+Wormhole;Z142;C5,C6
+Wormhole;Q317;C6
+Wormhole;G024;C6
+Wormhole;L477;C6
+Wormhole;Z457;C6
+Wormhole;V911;C6,ShatteredFrig
+Wormhole;W237;C6,ShatteredFrig
+Wormhole;B520;C6
+Wormhole;C391;C6,ShatteredFrig
+Wormhole;C248;C6,ShatteredFrig
+Wormhole;L005;ShatteredFrig
+Wormhole;R081;Pochven
+Wormhole;X450;Pochven
+Wormhole;Q063;Thera
+Wormhole;V898;Thera
+Wormhole;E587;Thera
+Wormhole;C729;H,L
+Wormhole;Z971;H,L,NS
+Wormhole;R943;H,L,NS
+Wormhole;X702;H,L,NS
+Wormhole;O128;H,L,NS
+Wormhole;M555;H
+Wormhole;B041;H
+Wormhole;A641;H
+Wormhole;R051;H
+Wormhole;V283;H
+Wormhole;T458;H
+Wormhole;N432;L,NS
+Wormhole;U319;L,NS
+Wormhole;B449;L,NS
+Wormhole;N944;L,NS
+Wormhole;S199;L,NS
+Wormhole;M164;L
+Wormhole;L031;NS
+Wormhole;U372;NS
+Wormhole;C414;H,L,NS
+Wormhole;V928;H,L,NS
+Wormhole;R259;H,L,NS
+Wormhole;S877;H,L,NS
+Wormhole;B735;H,L,NS

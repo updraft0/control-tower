@@ -32,11 +32,15 @@ $green-light:                 #66c84f;
 $green:                       #5cb85c;
 $green-dark:                  #4f9e4f;
 
+$green-added:                 rgba(#4F9E4F, 0.4);
+
 /*red*/
 $red:                         #d9534f;
 $red-dark:                    #a52521;
 $red-darker:                  #58100d;
 $red-darkest:                 #430c0a;
+
+$red-removed:                 rgba(#D43F3A, 0.4);
 
 /*indigo*/
 $indigo-light:                #9fa8da;
@@ -48,6 +52,7 @@ $indigo-darkest:              #313966;
 $orange-light:                #f0ad4e;
 $orange:                      #e28a0d;
 $orange-dark:                 #c2760c;
+$orange-darkest:              #744707;
 
 /*yellow*/
 $yellow-lighter:              #ffffbb;

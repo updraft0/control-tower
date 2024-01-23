@@ -65,6 +65,30 @@ object Modal:
     )
     dialog.ref.showModal()
 
+  def showConfirmation(title: String, description: String, onOk: Observer[Unit]) =
+    show(
+      (closeMe, _) =>
+        div(
+          cls := "dialog-view",
+          cls := "confirm-dialog-view",
+          div(cls := "dialog-header", title),
+          div(cls := "dialog-body", description),
+          button(
+            tpe := "button",
+            "Cancel",
+            onClick.stopPropagation.mapToUnit --> closeMe
+          ),
+          button(
+            tpe := "button",
+            "OK",
+            onClick.stopPropagation.mapToUnit --> { _ =>
+              closeMe.onNext(()); onOk.onNext(())
+            }
+          )
+        ),
+      clickCloses = false
+    )
+
 // thanks to https://stackoverflow.com/a/57463812
 private inline def onDialogClickClose[Ref <: org.scalajs.dom.Element](
     ev: MouseEvent,

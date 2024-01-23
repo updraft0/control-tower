@@ -1,7 +1,19 @@
 package org.updraft0.controltower.protocol
 
+import org.updraft0.controltower.constant.WormholeClass
 import java.time.Instant
 import scala.language.implicitConversions
+
+opaque type SigId = String
+
+object SigId:
+  def apply(s: String): SigId = s
+
+  given Conversion[SigId, String] with
+    override def apply(s: SigId): String = s
+
+  given Ordering[SigId] with
+    override def compare(x: SigId, y: SigId): Int = x.compare(y)
 
 enum PolicyMemberType:
   case Character, Corporation, Alliance
@@ -77,7 +89,16 @@ enum WormholeMassStatus:
   case Unknown, Fresh, Reduced, Critical
 
 enum WormholeK162Type:
-  case Unknown, Dangerous, Deadly
+  case Unknown, Dangerous, Deadly, Hisec, Losec, Nullsec, Thera
+
+  def possibleTarget: List[WormholeClass] = this match
+    case Unknown   => List(WormholeClass.C1, WormholeClass.C2, WormholeClass.C3)
+    case Dangerous => List(WormholeClass.C4, WormholeClass.C5)
+    case Deadly    => List(WormholeClass.C6)
+    case Hisec     => List(WormholeClass.H)
+    case Losec     => List(WormholeClass.L)
+    case Nullsec   => List(WormholeClass.NS)
+    case Thera     => List(WormholeClass.Thera)
 
 enum IntelStance:
   case Unknown, Friendly, Hostile
@@ -123,7 +144,6 @@ enum MapSystemSignature(
       )
   case Wormhole(
       override val id: String,
-      isEol: Option[Boolean],
       eolAt: Option[Instant],
       connectionType: WormholeConnectionType,
       massStatus: WormholeMassStatus,
@@ -141,6 +161,7 @@ enum MapSystemSignature(
         updatedByCharacterId,
         SignatureGroup.Wormhole
       )
+
   case Site(
       override val id: String,
       group: SignatureGroup,
@@ -157,6 +178,29 @@ enum MapSystemSignature(
         updatedByCharacterId,
         group
       )
+
+enum NewSystemSignature(val id: SigId, val createdAt: Instant):
+  case Unknown(override val id: SigId, override val createdAt: Instant) extends NewSystemSignature(id, createdAt)
+  case Site(
+      override val id: SigId,
+      override val createdAt: Instant,
+      group: SignatureGroup,
+      name: Option[String]
+  ) extends NewSystemSignature(id, createdAt)
+  case Wormhole(
+      override val id: SigId,
+      override val createdAt: Instant,
+      isEol: Boolean,
+      connectionType: WormholeConnectionType,
+      massStatus: WormholeMassStatus,
+      massSize: WormholeMassSize,
+      connectionId: Option[Long]
+  ) extends NewSystemSignature(id, createdAt)
+
+  def signatureGroup: SignatureGroup = this match
+    case _: Unknown  => SignatureGroup.Unknown
+    case _: Wormhole => SignatureGroup.Wormhole
+    case s: Site     => s.group
 
 case class MapSystemSnapshot(
     system: MapSystem,
@@ -194,6 +238,22 @@ enum MapRequest:
       stance: Option[IntelStance]
   )
 
+  /** (idempotent) Add/update a system scan signature
+    */
+  case AddSystemSignature(systemId: Long, sig: NewSystemSignature)
+
+  /** (idempotent) Update multiple system signatures
+    */
+  case UpdateSystemSignatures(systemId: Long, replaceAll: Boolean, scanned: List[NewSystemSignature])
+
+  /** (idempotent) Remove selected signatures in system
+    */
+  case RemoveSystemSignatures(systemId: Long, sigIds: List[SigId])
+
+  /** (idempotent) Remove all signatures in system
+    */
+  case RemoveAllSystemSignatures(systemId: Long)
+
   /** Change an aspect of a system (or multiple at the same time)
     */
   case UpdateSystem(
@@ -212,6 +272,7 @@ enum MapRequest:
 // TODO: enforce the level of permissions that a user can have! (and document that)
 
 enum MapMessage:
+  case Error(message: String)
   case MapSnapshot(systems: Vector[MapSystemSnapshot], connections: Map[Long, MapWormholeConnection])
   case MapMeta(info: MapInfo, role: MapRole)
   case SystemSnapshot(systemId: Long, system: MapSystemSnapshot, connections: Map[Long, MapWormholeConnection])

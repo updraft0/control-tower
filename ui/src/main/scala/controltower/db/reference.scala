@@ -21,6 +21,9 @@ trait ReferenceDataStore:
   // TODO: add fuzzies
   def searchSystemName(value: String): Future[List[SolarSystem]]
 
+  def wormholeTypeByName(value: String): Future[Option[WormholeType]] =
+    referenceAll().map(r => r.wormholeTypes.find(_.name == value))
+
   def referenceAll(): Future[Reference]
 
 object ReferenceDataStore:

@@ -1,0 +1,112 @@
+div.option-dropdown {
+    margin: 0;
+    padding: 0;
+    position: relative;
+
+    & button {
+        background-color: inherit;
+        border: 0;
+        border-radius: 2px;
+
+        margin: 0;
+        padding: 0;
+
+        cursor: pointer;
+
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+
+        & * {
+            z-index: 1;
+            white-space: revert;
+        }
+        /* TODO keeps overflowing :/ */
+
+        & mark.expand-dropdown {
+            z-index: 0;
+            margin-bottom: 2px;
+            align-self: flex-end;
+            color: inherit;
+            background-color: transparent;
+        }
+
+        &:hover {
+            background-color: rgba($orange-dark, 0.3);
+        }
+    }
+
+    & ul.select-dropdown {
+        width: 100%;
+        overflow-x: hidden; /* TODO go over this again */
+
+        z-index: 99;
+        position: absolute;
+
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        background-color: $gray;
+
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+
+        /*border: 1px $gray-lighter solid;*/
+        /*border-radius: 2px;*/
+        /* TODO box shadow include */
+        box-shadow: 0 2px 6px rgba(0, 0, 0, .6);
+
+        & div.dropdown-group {
+            background-color: $gray-dark;
+            color: $gray-lighter;
+            font-weight: bold;
+            padding: 0.3em 2px 0.3em 2px;
+            cursor: initial;
+        }
+
+        & li {
+            cursor: pointer;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            padding: 0 2px 0 2px;
+            white-space: revert;
+        }
+
+        & li:hover, & input:focus ~ label {
+            background-color: $gray-lighter;
+        }
+
+        & input:checked ~ label {
+            background-color: $orange-dark;
+        }
+
+        & li label {
+            width: 100%;
+            padding-top: 2px;
+            padding-bottom: 2px;
+            cursor: pointer;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        & input[type="radio"] {
+            position: absolute;
+            left: 0;
+            opacity: 0;
+        }
+    }
+
+    &.active button mark.expand-dropdown {
+        transform: rotate(180deg);
+    }
+
+    &.active ul.select-dropdown {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+    }
+}

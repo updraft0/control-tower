@@ -35,6 +35,8 @@ object native:
   given NativeConverter[SolarSystem]      = NativeConverter.derived
   given NativeConverter[Faction]          = NativeConverter.derived
   given NativeConverter[StationService]   = NativeConverter.derived
+  given NativeConverter[SignatureGroup]   = NativeConverter.derived
+  given NativeConverter[SignatureInGroup] = NativeConverter.derived
   given NativeConverter[StationOperation] = NativeConverter.derived
   given NativeConverter[WormholeType]     = NativeConverter.derived
   given NativeConverter[StarType]         = NativeConverter.derived

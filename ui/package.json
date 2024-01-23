@@ -18,6 +18,7 @@
     "postcss-fail-on-warn": "^0.2.1",
     "postcss-hexrgba": "^2.1.0",
     "postcss-import": "^15.1.0",
+    "postcss-mixins": "^9.0.4",
     "postcss-nesting": "^11.3.0",
     "postcss-reporter": "^7.0.5",
     "postcss-simple-vars": "^7.0.1",

@@ -38,6 +38,7 @@ object Endpoints:
   val getStarTypes         = reference.get.in("starTypes").out(jsonBody[List[StarType]])
   val getStationOperations = reference.get.in("stationOperations").out(jsonBody[List[StationOperation]])
   val getWormholeTypes     = reference.get.in("wormholeTypes").out(jsonBody[List[WormholeType]])
+  val getSignaturesInGroup = reference.get.in("signatureGroups").out(jsonBody[List[SignatureInGroup]])
   // TODO: need an endpoint for wormhole sig strength
 
   // endregion

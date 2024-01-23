@@ -92,15 +92,18 @@ CREATE TABLE map.map_system_note
 CREATE TABLE map.map_wormhole_connection
 (
     id                      INTEGER PRIMARY KEY,
-    from_system_id          INTEGER NOT NULL REFERENCES map_system (system_id),
-    to_system_id            INTEGER NOT NULL REFERENCES map_system (system_id),
-    is_deleted              INTEGER NOT NULL,
+    map_id                  INTEGER NOT NULL REFERENCES map (id),
+    from_system_id          INTEGER NOT NULL,
+    to_system_id            INTEGER NOT NULL,
+    is_deleted              INTEGER NOT NULL                     DEFAULT 0,
 
     created_at              INTEGER NOT NULL                     DEFAULT (unixepoch() * 1000),
     created_by_character_id INTEGER NOT NULL,
     updated_at              INTEGER NOT NULL ON CONFLICT REPLACE DEFAULT (unixepoch() * 1000),
     updated_by_character_id INTEGER NOT NULL,
 
+    FOREIGN KEY (map_id, from_system_id) REFERENCES map_system (map_id, system_id),
+    FOREIGN KEY (map_id, to_system_id) REFERENCES map_system (map_id, system_id),
     CHECK (is_deleted == 0 or is_deleted == 1)
 ) STRICT;
 
@@ -131,8 +134,8 @@ CREATE TABLE map.map_system_signature
     FOREIGN KEY (map_id, system_id) REFERENCES map_system (map_id, system_id),
     CHECK (length(signature_id) == 7),
     CHECK (is_deleted == 0 or is_deleted == 1),
-    CHECK (signature_group >= 0 and signature_group < 7),
-    CHECK (wormhole_k162_type is null or (wormhole_k162_type >= 0 and wormhole_k162_type < 3)),
+    CHECK (signature_group >= 0 and signature_group < 8),
+    CHECK (wormhole_k162_type is null or (wormhole_k162_type >= 0 and wormhole_k162_type < 7)),
     CHECK (wormhole_is_eol is null or wormhole_is_eol == 0 or wormhole_is_eol == 1),
     CHECK (wormhole_mass_status is null or (wormhole_mass_status >= 0 and wormhole_mass_status < 4))
 ) STRICT;
@@ -201,4 +204,16 @@ CREATE TABLE map.ref_system_static_wormhole
 
     UNIQUE (system_id, static_type_id, valid_from),
     CHECK (valid_until > valid_from)
+) STRICT;
+
+-- ref_signature_in_group
+CREATE TABLE map.ref_signature_in_group
+(
+    signature_group INTEGER NOT NULL,
+    name            TEXT    NOT NULL,
+    target_classes  INTEGER NOT NULL,
+
+    UNIQUE (signature_group, name),
+    CHECK (signature_group >= 0 and signature_group < 8),
+    CHECK (length(name) > 3)
 ) STRICT;

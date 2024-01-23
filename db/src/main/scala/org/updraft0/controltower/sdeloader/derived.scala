@@ -1,8 +1,8 @@
 package org.updraft0.controltower.sdeloader
 
 import io.getquill.JsonValue
-import org.updraft0.controltower.constant.WormholeClasses
-import org.updraft0.controltower.db.model.{SystemStaticWormhole, Wormhole}
+import org.updraft0.controltower.constant.{WormholeClass, WormholeClasses}
+import org.updraft0.controltower.db.model.{SignatureGroup, SignatureInGroup, SystemStaticWormhole, Wormhole}
 import org.updraft0.controltower.db.query.map
 import zio.*
 import zio.stream.{ZPipeline, ZStream}
@@ -16,7 +16,8 @@ def loadDerivedData: RIO[DataSource, Long] =
   for
     whc <- loadDerivedWormholeAttributes()
     sc  <- loadDerivedWormholeStatics()
-  yield whc + sc
+    sig <- loadSignaturesInGroup()
+  yield whc + sc + sig
 
 private def loadDerivedWormholeAttributes(): RIO[DataSource, Long] =
   map.getWormholesUsingTypeDogma
@@ -30,6 +31,15 @@ private def loadDerivedWormholeStatics(): RIO[DataSource, Long] =
     statics       <- readSystemStatics(systemsByName, wormholeTypes).runCollect
     loaded <- ZIO.foreach(statics)(s =>
       map.upsertSystemStatic(s).tapError(_ => ZIO.logError(s"failed to load static: $s"))
+    )
+  yield loaded.sum
+
+private def loadSignaturesInGroup(): RIO[DataSource, Long] =
+  for
+    wormholeTypes <- wormholeTypeNamesNonUnique
+    sigs          <- readSignaturesInGroup(wormholeTypes).runCollect
+    loaded <- ZIO.foreach(sigs)(s =>
+      map.upsertSignatureInGroup(s).tapError(_ => ZIO.logError(s"failed to load sig $s"))
     )
   yield loaded.sum
 
@@ -69,3 +79,28 @@ private def readSystemStatics(
       case Array(jName, staticName) => SystemStaticWormhole(systemsByName(jName), wormholeTypes(staticName))
       case _ => throw new IllegalStateException("BUG: Malformed static csv file, expected line to be jname,staticname")
     })
+
+private def readSignaturesInGroup(wormholeTypes: Map[String, Long]): ZStream[Any, Throwable, SignatureInGroup] =
+  ZStream
+    .fromInputStreamZIO(
+      ZIO
+        .attemptBlockingIO(ImportState.getClass.getResourceAsStream("/map/reference/ref_signature_in_group.csv"))
+        .filterOrFail(_ != null)(new IOException("BUG: Could not read the signature group csv file"))
+    )
+    .via(ZPipeline.utf8Decode)
+    .via(ZPipeline.splitLines)
+    .filterNot(l => l.startsWith("#") || l.isBlank)
+    .map(l =>
+      l.split(';') match {
+        case Array(groupName, name, whClasses) =>
+          val group   = SignatureGroup.valueOf(groupName)
+          val classes = whClasses.split(',').map(WormholeClass.valueOf).toSet
+          if (group == SignatureGroup.Wormhole && !wormholeTypes.contains(name))
+            throw new IllegalStateException(s"Invalid wormhole type '$name' in file")
+          SignatureInGroup(group, name, classes)
+        case _ =>
+          throw new IllegalStateException(
+            s"BUG: Malformed signature group csv file, expected line '$l' to be group;name;class1,class2..."
+          )
+      }
+    )

@@ -5,7 +5,9 @@ import com.raquo.waypoint.*
 import controltower.backend.ControlTowerBackend
 import org.scalajs.dom
 import zio.json.*
-import scala.util.{Try, Success, Failure}
+
+import java.time.Clock
+import scala.util.{Failure, Success, Try}
 
 object Routes:
   private val landingRoute = Route.static(Page.Landing, root)
@@ -16,6 +18,7 @@ object Routes:
   )
 
   given ControlTowerBackend = new ControlTowerBackend()
+  given Clock               = Clock.systemUTC()
 
   val router = new Router[Page](
     routes = List(mapRoute, landingRoute),

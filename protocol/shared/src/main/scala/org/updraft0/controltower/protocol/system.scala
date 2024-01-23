@@ -20,7 +20,7 @@ case class Station(
     corporationName: String
 )
 
-case class WormholeStatic(typeId: Long, name: String)
+case class WormholeStatic(typeId: Int, name: String)
 
 case class SolarSystem(
     id: Long,

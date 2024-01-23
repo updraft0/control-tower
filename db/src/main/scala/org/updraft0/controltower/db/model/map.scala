@@ -18,7 +18,7 @@ enum WormholeMassStatus extends Enum[WormholeMassStatus]:
   case Unknown, Fresh, Reduced, Critical
 
 enum WormholeK162Type extends Enum[WormholeK162Type]:
-  case Unknown, Dangerous, Deadly
+  case Unknown, Dangerous, Deadly, Hisec, Losec, Nullsec, Thera
 
 enum IntelStance extends Enum[IntelStance]:
   case Unknown, Friendly, Hostile
@@ -80,6 +80,7 @@ case class MapSystemNote(
 
 case class MapWormholeConnection(
     id: Long,
+    mapId: MapId,
     fromSystemId: SystemId,
     toSystemId: SystemId,
     isDeleted: Boolean,
@@ -98,7 +99,7 @@ case class MapSystemSignature(
     signatureTypeName: Option[String],
     wormholeIsEol: Option[Boolean],
     wormholeEolAt: Option[Instant],
-    wormholeTypeId: Option[Int],
+    wormholeTypeId: Option[Long],
     wormholeMassSize: Option[WormholeMassSize],
     wormholeMassStatus: Option[WormholeMassStatus],
     wormholeK162Type: Option[WormholeK162Type],

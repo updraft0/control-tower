@@ -4,6 +4,12 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveHtmlElement
 import org.scalajs.dom
 
+extension [A, B](c: List[Either[A, B]])
+  def sequence: Either[A, List[B]] = c.foldRight[Either[A, List[B]]](Right(Nil)):
+    case (_, Left(l))          => Left(l)
+    case (Left(l), _)          => Left(l)
+    case (Right(n), Right(xs)) => Right(n :: xs)
+
 extension [T <: scala.reflect.Enum](t: T)
   // TODO: this works but not when you splice it into a varargs constructor currently
   def selectOption: ReactiveHtmlElement[dom.HTMLOptionElement] =

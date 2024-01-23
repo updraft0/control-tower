@@ -5,6 +5,9 @@ import org.updraft0.controltower.constant.*
 import org.updraft0.controltower.db.model.*
 import zio.ZIO
 
+import scala.collection.immutable.BitSet
+import java.time.Instant
+
 object map:
   import schema.*
   import ctx.{*, given}
@@ -46,6 +49,10 @@ object map:
   )
   given MappedEncoding[SystemDisplayData, String] = MappedEncoding(_.toJson)
 
+  given MappedEncoding[Int, Set[WormholeClass]] =
+    MappedEncoding(i => whClassesFromSet(BitSet.fromBitMaskNoCopy(Array(i.toLong))))
+  given MappedEncoding[Set[WormholeClass], Int] = MappedEncoding(s => BitSet(s.map(_.value).toSeq*).toBitMask(0).toInt)
+
   /** Each table lives in the `map` schema, but Quill has no config annotation/etc. for that
     */
   object schema:
@@ -60,6 +67,7 @@ object map:
     inline def corporation           = quote(querySchema[Corporation]("map.corporation"))
     inline def systemStaticWormhole  = quote(querySchema[SystemStaticWormhole]("map.ref_system_static_wormhole"))
     inline def wormhole              = quote(querySchema[Wormhole]("map.ref_wormhole"))
+    inline def signatureInGroup      = quote(querySchema[SignatureInGroup]("map.ref_signature_in_group"))
 
   // queries
   def getWormholesUsingTypeDogma: DbOperation[List[(Long, String, JsonValue[Map[String, Double]])]] =
@@ -106,18 +114,24 @@ object map:
           (t, e) => t.chainNamingStrategy -> e.chainNamingStrategy,
           (t, e) => t.description -> e.description,
           (t, e) => t.stance -> e.stance,
-          (t, _) => t.updatedAt -> unixepoch,
+          (t, e) => t.updatedAt -> e.updatedAt,
           (t, e) => t.updatedByCharacterId -> e.updatedByCharacterId
         )
     )
 
-  def updateMapSystemName(mapId: Long, systemId: Long, name: Option[String], updatedByCharacterId: Long) =
+  def updateMapSystemName(
+      mapId: Long,
+      systemId: Long,
+      name: Option[String],
+      updatedAt: Instant,
+      updatedByCharacterId: Long
+  ) =
     ctx.run(
       mapSystem
         .filter(ms => ms.mapId == lift(mapId) && ms.systemId == lift(systemId))
         .update(
           _.name                 -> lift(name),
-          _.updatedAt            -> unixepoch,
+          _.updatedAt            -> lift(updatedAt),
           _.updatedByCharacterId -> lift(updatedByCharacterId)
         )
     )
@@ -127,6 +141,7 @@ object map:
       systemId: Long,
       isPinned: Option[Boolean],
       intelStance: Option[IntelStance],
+      updatedAt: Instant,
       updatedByCharacterId: Long
   ): DbOperation[Long] =
     ctx.run(
@@ -135,7 +150,7 @@ object map:
         .update(
           ms => ms.stance -> lift(intelStance).getOrElse(ms.stance),
           ms => ms.isPinned -> lift(isPinned).getOrElse(ms.isPinned),
-          _.updatedAt            -> unixepoch,
+          _.updatedAt            -> lift(updatedAt),
           _.updatedByCharacterId -> lift(updatedByCharacterId)
         )
     )
@@ -159,7 +174,7 @@ object map:
           (t, e) => t.ownerCorporationId -> e.ownerCorporationId,
           (t, e) => t.structureType -> e.structureType,
           (t, e) => t.location -> e.location,
-          (t, _) => t.updatedAt -> unixepoch,
+          (t, e) => t.updatedAt -> e.updatedAt,
           (t, e) => t.updatedByCharacterId -> e.updatedByCharacterId
         )
     )
@@ -171,7 +186,7 @@ object map:
         .onConflictUpdate(_.id)(
           (t, e) => t.note -> e.note,
           (t, e) => t.isDeleted -> e.isDeleted,
-          (t, _) => t.updatedAt -> unixepoch,
+          (t, e) => t.updatedAt -> e.updatedAt,
           (t, e) => t.updatedByCharacterId -> e.updatedByCharacterId
         )
     )
@@ -182,7 +197,7 @@ object map:
         .insertValue(lift(value))
         .onConflictUpdate(_.id)(
           (t, e) => t.isDeleted -> e.isDeleted,
-          (t, _) => t.updatedAt -> unixepoch,
+          (t, e) => t.updatedAt -> e.updatedAt,
           (t, e) => t.updatedByCharacterId -> e.updatedByCharacterId
         )
     )
@@ -194,6 +209,7 @@ object map:
         .onConflictUpdate(_.mapId, _.systemId, _.signatureId)(
           (t, e) => t.isDeleted -> e.isDeleted,
           (t, e) => t.signatureGroup -> e.signatureGroup,
+          (t, e) => t.signatureTypeName -> e.signatureTypeName,
           (t, e) => t.wormholeIsEol -> e.wormholeIsEol,
           (t, e) => t.wormholeEolAt -> e.wormholeEolAt,
           (t, e) => t.wormholeTypeId -> e.wormholeTypeId,
@@ -201,13 +217,16 @@ object map:
           (t, e) => t.wormholeMassStatus -> e.wormholeMassStatus,
           (t, e) => t.wormholeK162Type -> e.wormholeK162Type,
           (t, e) => t.wormholeConnectionId -> e.wormholeConnectionId,
-          (t, _) => t.updatedAt -> unixepoch,
+          (t, e) => t.updatedAt -> e.updatedAt,
           (t, e) => t.updatedByCharacterId -> e.updatedByCharacterId
         )
     )
 
   def upsertSystemStatic(value: SystemStaticWormhole): DbOperation[Long] =
     ctx.run(systemStaticWormhole.insertValue(lift(value)).onConflictIgnore(_.systemId, _.staticTypeId, _.validFrom))
+
+  def upsertSignatureInGroup(value: SignatureInGroup): DbOperation[Long] =
+    ctx.run(signatureInGroup.insertValue(lift(value)).onConflictIgnore(_.name, _.signatureGroup))
 
   def upsertWormhole(value: Wormhole): DbOperation[Long] =
     ctx.run(wormhole.insertValue(lift(value)).onConflictIgnore(_.name))
@@ -225,6 +244,19 @@ object map:
       mapWormholeConnection
         .filter(_.id == lift(id))
         .update(_.isDeleted -> lift(true), _.updatedByCharacterId -> lift(byCharacterId), _.updatedAt -> unixepoch)
+    )
+
+  def deleteMapSystemSignatures(
+      mapId: MapId,
+      systemId: SystemId,
+      now: Instant,
+      byCharacterId: CharacterId
+  ): DbOperation[Long] =
+    ctx.run(
+      mapSystemSignature
+        .filter(_.mapId == lift(mapId))
+        .filter(_.systemId == lift(systemId))
+        .update(_.isDeleted -> lift(true), _.updatedByCharacterId -> lift(byCharacterId), _.updatedAt -> lift(now))
     )
 
   def deleteMapSystemSignature(
@@ -261,3 +293,8 @@ object map:
         .filter(_.name == lift(name))
         .update(_.isDeleted -> lift(true), _.updatedByCharacterId -> lift(byCharacterId), _.updatedAt -> unixepoch)
     )
+
+private def whClassesFromSet(set: BitSet): Set[WormholeClass] =
+  val res = Set.newBuilder[WormholeClass]
+  set.foreach(i => WormholeClasses.ById.get(i).foreach(res.addOne))
+  res.result()

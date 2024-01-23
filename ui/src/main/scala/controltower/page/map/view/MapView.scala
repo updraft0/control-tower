@@ -10,13 +10,14 @@ import controltower.ui.*
 import io.laminext.websocket.*
 import org.updraft0.controltower.protocol.*
 
+import java.time.Instant
 import scala.annotation.unused
 import scala.collection.immutable.SeqMap
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.util.Success
 import scala.language.implicitConversions
+import scala.util.Success
 
 private class MapView(
     id: Int,
@@ -24,7 +25,8 @@ private class MapView(
     rds: ReferenceDataStore,
     ws: WebSocket[MapMessage, MapRequest],
     @unused mapName: String,
-    @unused characterId: Long
+    @unused characterId: Long,
+    time: Signal[Instant]
 ) extends ViewController:
 
   private val cacheSolarSystem = mutable.Map.empty[Long, SolarSystem]
@@ -58,6 +60,7 @@ private class MapView(
   /* */
   private def handleIncomingMessage(msg: MapMessage): Unit =
     msg match
+      case MapMessage.Error(text)             => org.scalajs.dom.console.error(s"Received error from server: ${text}")
       case MapMessage.MapMeta(info, role)     => mapMeta.set(Some(info -> role))
       case MapMessage.MapSnapshot(systems, _) =>
         // get the reference data from the system in cache (manually using future)
@@ -121,10 +124,7 @@ private class MapView(
   private def renderTop(using Owner) =
     val positionController = PositionController
     val mapRole            = mapMeta.signal.map(_.map(_._2).getOrElse(MapRole.Viewer))
-    val static = SystemStaticData(
-      cacheSolarSystem.view,
-      cacheReference.map(_.wormholeTypes.map(wt => wt.typeId -> wt).toMap).getOrElse(Map.empty)
-    )
+    val static             = SystemStaticData(cacheSolarSystem.view, cacheReference.get)
     val selectedSystemSnapshot =
       selectedSystem.signal.distinct.combineWithFn(allSystems.signal) {
         case (Some(systemId), allMap) => allMap.get(systemId)
@@ -133,7 +133,8 @@ private class MapView(
 
     val actions = requestBus.writer.contracomposeWriter[MapAction](op =>
       op.withCurrentValueOf(allSystems.signal).collectOpt {
-        case (MapAction.Direct(req), _) => Some(req)
+        case (MapAction.AddSignature(systemId, newSig), _) => Some(MapRequest.AddSystemSignature(systemId, newSig))
+        case (MapAction.Direct(req), _)                    => Some(req)
         case (MapAction.IntelChange(systemId, newStance), allSystems) =>
           allSystems
             .get(systemId)
@@ -147,9 +148,15 @@ private class MapView(
           )
         case (MapAction.Remove(systemId), _) =>
           Some(MapRequest.RemoveSystem(systemId))
+        case (MapAction.RemoveSignatures(systemId, sigIds), _) =>
+          Some(MapRequest.RemoveSystemSignatures(systemId, sigIds.toList))
+        case (MapAction.RemoveAllSignatures(systemId), _) =>
+          Some(MapRequest.RemoveAllSystemSignatures(systemId))
         case (MapAction.Reposition(systemId, x, y), allSystems) =>
           val newDisplayData = SystemDisplayData.Manual(x.toInt, y.toInt) // TODO: position controller
           Some(MapRequest.UpdateSystem(systemId, displayData = Some(newDisplayData)))
+        case (MapAction.UpdateSignatures(systemId, replaceAll, scanned), _) =>
+          Some(MapRequest.UpdateSystemSignatures(systemId, replaceAll, scanned))
         case (MapAction.Select(systemIdOpt), _) =>
           selectedSystem.set(systemIdOpt)
           None
@@ -165,7 +172,7 @@ private class MapView(
         static,
         selectedSystemSnapshot.map(_.map(mss => SystemInfo(mss.system.systemId, mss.system.name)))
       )
-    val systemSignatureView = SystemSignatureView(static, selectedSystemSnapshot)
+    val systemSignatureView = SystemSignatureView(static, selectedSystemSnapshot, actions, time)
 
     div(
       idAttr := "map-view-inner",
@@ -197,11 +204,11 @@ object MapView:
   import zio.json.*
   private var counter = 0
 
-  def apply(map: Page.Map)(using ct: ControlTowerBackend): Future[MapView] =
+  def apply(map: Page.Map, time: Signal[Instant])(using ct: ControlTowerBackend): Future[MapView] =
     for
       rds <- ReferenceDataStore.usingBackend()
       _ = (counter += 1)
-    yield new MapView(counter, ct, rds, ws(map), map.name, map.characterId)
+    yield new MapView(counter, ct, rds, ws(map), map.name, map.characterId, time)
 
   private def ws(map: Page.Map)(using ct: ControlTowerBackend) =
     WebSocket

@@ -159,3 +159,14 @@ object ReferenceQueries:
         )
       )
     )
+
+  def getSignaturesInGroup: Result[List[protocol.SignatureInGroup]] =
+    run(signatureInGroup).map(
+      _.map(sig =>
+        protocol.SignatureInGroup(
+          protocol.SignatureGroup.valueOf(sig.signatureGroup.name()),
+          sig.name,
+          sig.targetClasses.toList
+        )
+      )
+    )

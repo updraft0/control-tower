@@ -7,7 +7,9 @@ import org.updraft0.controltower.db.model.MapDisplayType
 import org.updraft0.controltower.db.query.*
 import zio.*
 
+import java.time.Instant
 import javax.sql.DataSource
+import scala.annotation.nowarn
 
 case class MapSystemWithAll(
     sys: model.MapSystem,
@@ -25,19 +27,132 @@ object MapQueries:
   import map.given
   import map.schema.*
   import zio.json.*
+  import zio.json.ast.Json
 
-  // json codecs for json_array_agg usage (some logic duplicated between the MappedEntity and the codec here)
-  private given JsonCodec[model.MapSystemStructure] = JsonCodec.derived
-  private given JsonCodec[model.MapSystemNote]      = JsonCodec.derived
-  private given JsonCodec[model.SignatureGroup] = JsonCodec.int.transform(model.SignatureGroup.fromOrdinal, _.ordinal())
-  private given JsonCodec[model.WormholeMassSize] =
-    JsonCodec.int.transform(model.WormholeMassSize.fromOrdinal, _.ordinal())
-  private given JsonCodec[model.WormholeMassStatus] =
-    JsonCodec.int.transform(model.WormholeMassStatus.fromOrdinal, _.ordinal())
-  private given JsonCodec[model.WormholeK162Type] =
-    JsonCodec.int.transform(model.WormholeK162Type.fromOrdinal, _.ordinal())
-  private given JsonCodec[model.MapSystemSignature]    = JsonCodec.derived
-  private given JsonCodec[model.MapWormholeConnection] = JsonCodec.derived
+  // json decoders for json_array_agg usage (some logic duplicated between the MappedEntity and the codec here)
+  private given JsonDecoder[model.SignatureGroup]     = JsonDecoder.int.map(model.SignatureGroup.fromOrdinal)
+  private given JsonDecoder[model.WormholeMassSize]   = JsonDecoder.int.map(model.WormholeMassSize.fromOrdinal)
+  private given JsonDecoder[model.WormholeMassStatus] = JsonDecoder.int.map(model.WormholeMassStatus.fromOrdinal)
+  private given JsonDecoder[model.WormholeK162Type]   = JsonDecoder.int.map(model.WormholeK162Type.fromOrdinal)
+
+  // TODO either make zio-json support custom decoders or give up and use jsoniter here
+  private given JsonDecoder[model.MapSystemStructure] = JsonDecoder
+    .map[String, Json]
+    .mapOrFail: m =>
+      for
+        mapId                <- m("mapId").as[MapId]
+        systemId             <- m("systemId").as[model.SystemId]
+        name                 <- m("name").as[String]
+        isDeleted            <- m("isDeleted").as[Int].map(_ == 1)
+        ownerCorporationId   <- m("ownerCorporationId").as[Option[model.CorporationId]]
+        structureType        <- m("structureType").as[Option[String]]
+        location             <- m("location").as[Option[String]]
+        createdAt            <- m("createdAt").as[Long].map(Instant.ofEpochMilli)
+        createdByCharacterId <- m("createdByCharacterId").as[Long]
+        updatedAt            <- m("updatedAt").as[Long].map(Instant.ofEpochMilli)
+        updatedByCharacterId <- m("updatedByCharacterId").as[Long]
+      yield model.MapSystemStructure(
+        mapId,
+        systemId,
+        name,
+        isDeleted,
+        ownerCorporationId,
+        structureType,
+        location,
+        createdAt,
+        createdByCharacterId,
+        updatedAt,
+        updatedByCharacterId
+      )
+
+  private given JsonDecoder[model.MapSystemNote] = JsonDecoder
+    .map[String, Json]
+    .mapOrFail: m =>
+      for
+        id                   <- m("id").as[Long]
+        mapId                <- m("mapId").as[Long]
+        systemId             <- m("systemId").as[model.SystemId]
+        note                 <- m("note").as[String]
+        isDeleted            <- m("isDeleted").as[Int].map(_ == 1)
+        createdAt            <- m("createdAt").as[Long].map(Instant.ofEpochMilli)
+        createdByCharacterId <- m("createdByCharacterId").as[Long]
+        updatedAt            <- m("updatedAt").as[Long].map(Instant.ofEpochMilli)
+        updatedByCharacterId <- m("updatedByCharacterId").as[Long]
+      yield model.MapSystemNote(
+        id,
+        mapId,
+        systemId,
+        note,
+        isDeleted,
+        createdAt,
+        createdByCharacterId,
+        updatedAt,
+        updatedByCharacterId
+      )
+  private given JsonDecoder[model.MapSystemSignature] = JsonDecoder
+    .map[String, Json]
+    .mapOrFail: m =>
+      for
+        mapId                <- m("mapId").as[MapId]
+        systemId             <- m("systemId").as[model.SystemId]
+        signatureId          <- m("signatureId").as[String]
+        isDeleted            <- m("isDeleted").as[Int].map(_ == 1)
+        signatureGroup       <- m("signatureGroup").as[model.SignatureGroup]
+        signatureTypeName    <- m("signatureTypeName").as[Option[String]]
+        wormholeIsEol        <- m("wormholeIsEol").as[Option[Int]].map(_.map(_ == 1))
+        wormholeEolAt        <- m("wormholeEolAt").as[Option[Long]].map(_.map(Instant.ofEpochMilli))
+        wormholeTypeId       <- m("wormholeTypeId").as[Option[Long]]
+        wormholeMassSize     <- m("wormholeMassSize").as[Option[model.WormholeMassSize]]
+        wormholeMassStatus   <- m("wormholeMassStatus").as[Option[model.WormholeMassStatus]]
+        wormholeK162Type     <- m("wormholeK162Type").as[Option[model.WormholeK162Type]]
+        wormholeConnectionId <- m("wormholeConnectionId").as[Option[Long]]
+        createdAt            <- m("createdAt").as[Long].map(Instant.ofEpochMilli)
+        createdByCharacterId <- m("createdByCharacterId").as[Long]
+        updatedAt            <- m("updatedAt").as[Long].map(Instant.ofEpochMilli)
+        updatedByCharacterId <- m("updatedByCharacterId").as[Long]
+      yield model.MapSystemSignature(
+        mapId,
+        systemId,
+        signatureId,
+        isDeleted,
+        signatureGroup,
+        signatureTypeName,
+        wormholeIsEol,
+        wormholeEolAt,
+        wormholeTypeId,
+        wormholeMassSize,
+        wormholeMassStatus,
+        wormholeK162Type,
+        wormholeConnectionId,
+        createdAt,
+        createdByCharacterId,
+        updatedAt,
+        updatedByCharacterId
+      )
+  private given JsonDecoder[model.MapWormholeConnection] = JsonDecoder
+    .map[String, Json]
+    .mapOrFail: m =>
+      for
+        id                   <- m("id").as[Long]
+        mapId                <- m("mapId").as[MapId]
+        fromSystemId         <- m("fromSystemId").as[Long]
+        toSystemId           <- m("toSystemId").as[Long]
+        isDeleted            <- m("isDeleted").as[Int].map(_ == 1)
+        createdAt            <- m("createdAt").as[Long].map(Instant.ofEpochMilli)
+        createdByCharacterId <- m("createdByCharacterId").as[Long]
+        updatedAt            <- m("updatedAt").as[Long].map(Instant.ofEpochMilli)
+        updatedByCharacterId <- m("updatedByCharacterId").as[Long]
+      yield model.MapWormholeConnection(
+        id,
+        mapId,
+        fromSystemId,
+        toSystemId,
+        isDeleted,
+        createdAt,
+        createdByCharacterId,
+        updatedAt,
+        updatedByCharacterId
+      )
 
   type MapId = Long
 
@@ -73,6 +188,7 @@ object MapQueries:
         .map(m => (m.id, m.name))
     }).map(_.toMap)
 
+  @nowarn("msg=.*it is preferable to define both an encoder and a decoder.*")
   def getMapSystemAll(mapId: MapId, systemId: Option[Long] = None): Result[List[MapSystemWithAll]] =
     run(quote {
       (for
@@ -182,9 +298,11 @@ object MapQueries:
               msi.map(_.signatureId)
             ),
             jsonGroupArrayFilterNullDistinct[model.MapWormholeConnection](
-              jsonObject8(
+              jsonObject9(
                 "id",
                 mhc.map(_.id),
+                "mapId",
+                mhc.map(_.mapId),
                 "fromSystemId",
                 mhc.map(_.fromSystemId),
                 "toSystemId",

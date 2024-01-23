@@ -1,0 +1,466 @@
+@define-mixin wormhole-type-cell {
+    & span {
+        display: inline-block;
+    }
+
+    & span.site-name {
+        width: 14em;
+        white-space: nowrap;
+    }
+
+    /* first is the signature type (4 chars) */
+    & span:nth-child(1):not(.site-name) {
+        width: 2.5em;
+    }
+
+    /* second is the mass class (max 2 chars) */
+    & span:nth-child(2) {
+        width: 1.5em;
+        text-align: center;
+    }
+
+    & span.wormhole-mass-status-unknown, & span.wormhole-mass-status-fresh {
+        padding-left: 1px;
+        padding-right: 1px;
+    }
+
+    & span.wormhole-mass-status-reduced {
+        padding-left: 1px;
+        padding-right: 1px;
+        background-color: $orange;
+        color: $gray-darkest;
+    }
+
+    & span.wormhole-mass-status-critical {
+        padding-left: 1px;
+        padding-right: 1px;
+        background-color: $red-dark;
+        color: $gray-darkest;
+    }
+
+    & span.wormhole-eol {
+        border-top: 2px solid $pink-dark;
+        border-bottom: 2px solid $pink-dark;
+    }
+
+    & span.wh-mass-size {
+        background-color: $gray-darker;
+        padding-left: 2px;
+        padding-right: 2px;
+        border-radius: 2px;
+    }
+}
+
+.system-signature-view {
+    $font-size: 0.8rem;
+    $updated-by-image-width: 20px;
+
+    user-select: none;
+
+    & table thead tr.table-header {
+        font-size: $font-size;
+        color: $gray-lighter;
+        text-align: left;
+    }
+
+    & table tbody {
+        font-size: $font-size;
+        border: none;
+
+        & tr {
+            background-color: $gray;
+            border-top: 1px solid $gray-light;
+            border-bottom: 1px solid $gray-light;
+            white-space: nowrap;
+
+
+            &.selected {
+                background-color: $orange-darkest !important;
+
+                td.signature-id {
+                    background-color: $orange-darkest;
+                }
+            }
+
+            & td.signature-id {
+                color: $gray-lighter;
+                background-color: $teal-dark;
+                font-weight: bolder;
+                width: 1em;
+            }
+
+            & td.signature-group {
+                width: 3em;
+
+                & span[data-signature-group="Unknown"] {
+                    color: $red;
+                    text-decoration: $red-dark dotted underline;
+                }
+            }
+
+            & td.signature-type {
+                width: 12em;
+                max-width: 14em; /* FIXME not sure? */
+                /*white-space: nowrap;*/
+
+                @mixin wormhole-type-cell;
+
+                & ul.select-dropdown {
+                    max-height: 20em;
+                }
+
+                & span[data-signature-type="Unknown"] {
+                    color: $red;
+                }
+
+                & li span[data-signature-type="Unknown"] {
+                    color: inherit;
+                }
+
+            }
+
+            & td.signature-updated {
+                width: 2em;
+            }
+
+            & td.updated-by-img {
+                width: $updated-by-image-width;
+            }
+
+            & td.editable {
+                cursor: pointer;
+
+                & mark.expand-dropdown {
+                    color: $gray-light;
+                }
+            }
+        }
+
+        & tr:hover {
+            outline: 1px solid $orange;
+            /* TODO adjust color effect */
+            box-shadow: 0px 0px 6px 0px rgba($orange,0.7) inset;
+        }
+
+        & tr:nth-child(even) {
+            background-color: $gray-dark;
+        }
+
+        & tr td:not(:first-of-type) {
+            padding-left: 2px;
+        }
+
+        & tr td:not(:last-of-type) {
+            padding-left: 2px;
+        }
+    }
+
+    & .signature-toolbar select {
+        margin-left: 5px;
+        border: 1px solid $gray;
+        border-radius: 5px;
+        color: $teal-lightest;
+    }
+
+    & select {
+        border-radius: 5px;
+        font-size: $font-size;
+        & option {
+            font-size: $font-size;
+        }
+    }
+
+    & img.character-image {
+        display: block;
+        width: $updated-by-image-width;
+    }
+
+    & td.updated-by-img {
+        width: $updated-by-image-width;
+    }
+
+    & tr.signature-toolbar {
+        & td > * {
+            margin-left: 2px;
+            margin-right: 2px;
+        }
+
+        & td span {
+            color: $gray-lighter;
+            align-self: center;
+        }
+
+        & td span.signature-selection {
+            font-size: $font-size;
+            color: $teal-lightest;
+        }
+
+        & div.signature-toolbar {
+            display: flex;
+        }
+
+        & .signature-toolbar {
+            & button {
+                border: none;
+                font-size: 1.2em;
+                flex: 0;
+                background-color: inherit;
+                margin-left: 2px;
+                margin-right: 2px;
+                padding: 0;
+                color: $gray-lighter;
+
+                &.sig-destructive {
+                    color: $red-dark;
+                }
+
+                &.sig-destructive:hover:not(:disabled) {
+                    color: $red;
+                }
+
+                &:first-of-type {
+                    margin-left: auto;
+                }
+
+                &:hover {
+                    color: $orange;
+                }
+
+                &:disabled {
+                    color: $gray;
+                }
+
+
+            }
+        }
+
+        & .system-scan-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            & .system-scan-progress {
+                display: inline-block;
+                background-color: $gray;
+                height: 4px;
+                margin-bottom: 3px;
+                border-radius: 2px;
+                width: 100%;
+            }
+
+            & .system-scan-progress-bar {
+                border-radius: 2px;
+                height: 4px;
+
+                &.unscanned {
+                    background-color: $red;
+                }
+
+                &.partially-scanned {
+                    background-color: $orange;
+                }
+
+                &.fully-scanned {
+                    background-color: $green;
+                }
+            }
+
+            & mark {
+                background-color: inherit;
+                color: $gray-lighter;
+                font-size: $font-size;
+                font-weight: bold;
+                margin-left: 4px;
+                margin-right: 2px;
+                flex: 0;
+            }
+        }
+    }
+}
+
+dialog.system-add-signature {
+    width: 300px;
+
+    & div.add-signature-line {
+        display: flex;
+
+        > * {
+            margin-right: 2px;
+        }
+        margin-top: 2px;
+        margin-bottom: 2px;
+
+    }
+
+    & input[type=text] {
+        border: 1px solid $gray-light;
+        background-color: $gray-darkest;
+        flex: 0;
+    }
+
+    & input.signature-id {
+        width: 5em;
+        text-align: center;
+    }
+
+    & select.signature-group {
+        font-size: 0.8rem;
+    }
+
+    & input.wormhole-type {
+        width: 3em;
+        text-align: center;
+    }
+}
+
+dialog.system-paste-signatures {
+    min-width: 40%;
+    width: 50em;
+
+    & textarea.signature-paste {
+        width: 100%;
+        /*height: fit-content;*/
+        max-height: 50vh;
+        min-height: 10em;
+    }
+
+    & table.signature-list {
+        margin-top: 5px;
+        user-select: none;
+        width: 100%;
+        border: 1px dotted $gray-light;
+
+        font-weight: bold;
+        font-size: 0.8em;
+        color: $gray-lighter;
+
+        & th, td {
+            padding-left: 2px;
+        }
+
+        & thead th {
+            text-align: left;
+            background-color: $gray-darker;
+            color: $gray-light;
+            border-top: none;
+
+            &.signature-id {
+                width: 5em;
+            }
+
+            &.signature-group{
+                width: 7em;
+            }
+
+            &.signature-name {
+                width: 12em;
+            }
+
+            &.signature-created, &.signature-updated {
+                width: 6em;
+            }
+        }
+
+        & tbody tr {
+            border-top: 1px solid $gray-light;
+
+            &:nth-child(odd) {
+                background-color: $gray-dark;
+            }
+
+            &:nth-child(even) {
+                background-color: $gray-darker;
+            }
+
+            &.signature-added {
+                background-color: $green-added;
+            }
+
+            &.signature-removed {
+                background-color: $red-removed;
+            }
+        }
+
+        & td.signature-group[data-signature-group="Unknown"] {
+            color: $gray-light;
+            text-decoration: $red dotted underline;
+        }
+
+        & td.signature-name {
+            /* FIXME style for small hole */
+            /* FIXME insert here */
+            @mixin wormhole-type-cell;
+        }
+
+        & tfoot {
+            & tr.table-stat {
+                background-color: $teal-darker;
+            }
+
+            & tr.table-stat td div.table-stat {
+                margin-top: 3px;
+                margin-bottom: 3px;
+                display: inline-flex;
+            }
+
+            & mark.table-stat {
+                color: $gray-lighter;
+                background-color: $teal-dark;
+                padding: 3px;
+                border-radius: 2px;
+                margin-right: 3px;
+
+                & span.counter {
+                    color: $gray-lighter;
+                    background-color: $gray-darkest;
+                    padding-left: 2px;
+                    padding-right: 2px;
+                }
+            }
+        }
+    }
+
+    & div.dialog-submit {
+        font-size: 1.2rem;
+        display: flex;
+
+        & button {
+            margin-top: 3px;
+            margin-bottom: 3px;
+        }
+        & button:first-of-type {
+            margin-left: auto;
+        }
+
+        & button:not(:last-of-type) {
+            margin-right: 3px;
+        }
+
+        & button.update-signatures {
+            background-color: $green-dark;
+            border: 0;
+            border-radius: 3px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, .6);
+            transition: background-color 0.3s;
+            font-weight: bold;
+        }
+
+        & button:hover {
+            filter: brightness(130%);
+        }
+
+        & button:focus-visible {
+            outline: 1px solid $orange;
+        }
+
+        & button.cancel {
+            background-color: $gray-dark;
+            border: 0;
+            border-radius: 3ptx;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, .6);
+            transition: background-color 0.3s;
+            font-weight: bold;
+            margin-right: 5px;
+        }
+    }
+}

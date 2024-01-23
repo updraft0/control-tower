@@ -16,12 +16,12 @@ Cookie: __Host-CT-Session={{ctsessionid}}
   "policyMembers": [
     {
       "memberId": {{characterId}},
-      "memberType": {"Character": {}},
+      "memberType": "Character",
       "isDeny": false,
-      "role": {"Admin": {}}
+      "role": "Admin"
     }
   ],
-  "displayType": {"Manual": {}}
+  "displayType": "Manual"
 }
 
 ###
@@ -43,7 +43,7 @@ Cookie: __Host-CT-Session={{ctsessionid}}
 # 6. add amarr
 # 7. add rens
 # 8. add dodixie
-# 9. add shattered wh system
+# 9. add shattered wh system with name ABC-12
 
 ===
 
@@ -54,17 +54,21 @@ Cookie: __Host-CT-Session={{ctsessionid}}
 {
   "AddSystem": {
     "systemId": 30000142,
-    "name": "Jita (trade)",
     "isPinned": true,
-    "displayData": {"Manual": {"x": 0, "y": 0}},
-    "stance": {"Unknown": {}}
+    "displayData": {
+      "Manual": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    "stance": "Unknown"
   }
 }
 
 ===
 
 {
-  "UpdateSystemDisplay": {
+  "UpdateSystem": {
     "systemId": 30000142,
     "displayData": {"Manual": {"x": 20, "y": 0}}
   }
@@ -81,7 +85,7 @@ Cookie: __Host-CT-Session={{ctsessionid}}
 ===
 
 {
-  "UpdateSystemDisplay": {
+  "UpdateSystem": {
     "systemId": 30000142,
     "displayData": {"Manual": {"x": 50, "y": 50}}
   }
@@ -92,10 +96,9 @@ Cookie: __Host-CT-Session={{ctsessionid}}
 {
   "AddSystem": {
     "systemId": 30002187,
-    "name": "Amarr (trade)",
     "isPinned": true,
     "displayData": {"Manual": {"x": 90, "y": 40}},
-    "stance": {"Unknown": {}}
+    "stance": "Unknown"
   }
 }
 
@@ -104,10 +107,9 @@ Cookie: __Host-CT-Session={{ctsessionid}}
 {
   "AddSystem": {
     "systemId": 30002659,
-    "name": "Dodixie",
     "isPinned": true,
     "displayData": {"Manual": {"x": 90, "y": 200}},
-    "stance": {"Unknown": {}}
+    "stance": "Unknown"
   }
 }
 
@@ -116,10 +118,9 @@ Cookie: __Host-CT-Session={{ctsessionid}}
 {
   "AddSystem": {
     "systemId": 30002510,
-    "name": "Rens",
     "isPinned": true,
     "displayData": {"Manual": {"x": 90, "y": 240}},
-    "stance": {"Unknown": {}}
+    "stance": "Unknown"
   }
 }
 
@@ -128,10 +129,14 @@ Cookie: __Host-CT-Session={{ctsessionid}}
 {
   "AddSystem": {
     "systemId": 31002558,
-    "name": "QuickBrownFoxJumps",
+    "name": {
+      "Name": {
+        "value": "ABC-12"
+      }
+    },
     "isPinned": true,
     "displayData": {"Manual": {"x": 240, "y": 240}},
-    "stance": {"Friendly": {}}
+    "stance": "Friendly"
   }
 }
 

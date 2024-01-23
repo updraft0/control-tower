@@ -7,6 +7,7 @@ import org.updraft0.controltower.constant.WormholeClass
 case class Reference(
     version: Int,
     factions: List[Faction],
+    signaturesInGroup: List[SignatureInGroup],
     shipTypes: List[ShipType],
     starTypes: List[StarType],
     stationOperations: List[StationOperation],
@@ -31,7 +32,16 @@ case class WormholeType(
     maxStableMass: Long,
     maxStableTime: Long,
     targetClass: WormholeClass
-)
+):
+  def massSize: WormholeMassSize =
+    if (maxJumpMass >= 1_000_000_000) WormholeMassSize.XL
+    else if (maxJumpMass >= 375_000_000) WormholeMassSize.L
+    else if (maxJumpMass >= 62_000_000) WormholeMassSize.M
+    else WormholeMassSize.S
+
+/** Signature group/name/wormhole class
+  */
+case class SignatureInGroup(signatureGroup: SignatureGroup, name: String, targetClasses: List[WormholeClass])
 
 /** Star/sun type ids
   */

@@ -9,10 +9,56 @@ import org.updraft0.controltower.constant.*
 import org.updraft0.controltower.protocol.*
 
 import scala.collection.MapView
+import scala.collection.mutable
 
 private type SystemVar = FakeVarM[Long, MapSystemSnapshot]
 
-case class SystemStaticData(solarSystemMap: MapView[Long, SolarSystem], wormholeTypes: Map[Long, WormholeType])
+enum SignatureClassified(val name: String):
+  case Wormhole(override val name: String, typeId: Long) extends SignatureClassified(name)
+  case Other(override val name: String)                  extends SignatureClassified(name)
+
+enum SystemScanStatus:
+  case Unscanned
+  case PartiallyScanned
+  case FullyScanned
+
+case class SystemStaticData(
+    solarSystemMap: MapView[Long, SolarSystem],
+    wormholeTypes: Map[Long, WormholeType],
+    signatureByClassAndGroup: Map[WormholeClass, Map[SignatureGroup, List[SignatureClassified]]]
+)
+
+object SystemStaticData:
+
+  def apply(solarSystemMap: MapView[Long, SolarSystem], ref: Reference) =
+    new SystemStaticData(
+      solarSystemMap,
+      wormholeTypes = ref.wormholeTypes.map(wt => wt.typeId -> wt).toMap,
+      signatureByClassAndGroup = computeSignatures(ref)
+    )
+
+  private def computeSignatures(ref: Reference) =
+    val whTypeIds   = ref.wormholeTypes.map(wt => wt.name -> wt.typeId).toMap
+    val sigsByClass = mutable.Map.empty[WormholeClass, List[SignatureInGroup]]
+    ref.signaturesInGroup.foreach(sig =>
+      sig.targetClasses.foreach(whc =>
+        sigsByClass.updateWith(whc) {
+          case Some(prev) => Some(sig :: prev)
+          case None       => Some(List(sig))
+        }
+      )
+    )
+    sigsByClass.view
+      .mapValues(
+        _.groupBy(_.signatureGroup).view
+          .mapValues(_.map {
+            case SignatureInGroup(SignatureGroup.Wormhole, name, _) =>
+              SignatureClassified.Wormhole(name, whTypeIds(name))
+            case SignatureInGroup(_, name, _) => SignatureClassified.Other(name)
+          }.sortBy(_.name))
+          .toMap
+      )
+      .toMap
 
 /** Display a single system on the map and interact with it
   */
@@ -63,7 +109,8 @@ class SystemView(
             systemMapName(system, solarSystem),
             systemShattered(solarSystem),
             systemEffect(solarSystem),
-            systemIsPinned(system)
+            systemIsPinned(system),
+            systemScanStatus(system)
           )
 
           val secondLine = div(
@@ -147,6 +194,22 @@ private inline def systemMapName(v: SystemVar, solarSystem: SolarSystem) =
     child.text <-- nameSignal.map(_.getOrElse(solarSystem.name))
   )
 
+private inline def systemScanStatus(v: SystemVar) =
+  val scanStatus = v.signal.map(_.signatures).map(scanPercent(_, fullOnEmpty = false)).map {
+    case d if d > 99.99 => SystemScanStatus.FullyScanned
+    case d if d > 0.01  => SystemScanStatus.PartiallyScanned
+    case _              => SystemScanStatus.Unscanned
+  }
+  mark(
+    cls := "system-scan-status",
+    dataAttr("scan-status") <-- scanStatus.map(_.toString),
+    cls := "ti",
+    cls <-- scanStatus.map:
+      case SystemScanStatus.Unscanned        => "ti-alert-circle-filled"
+      case SystemScanStatus.PartiallyScanned => "ti-alert-circle-filled"
+      case SystemScanStatus.FullyScanned     => "ti-circle-filled"
+  )
+
 private inline def systemIsPinned(v: SystemVar) =
   mark(
     cls := "system-pin-status",
@@ -204,10 +267,7 @@ private[view] inline def systemNameInput(nameVar: Var[String], mods: Modifier[In
 
 private[view] inline def systemClassString(cls: WormholeClass) =
   cls match
-    case WormholeClass.ShatteredFrig => "C13"
-    case WormholeClass.Pochven       => "P"
-    case WormholeClass.Thera         => "T"
-    case WormholeClass.BarbicanDrifter | WormholeClass.ConfluxDrifter | WormholeClass.RedoubtDrifter |
-        WormholeClass.VidetteDrifter | WormholeClass.SentinelDrifter =>
-      "D"
-    case other => other.toString
+    case WormholeClass.Pochven     => "P"
+    case WormholeClass.Thera       => "T"
+    case other if other.value > 10 => s"C${other.value}"
+    case other                     => other.toString

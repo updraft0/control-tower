@@ -1,6 +1,6 @@
 package controltower.page.map
 
-import org.updraft0.controltower.protocol.{IntelStance, MapRequest}
+import org.updraft0.controltower.protocol.{IntelStance, MapRequest, NewSystemSignature, SigId}
 
 type SystemId = Long
 
@@ -39,3 +39,19 @@ enum MapAction:
   /** Toggle whether a system is pinned on the map
     */
   case TogglePinned(systemId: SystemId) extends MapAction with SingleSystemAction
+
+  /** Add/update system signature
+    */
+  case AddSignature(systemId: SystemId, signature: NewSystemSignature) extends MapAction with SingleSystemAction
+
+  /** Update signatures
+    */
+  case UpdateSignatures(systemId: SystemId, replaceAll: Boolean, signatures: List[NewSystemSignature])
+
+  /** Remove subset of signatures in system
+    */
+  case RemoveSignatures(systemId: SystemId, signatureIds: Set[SigId])
+
+  /** Clear all signatures in system
+    */
+  case RemoveAllSignatures(systemId: SystemId)

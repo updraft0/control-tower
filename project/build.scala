@@ -38,7 +38,8 @@ object build {
       "-feature",
       "-deprecation",
       "-Wunused:imports,privates,locals,implicits",
-      "-Werror"
+      "-Werror",
+      "-language:implicitConversions"
 //      "-explain"
     )
   ) ++ targetSettings

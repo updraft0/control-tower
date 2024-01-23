@@ -8,6 +8,8 @@ import sttp.tapir.SchemaType.SInteger
 object schema:
   given longMapSchema[V: Schema]: Schema[Map[Long, V]] = Schema.schemaForMap[Long, V](_.toString)
 
+  given Schema[SigId] = Schema.string
+
   // auth
 
   // constant
@@ -22,6 +24,7 @@ object schema:
   given Schema[StationService]   = Schema.derived
   given Schema[StationOperation] = Schema.derived
   given Schema[WormholeType]     = Schema.derived
+  given Schema[SignatureInGroup] = Schema.derived
 
   given Schema[Reference]             = Schema.derived
   given Schema[ReferenceSolarSystems] = Schema.derived
@@ -62,8 +65,11 @@ object schema:
   given Schema[WormholeConnectionType] = Schema.derived
   given Schema[MapSystemSignature]     = Schema.derived
   given Schema[MapSystemSnapshot]      = Schema.derived
+  given Schema[NewSystemSignature]     = Schema.derived
 
 object jsoncodec:
+  given JsonCodec[SigId] = JsonCodec.string.asInstanceOf[JsonCodec[SigId]]
+
   // auth
 
   // constant
@@ -78,6 +84,7 @@ object jsoncodec:
   given JsonCodec[StationService]   = JsonCodec.derived
   given JsonCodec[StationOperation] = JsonCodec.derived
   given JsonCodec[WormholeType]     = JsonCodec.derived
+  given JsonCodec[SignatureInGroup] = JsonCodec.derived
 
   given JsonCodec[Reference]             = JsonCodec.derived
   given JsonCodec[ReferenceSolarSystems] = JsonCodec.derived
@@ -90,7 +97,7 @@ object jsoncodec:
   given JsonCodec[NewSystemName]  = JsonCodec.derived
 
   // user
-  given JsonCodec[MapRole]          = JsonCodec.derived
+  given JsonCodec[MapRole]          = JsonCodec.string.transform(MapRole.valueOf, _.toString)
   given JsonCodec[UserCharacter]    = JsonCodec.derived
   given JsonCodec[UserCharacterMap] = JsonCodec.derived
   given JsonCodec[UserInfo]         = JsonCodec.derived
@@ -99,10 +106,10 @@ object jsoncodec:
   given JsonCodec[MapInfo]          = JsonCodec.derived
   given JsonCodec[MapPolicyMember]  = JsonCodec.derived
   given JsonCodec[NewMap]           = JsonCodec.derived
-  given JsonCodec[PolicyMemberType] = JsonCodec.derived
-  given JsonCodec[MapDisplayType]   = JsonCodec.derived
+  given JsonCodec[PolicyMemberType] = JsonCodec.string.transform(PolicyMemberType.valueOf, _.toString)
+  given JsonCodec[MapDisplayType]   = JsonCodec.string.transform(MapDisplayType.valueOf, _.toString)
 
-  given JsonCodec[IntelStance]            = JsonCodec.derived
+  given JsonCodec[IntelStance]            = JsonCodec.string.transform(IntelStance.valueOf, _.toString)
   given JsonCodec[MapRequest]             = JsonCodec.derived
   given JsonCodec[MapMessage]             = JsonCodec.derived
   given JsonCodec[MapSystem]              = JsonCodec.derived
@@ -111,10 +118,11 @@ object jsoncodec:
   given JsonCodec[MapSystemStructure]     = JsonCodec.derived
   given JsonCodec[MapSystemNote]          = JsonCodec.derived
   given JsonCodec[MapWormholeConnection]  = JsonCodec.derived
-  given JsonCodec[SignatureGroup]         = JsonCodec.derived
-  given JsonCodec[WormholeMassSize]       = JsonCodec.derived
-  given JsonCodec[WormholeMassStatus]     = JsonCodec.derived
-  given JsonCodec[WormholeK162Type]       = JsonCodec.derived
+  given JsonCodec[SignatureGroup]         = JsonCodec.string.transform(SignatureGroup.valueOf, _.toString)
+  given JsonCodec[WormholeMassSize]       = JsonCodec.string.transform(WormholeMassSize.valueOf, _.toString)
+  given JsonCodec[WormholeMassStatus]     = JsonCodec.string.transform(WormholeMassStatus.valueOf, _.toString)
+  given JsonCodec[WormholeK162Type]       = JsonCodec.string.transform(WormholeK162Type.valueOf, _.toString)
   given JsonCodec[WormholeConnectionType] = JsonCodec.derived
   given JsonCodec[MapSystemSignature]     = JsonCodec.derived
   given JsonCodec[MapSystemSnapshot]      = JsonCodec.derived
+  given JsonCodec[NewSystemSignature]     = JsonCodec.derived
