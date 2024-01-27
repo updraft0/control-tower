@@ -4,14 +4,14 @@ import com.raquo.laminar.api.L.*
 import controltower.Constant
 import controltower.component.Modal
 import controltower.page.map.{Coord, MapAction, PositionController, RoleController}
-import controltower.ui.{FakeVarM, ViewController, onEnterPress}
+import controltower.ui.{ViewController, onEnterPress}
 import org.updraft0.controltower.constant.*
 import org.updraft0.controltower.protocol.*
 
 import scala.collection.MapView
 import scala.collection.mutable
 
-private type SystemVar = FakeVarM[Long, MapSystemSnapshot]
+import java.time.Instant
 
 enum SignatureClassified(val name: String):
   case Wormhole(override val name: String, typeId: Long) extends SignatureClassified(name)
@@ -21,6 +21,7 @@ enum SystemScanStatus:
   case Unscanned
   case PartiallyScanned
   case FullyScanned
+  case FullyScannedStale
 
 case class SystemStaticData(
     solarSystemMap: MapView[Long, SolarSystem],
@@ -63,83 +64,68 @@ object SystemStaticData:
 /** Display a single system on the map and interact with it
   */
 class SystemView(
-    actions: WriteBus[MapAction],
-    staticData: SystemStaticData,
-    positionController: PositionController,
+    systemId: Long,
+    system: Signal[MapSystemSnapshot],
+    pos: PositionController,
     selectedSystem: Signal[Option[Long]],
-    mapRole: Signal[MapRole]
-)(systemId: Long, system: SystemVar)(using Owner)
+    settings: Signal[MapSettings]
+)(using ctx: MapViewContext)
     extends ViewController:
 
   override def view =
-    if (!staticData.solarSystemMap.contains(systemId))
+    if (!ctx.staticData.solarSystemMap.contains(systemId))
       div(
         idAttr := s"system-$systemId",
         cls    := "system-error",
-        child.text <-- system.signal.map(_.system.name.getOrElse(s"$systemId"))
+        child.text <-- system.map(_.system.name.getOrElse(s"$systemId"))
       )
     else
-      val solarSystem = staticData.solarSystemMap(systemId)
-      val currentPos = system.zoomIn(mss =>
-        mss.display.map(sdd => positionController.positionOfSystem(mss.system.systemId, sdd)).getOrElse(Coord.Hidden)
-      )((mss, coord) =>
-        mss.copy(display =
-          mss.display.map(prev => positionController.updateDisplayFromPosition(mss.system.systemId, prev, coord))
-        )
-      )
-      val canDrag = mapRole
-        .combineWith(system.signal.map(_.system.isPinned))
+      val solarSystem = ctx.staticData.solarSystemMap(systemId)
+      val currentPos  = system.map(_.display.map(sdd => pos.positionOfSystem(systemId, sdd)).getOrElse(Coord.Hidden))
+
+      val canDrag = ctx.mapRole
+        .combineWith(system.map(_.system.isPinned))
         .map((role, pinned) => !pinned && RoleController.canRepositionSystem(role))
 
       inDraggable(
         currentPos,
         canDrag,
-        { (stateVar, box) =>
-          stateVar
-            .compose(_.withCurrentValueOf(currentPos.signal))
-            .changes
-            .foreach((state, pos) =>
-              if (!state.isDragging && state.initial != pos)
-                actions.onNext(MapAction.Reposition(systemId, pos.x, pos.y))
-            )
-
+        c => ctx.actions.onNext(MapAction.Reposition(systemId, c.x, c.y)),
+        { (box) =>
           val firstLine = div(
             cls := "system-status-line",
             systemClass(solarSystem),
             systemMapName(system, solarSystem),
             systemShattered(solarSystem),
             systemEffect(solarSystem),
-            systemIsPinned(system),
-            systemScanStatus(system)
+            systemIsPinned(system.map(_.system)),
+            systemScanStatus(system.map(_.signatures), settings, ctx.now)
           )
 
           val secondLine = div(
             cls := "system-status-line",
             systemClass(solarSystem, hide = true),
             systemName(solarSystem),
-            systemWhStatics(solarSystem, staticData.wormholeTypes)
+            systemWhStatics(solarSystem, ctx.staticData.wormholeTypes)
           )
 
           box.amend(
             idAttr := s"system-$systemId",
             cls    := "system",
-            cls <-- selectedSystem.map {
-              case Some(`systemId`) => "system-selected"
-              case _                => ""
-            },
+            cls("system-selected") <-- selectedSystem.map(_.exists(_ == systemId)),
             // FIXME: this is also fired when we drag the element so selection is always changing
-            onClick.preventDefault.stopPropagation.mapToUnit --> actions.contramap(_ =>
+            onClick.preventDefault.stopPropagation.mapToUnit --> ctx.actions.contramap(_ =>
               MapAction.Select(Some(systemId))
             ),
             onDblClick.preventDefault.stopPropagation
-              .compose(_.sample(mapRole).filter(RoleController.canRenameSystem)) --> (_ =>
-              Modal.show(
-                (closeMe, owner) =>
-                  systemRenameView(systemId, system.now().system.name.getOrElse(""), actions, closeMe)(using owner),
-                clickCloses = true,
-                cls := "system-rename-dialog"
-              )
-            ),
+              .compose(_.sample(ctx.mapRole).filter(RoleController.canRenameSystem).withCurrentValueOf(system)) -->
+              Observer({ case (_, mss: MapSystemSnapshot) =>
+                Modal.show(
+                  (closeMe, owner) => systemRenameView(systemId, mss.system.name.getOrElse(""), ctx.actions, closeMe),
+                  clickCloses = true,
+                  cls := "system-rename-dialog"
+                )
+              }),
             intelStance(system),
             firstLine,
             secondLine
@@ -147,8 +133,8 @@ class SystemView(
         }
       )
 
-private inline def intelStance(v: SystemVar) =
-  cls <-- v.signal.map(s => (s.structures.nonEmpty, s.system.stance)).map {
+private inline def intelStance(s: Signal[MapSystemSnapshot]) =
+  cls <-- s.map(s => (s.structures.nonEmpty, s.system.stance)).map {
     case (_, IntelStance.Hostile)  => "system-stance-hostile"
     case (_, IntelStance.Friendly) => "system-stance-friendly"
     case (true, _)                 => "system-occupied"
@@ -187,33 +173,46 @@ private inline def systemShattered(ss: SolarSystem) =
     mark(cls := "system-shattered", cls := "ti", cls := "ti-chart-pie-filled")
   )
 
-private inline def systemMapName(v: SystemVar, solarSystem: SolarSystem) =
-  val nameSignal = v.signal.map(_.system.name)
+private inline def systemMapName(s: Signal[MapSystemSnapshot], solarSystem: SolarSystem) =
+  val nameSignal = s.map(_.system.name)
   mark(
     cls <-- nameSignal.map(_.map(_ => "system-map-name").getOrElse("system-name")),
     child.text <-- nameSignal.map(_.getOrElse(solarSystem.name))
   )
 
-private inline def systemScanStatus(v: SystemVar) =
-  val scanStatus = v.signal.map(_.signatures).map(scanPercent(_, fullOnEmpty = false)).map {
-    case d if d > 99.99 => SystemScanStatus.FullyScanned
-    case d if d > 0.01  => SystemScanStatus.PartiallyScanned
-    case _              => SystemScanStatus.Unscanned
-  }
+private inline def systemScanStatus(
+    s: Signal[Array[MapSystemSignature]],
+    settings: Signal[MapSettings],
+    now: Signal[Instant]
+) =
+  val scanIsStale = now
+    .withCurrentValueOf(s, settings)
+    .map:
+      case (now, signatures, settings) => scanStale(signatures, settings, now)
+  val scanStatus = s
+    .map(scanPercent(_, fullOnEmpty = false))
+    .combineWith(scanIsStale)
+    .map:
+      case (d, true) if d > 99.99  => SystemScanStatus.FullyScannedStale
+      case (d, false) if d > 99.99 => SystemScanStatus.FullyScanned
+      case (d, _) if d > 0.01      => SystemScanStatus.PartiallyScanned
+      case _                       => SystemScanStatus.Unscanned
   mark(
     cls := "system-scan-status",
     dataAttr("scan-status") <-- scanStatus.map(_.toString),
     cls := "ti",
-    cls <-- scanStatus.map:
-      case SystemScanStatus.Unscanned        => "ti-alert-circle-filled"
-      case SystemScanStatus.PartiallyScanned => "ti-alert-circle-filled"
-      case SystemScanStatus.FullyScanned     => "ti-circle-filled"
+    cls <-- scanStatus
+      .map:
+        case SystemScanStatus.Unscanned         => "ti-alert-circle-filled"
+        case SystemScanStatus.PartiallyScanned  => "ti-alert-circle-filled"
+        case SystemScanStatus.FullyScanned      => "ti-circle-filled"
+        case SystemScanStatus.FullyScannedStale => "ti-clock-filled"
   )
 
-private inline def systemIsPinned(v: SystemVar) =
+private inline def systemIsPinned(s: Signal[MapSystem]) =
   mark(
     cls := "system-pin-status",
-    display <-- v.signal.map(_.system.isPinned).map {
+    display <-- s.map(_.isPinned).map {
       case true  => ""
       case false => "none"
     },
@@ -232,9 +231,7 @@ private inline def systemWhStatics(ss: SolarSystem, wormholeTypes: Map[Long, Wor
     )
   }
 
-private def systemRenameView(systemId: Long, name: String, actions: WriteBus[MapAction], closeMe: Observer[Unit])(using
-    Owner
-) =
+private def systemRenameView(systemId: Long, name: String, actions: WriteBus[MapAction], closeMe: Observer[Unit]) =
   val nameVar = Var(name)
   div(
     cls := "system-rename-view",

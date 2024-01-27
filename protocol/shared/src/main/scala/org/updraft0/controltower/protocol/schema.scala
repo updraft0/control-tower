@@ -45,6 +45,7 @@ object schema:
   // map
   given Schema[MapInfo]          = Schema.derived
   given Schema[MapPolicyMember]  = Schema.derived
+  given Schema[MapSettings]      = Schema.derived
   given Schema[NewMap]           = Schema.derived
   given Schema[PolicyMemberType] = Schema.derived
   given Schema[MapDisplayType]   = Schema.derived
@@ -105,6 +106,7 @@ object jsoncodec:
   // map
   given JsonCodec[MapInfo]          = JsonCodec.derived
   given JsonCodec[MapPolicyMember]  = JsonCodec.derived
+  given JsonCodec[MapSettings]      = JsonCodec.derived
   given JsonCodec[NewMap]           = JsonCodec.derived
   given JsonCodec[PolicyMemberType] = JsonCodec.string.transform(PolicyMemberType.valueOf, _.toString)
   given JsonCodec[MapDisplayType]   = JsonCodec.string.transform(MapDisplayType.valueOf, _.toString)

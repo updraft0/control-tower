@@ -1,7 +1,7 @@
 package org.updraft0.controltower.protocol
 
 import org.updraft0.controltower.constant.WormholeClass
-import java.time.Instant
+import java.time.{Instant, Duration}
 import scala.language.implicitConversions
 
 opaque type SigId = String
@@ -29,9 +29,13 @@ case class MapPolicyMember(
     updatedAt: Option[Instant] = None
 )
 
-case class NewMap(name: String, policyMembers: Vector[MapPolicyMember], displayType: MapDisplayType)
+case class MapSettings(
+    staleScanThreshold: Duration
+)
 
-case class MapInfo(id: Long, name: String, displayType: MapDisplayType, createdAt: Instant)
+case class NewMap(name: String, policyMembers: Array[MapPolicyMember], displayType: MapDisplayType)
+
+case class MapInfo(id: Long, name: String, displayType: MapDisplayType, settings: MapSettings, createdAt: Instant)
 
 // region WebSocket protocol
 
@@ -205,10 +209,10 @@ enum NewSystemSignature(val id: SigId, val createdAt: Instant):
 case class MapSystemSnapshot(
     system: MapSystem,
     display: Option[SystemDisplayData],
-    signatures: Vector[MapSystemSignature],
-    notes: Vector[MapSystemNote],
-    structures: Vector[MapSystemStructure],
-    connections: Vector[MapWormholeConnection]
+    signatures: Array[MapSystemSignature],
+    notes: Array[MapSystemNote],
+    structures: Array[MapSystemStructure],
+    connections: Array[MapWormholeConnection]
 )
 
 enum NewSystemName:
@@ -244,7 +248,7 @@ enum MapRequest:
 
   /** (idempotent) Update multiple system signatures
     */
-  case UpdateSystemSignatures(systemId: Long, replaceAll: Boolean, scanned: List[NewSystemSignature])
+  case UpdateSystemSignatures(systemId: Long, replaceAll: Boolean, scanned: Array[NewSystemSignature])
 
   /** (idempotent) Remove selected signatures in system
     */
@@ -273,7 +277,7 @@ enum MapRequest:
 
 enum MapMessage:
   case Error(message: String)
-  case MapSnapshot(systems: Vector[MapSystemSnapshot], connections: Map[Long, MapWormholeConnection])
+  case MapSnapshot(systems: Array[MapSystemSnapshot], connections: Map[Long, MapWormholeConnection])
   case MapMeta(info: MapInfo, role: MapRole)
   case SystemSnapshot(systemId: Long, system: MapSystemSnapshot, connections: Map[Long, MapWormholeConnection])
   case SystemDisplayUpdate(systemId: Long, name: Option[String], displayData: SystemDisplayData)

@@ -123,6 +123,11 @@
                 width: 2em;
             }
 
+            & td.signature-stale {
+                color: $orange-dark;
+            }
+
+
             & td.updated-by-img {
                 width: $updated-by-image-width;
             }

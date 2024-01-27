@@ -8,28 +8,29 @@ import com.raquo.airstream.state.{StrictSignal, Var}
 import scala.collection.immutable.SeqMap
 
 // FIXME current workaround for https://github.com/raquo/Airstream/issues/112
+// FIXME remove this
 class FakeVectorVar[A]:
 
-  private val underlying = Var(Vector.empty[(Int, A)])
+  private val underlying = Var(List.empty[(Int, A)])
   private val counter    = Var(0)
 
-  def now(): Vector[(Int, A)] = underlying.now()
+  def now(): List[(Int, A)] = underlying.now()
 
   def append(el: A) =
     Var.update(
       counter    -> ((c: Int) => c + 1),
-      underlying -> ((v: Vector[(Int, A)]) => v :+ counter.now() -> el)
+      underlying -> ((v: List[(Int, A)]) => v :+ counter.now() -> el)
     )
 
-  def setAll(all: Vector[A]) =
+  def setAll(all: List[A]) =
     Var.update(
       counter    -> ((_: Int) => all.size),
-      underlying -> ((_: Vector[(Int, A)]) => all.zipWithIndex.map(_.swap))
+      underlying -> ((_: List[(Int, A)]) => all.zipWithIndex.map(_.swap))
     )
 
   def removeAt(ctr: Int) = underlying.update(v => v.filterNot(_._1 == ctr))
 
-  def split[B](project: FakeVar[A] => B)(using owner: Owner): Signal[Vector[B]] =
+  def split[B](project: FakeVar[A] => B)(using owner: Owner): Signal[List[B]] =
     val obs = Observer[Either[Int, (Int, A)]]:
         case Left(ctrToRemove) => removeAt(ctrToRemove)
         case Right((ctr, value)) =>
@@ -53,6 +54,12 @@ class FakeVar[A](origSignal: Signal[(Int, A)], origObserver: Observer[Either[Int
     Right(ctr -> out(a, b))
   )
   def onDelete: Observer[Unit] = origObserver.contramap(_ => Left(counter()))
+
+// cannot do the below because of ClassTag requirement
+//given Splittable[Array] with
+//  override def map[A, B](inputs: Array[A], project: A => B): Array[B] = inputs.map(project)
+//  override def zipWithIndex[A](inputs: Array[A]): Array[(A, Int)]     = inputs.zipWithIndex
+//  override def empty[A]: Array[A]                                     = Array.empty
 
 given Splittable[Iterable] with
   override def map[A, B](inputs: Iterable[A], project: A => B): Iterable[B] = inputs.map(project)

@@ -6,21 +6,21 @@ import org.updraft0.controltower.constant.WormholeClass
   */
 case class Reference(
     version: Int,
-    factions: List[Faction],
-    signaturesInGroup: List[SignatureInGroup],
-    shipTypes: List[ShipType],
-    starTypes: List[StarType],
-    stationOperations: List[StationOperation],
-    wormholeTypes: List[WormholeType]
+    factions: Array[Faction],
+    signaturesInGroup: Array[SignatureInGroup],
+    shipTypes: Array[ShipType],
+    starTypes: Array[StarType],
+    stationOperations: Array[StationOperation],
+    wormholeTypes: Array[WormholeType]
 )
 
-case class ReferenceSolarSystems(version: Int, solarSystems: List[SolarSystem])
+case class ReferenceSolarSystems(version: Int, solarSystems: Array[SolarSystem])
 
 case class StationService(id: Int, name: String)
 
 /** All station operations with services
   */
-case class StationOperation(operationId: Int, operationName: String, services: Vector[StationService])
+case class StationOperation(operationId: Int, operationName: String, services: Array[StationService])
 
 /** Wormhole type
   */
@@ -41,7 +41,7 @@ case class WormholeType(
 
 /** Signature group/name/wormhole class
   */
-case class SignatureInGroup(signatureGroup: SignatureGroup, name: String, targetClasses: List[WormholeClass])
+case class SignatureInGroup(signatureGroup: SignatureGroup, name: String, targetClasses: Array[WormholeClass])
 
 /** Star/sun type ids
   */

@@ -259,7 +259,7 @@ mark.system-scan-status {
         color: $green-dark;
     }
 
-    &[data-scan-status="PartiallyScanned"] {
+    &[data-scan-status="FullyScannedStale"], &[data-scan-status="PartiallyScanned"] {
         color: $orange-dark;
     }
 }

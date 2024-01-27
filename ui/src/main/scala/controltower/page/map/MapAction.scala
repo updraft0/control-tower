@@ -46,7 +46,7 @@ enum MapAction:
 
   /** Update signatures
     */
-  case UpdateSignatures(systemId: SystemId, replaceAll: Boolean, signatures: List[NewSystemSignature])
+  case UpdateSignatures(systemId: SystemId, replaceAll: Boolean, signatures: Array[NewSystemSignature])
 
   /** Remove subset of signatures in system
     */

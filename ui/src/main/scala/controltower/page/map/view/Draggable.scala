@@ -2,7 +2,6 @@ package controltower.page.map.view
 
 import com.raquo.laminar.api.L.*
 import controltower.page.map.Coord
-import controltower.ui.FakeVarM
 
 private val DefaultGridSnapPx = 10
 private val MouseButtonLeft   = 0
@@ -10,25 +9,35 @@ private val MouseButtonLeft   = 0
 case class DragState(isDragging: Boolean, initial: Coord)
 
 /** Make a draggable content element with grid snapping
-  * @param pos
-  *   The bidirectional var with the position of the box on the parent element
+  * @param coordSig
+  *   Signal with the current position
   * @param canDrag
   *   Whether to allow dragging or not
+  * @param updatePos
+  *   Callback to update the position
   * @param f
-  *   The function that draws the content of the element (isDragging, parent) => ()
+  *   The function that draws the content of the element (parent) => ()
   * @param gridSnap
   *   The grid snapping pixel size
   */
 private def inDraggable(
-    pos: FakeVarM[Long, Coord],
+    coordSig: Signal[Coord],
     canDrag: Signal[Boolean],
-    f: (Signal[DragState], HtmlElement) => Unit,
+    updatePos: Coord => Unit,
+    f: HtmlElement => Unit,
     gridSnap: Int = DefaultGridSnapPx
 ): HtmlElement =
-  val downMouse = Var[Option[Coord]](None)
-  val stateVar  = Var(DragState(isDragging = false, initial = pos.now()))
-  val coordSig  = pos.signal
+  val initialState  = DragState(isDragging = false, initial = Coord.Hidden)
+  val upstreamCoord = Var[Coord](Coord.Hidden)
+  val currentCoord  = Var[Coord](Coord.Hidden)
+  val downMouse     = Var[Option[Coord]](None)
+  val stateVar      = Var(initialState)
   div(
+    coordSig --> currentCoord.writer,
+    coordSig --> upstreamCoord.writer,
+    display <-- currentCoord.signal.map(c => if (c == Coord.Hidden) "none" else ""),
+    left <-- currentCoord.signal.map(c => s"${c.x}px"),
+    top <-- currentCoord.signal.map(c => s"${c.y}px"),
     cls <-- canDrag.map {
       case true  => "draggable-box"
       case false => "pinned-box"
@@ -36,22 +45,33 @@ private def inDraggable(
     inContext(self =>
       modSeq(
         onPointerDown
-          .filter(_.isPrimary)
+          .filter(pev => pev.isPrimary && pev.button == MouseButtonLeft)
           .compose(
-            _.withCurrentValueOf(canDrag).filter(_._2).filter(_._1.button == MouseButtonLeft).map(_._1)
-          ) --> { pev =>
+            _.withCurrentValueOf(canDrag).filter(_._2).map(_._1).withCurrentValueOf(coordSig)
+          ) --> { (pev, currentPos) =>
           self.ref.setPointerCapture(pev.pointerId)
           val bbox       = self.ref.getBoundingClientRect()
           val mouseCoord = Coord(x = pev.clientX - bbox.x, y = pev.clientY - bbox.y)
           Var.set(
-            downMouse -> Some(mouseCoord),
-            stateVar  -> DragState(isDragging = true, initial = pos.now())
+            downMouse    -> Some(mouseCoord),
+            stateVar     -> DragState(isDragging = true, initial = currentPos),
+            currentCoord -> currentPos
           )
         },
         onPointerUp.mapToUnit --> (_ =>
           Var.update(
             downMouse -> ((_: Option[Coord]) => None),
-            stateVar  -> ((prev: DragState) => prev.copy(isDragging = false))
+            stateVar -> { (prev: DragState) =>
+              if (upstreamCoord.now() != currentCoord.now())
+                updatePos(currentCoord.now())
+              initialState
+            }
+          )
+        ),
+        onPointerCancel.mapToUnit --> (_ =>
+          Var.set(
+            downMouse -> None,
+            stateVar  -> initialState
           )
         ),
         onPointerMove
@@ -70,16 +90,9 @@ private def inDraggable(
           val nextTop  = Option.when(rawTop >= 0)(rawTop - (rawTop % gridSnap)).getOrElse(currentPos.y)
 
           val next = Coord(nextLeft, nextTop)
-          pos.onUpdate.onNext(next)
+          currentCoord.set(next)
         }
       )
     ),
-    Modifier.apply({ self =>
-      self.amend(
-        display <-- coordSig.map(c => if (c == Coord.Hidden) "none" else ""),
-        left <-- coordSig.map(c => s"${c.x}px"),
-        top <-- coordSig.map(c => s"${c.y}px")
-      )
-      f(stateVar.signal, self)
-    })
+    Modifier.apply(f)
   )

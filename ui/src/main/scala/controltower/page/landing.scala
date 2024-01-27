@@ -141,7 +141,7 @@ object NewMapDialogView:
             val name  = nameVar.now()
             val perms = permissionsVar.now().filterNot(_._2.memberId == 0).map(_._2)
 
-            val newMap = NewMap(name, perms, MapDisplayType.Manual)
+            val newMap = NewMap(name, perms.toArray, MapDisplayType.Manual)
             dom.console.debug(s"creating new map: ${newMap}")
             ct.createMap(newMap).onComplete {
               case Failure(ex)          => dom.console.error("failed to call newMap", ex) // FIXME this isn't called??

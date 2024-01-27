@@ -166,7 +166,7 @@ object ReferenceQueries:
         protocol.SignatureInGroup(
           protocol.SignatureGroup.valueOf(sig.signatureGroup.name()),
           sig.name,
-          sig.targetClasses.toList
+          sig.targetClasses.toArray
         )
       )
     )

@@ -25,6 +25,7 @@ class SystemSignatureView(
     staticData: SystemStaticData,
     selected: Signal[Option[MapSystemSnapshot]],
     actions: WriteBus[MapAction],
+    settings: Signal[MapSettings],
     time: Signal[Instant]
 ) extends ViewController:
 
@@ -38,7 +39,7 @@ class SystemSignatureView(
       hideIfEmptyOpt(selected),
       table(
         children <-- selected.map {
-          case Some(selected) => sigView(selected, filter, staticData, time, actions)
+          case Some(selected) => sigView(selected, filter, staticData, settings, time, actions)
           case None           => nodeSeq()
         }
       )
@@ -48,6 +49,7 @@ private inline def sigView(
     mss: MapSystemSnapshot,
     currentFilter: Var[SignatureFilter],
     static: SystemStaticData,
+    settings: Signal[MapSettings],
     time: Signal[Instant],
     actions: WriteBus[MapAction]
 ) =
@@ -207,8 +209,9 @@ private inline def sigView(
         signatureRow(
           time,
           currentFilter.signal,
+          settings,
           selectedSigs,
-          actions.contramap(nss => MapAction.UpdateSignatures(solarSystem.id, false, List(nss))),
+          actions.contramap(nss => MapAction.UpdateSignatures(solarSystem.id, false, Array(nss))),
           _,
           solarSystem,
           static
@@ -220,6 +223,7 @@ private inline def sigView(
 private def signatureRow(
     time: Signal[Instant],
     filter: Signal[SignatureFilter],
+    settings: Signal[MapSettings],
     selectedSigs: Selectable[SigId],
     onSigChange: Observer[NewSystemSignature],
     sig: MapSystemSignature,
@@ -293,6 +297,16 @@ private def signatureRow(
       })
     )
 
+  val signatureUpdatedTd = td(
+    cls := "signature-updated",
+    cls("signature-stale") <-- time.withCurrentValueOf(settings).map((now, settings) => sigIsStale(sig, settings, now)),
+    timeDiff(time, sig.updatedAt)
+  )
+  val signatureUpdatedByTd = td(
+    cls := "updated-by-img",
+    ESI.characterImage(sig.updatedByCharacterId, "updatedBy", size = CharacterImageSize)
+  )
+
   sig match
     case u: MapSystemSignature.Unknown =>
       tr(
@@ -303,11 +317,8 @@ private def signatureRow(
         signatureGroupCell(u),
         td(cls := "signature-type"),
         td(cls := "signature-target"),
-        td(cls := "signature-updated", timeDiff(time, u.updatedAt)),
-        td(
-          cls := "updated-by-img",
-          ESI.characterImage(u.updatedByCharacterId, "updatedBy", size = CharacterImageSize)
-        )
+        signatureUpdatedTd,
+        signatureUpdatedByTd
       )
     case s: MapSystemSignature.Site =>
       tr(
@@ -317,12 +328,9 @@ private def signatureRow(
         td(cls := "signature-id", s.id.take(3)),
         signatureGroupCell(s),
         siteTypeCell(s),
-        td(cls := "signature-target"), // FIXME
-        td(cls := "signature-updated", timeDiff(time, s.updatedAt)),
-        td(
-          cls := "updated-by-img",
-          ESI.characterImage(s.updatedByCharacterId, "updatedBy", size = CharacterImageSize)
-        )
+        td(cls := "signature-target"),
+        signatureUpdatedTd,
+        signatureUpdatedByTd
       )
     case w: MapSystemSignature.Wormhole =>
       tr(
@@ -333,11 +341,8 @@ private def signatureRow(
         signatureGroupCell(w),
         wormholeSelect(w),
         td(cls := "signature-target", w.connectionId.map(_.toString).getOrElse("") /* FIXME */ ),
-        td(cls := "signature-updated", timeDiff(time, w.updatedAt)),
-        td(
-          cls := "updated-by-img",
-          ESI.characterImage(w.updatedByCharacterId, "updatedBy", size = CharacterImageSize)
-        )
+        signatureUpdatedTd,
+        signatureUpdatedByTd
       )
 
 private def isVisibleWithFilter(filter: SignatureFilter, sig: MapSystemSignature) = (filter, sig) match
@@ -449,15 +454,21 @@ private inline def displayDuration(d: Duration) =
   else if (d.getSeconds < 60 * 60) s"${d.getSeconds / 60}m ${d.getSeconds % 60}s"
   else s"${d.getSeconds / 3_600}h ${d.getSeconds                          % 3_600 / 60}m"
 
-private def scanClass(sigs: Vector[MapSystemSignature]) =
+private def scanClass(sigs: Array[MapSystemSignature]) =
   if (sigs.forall(_.signatureGroup == SignatureGroup.Unknown)) "unscanned"
   else if (sigs.exists(_.signatureGroup == SignatureGroup.Unknown)) "partially-scanned"
   else "fully-scanned"
 
-private[map] def scanPercent(sigs: Vector[MapSystemSignature], fullOnEmpty: Boolean): Double =
+private[map] def scanPercent(sigs: Array[MapSystemSignature], fullOnEmpty: Boolean): Double =
   if (sigs.isEmpty && fullOnEmpty) 100
   else if (sigs.isEmpty) 0
   else 100.0 * (sigs.count(_.signatureGroup != SignatureGroup.Unknown).toDouble / sigs.size)
+
+private[map] def scanStale(sigs: Array[MapSystemSignature], settings: MapSettings, now: Instant): Boolean =
+  sigs.exists(sigIsStale(_, settings, now))
+
+private[map] def sigIsStale(sig: MapSystemSignature, settings: MapSettings, now: Instant): Boolean =
+  Duration.between(sig.updatedAt, now).compareTo(settings.staleScanThreshold) >= 0
 
 private def addSingleSignatureView(
     solarSystem: SolarSystem,
@@ -509,7 +520,7 @@ private def editSingleSignatureView(
     validationError,
     actions.contramap { nss =>
       closeMe.onNext(())
-      MapAction.UpdateSignatures(solarSystem.id, false, List(nss))
+      MapAction.UpdateSignatures(solarSystem.id, false, Array(nss))
     }
   )
 
@@ -534,7 +545,7 @@ private def pasteSignaturesView(
     actions: WriteBus[MapAction]
 )(closeMe: Observer[Unit], owner: Owner) =
   val validationError = Var(Option.empty[String])
-  val updates         = Var(Option.empty[List[SignatureUpdate]])
+  val updates         = Var(Option.empty[Array[SignatureUpdate]])
   val shouldReplace   = Var(false)
   val addAll          = PasteSignaturesView(mss.signatures, static, time, updates.writer, shouldReplace)
   div(

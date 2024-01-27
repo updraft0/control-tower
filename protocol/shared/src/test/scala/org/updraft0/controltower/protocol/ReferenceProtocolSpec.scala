@@ -12,7 +12,7 @@ object ReferenceProtocolSpec extends ZIOSpecDefault:
         val value = StationOperation(
           operationId = 42,
           operationName = "Law School",
-          services = Vector(
+          services = Array(
             StationService(id = 5, name = "Reprocessing Plant"),
             StationService(id = 9, name = "Stock Exchange")
           )

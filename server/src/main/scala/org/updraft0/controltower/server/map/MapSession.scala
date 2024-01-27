@@ -171,7 +171,7 @@ object MapSession:
       ctx.mapQ.offer(
         Identified(
           Some(ctx.sessionId),
-          MapRequest.UpdateSystemSignatures(systemId, replaceAll, scanned.map(toNewMapSystemSignature))
+          MapRequest.UpdateSystemSignatures(systemId, replaceAll, scanned.map(toNewMapSystemSignature).toList)
         )
       )
     case protocol.MapRequest.RemoveSystemSignatures(systemId, sigIds) =>
@@ -282,8 +282,8 @@ private def toWhK162Type(tpe: protocol.WormholeK162Type) = tpe match
   case protocol.WormholeK162Type.Nullsec   => model.WormholeK162Type.Nullsec
   case protocol.WormholeK162Type.Thera     => model.WormholeK162Type.Thera
 
-private def toProtoSystems(all: Map[SystemId, MapSystemWithAll]): Vector[protocol.MapSystemSnapshot] =
-  all.values.map(toProtoSystemSnapshot).toVector
+private def toProtoSystems(all: Map[SystemId, MapSystemWithAll]): Array[protocol.MapSystemSnapshot] =
+  all.values.map(toProtoSystemSnapshot).toArray
 
 private def toProtoSystemSnapshot(value: MapSystemWithAll): protocol.MapSystemSnapshot =
   protocol.MapSystemSnapshot(

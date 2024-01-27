@@ -21,16 +21,16 @@ trait StringJsonExtensions extends Encoders with Decoders:
 
   // json_group_array
   inline def jsonGroupArray[R](inline v: Any) =
-    sql"json_group_array(${v})".pure.as[JsonValue[Vector[R]]]
+    sql"json_group_array(${v})".pure.as[JsonValue[Array[R]]]
 
   inline def jsonGroupArrayFilterNull[R](inline v: Any, inline c: Any) =
-    sql"json_group_array(${v}) filter (where ${c} is not null)".pure.as[JsonValue[Vector[R]]]
+    sql"json_group_array(${v}) filter (where ${c} is not null)".pure.as[JsonValue[Array[R]]]
 
   inline def jsonGroupArrayDistinct[R](inline v: Any) =
-    sql"json_group_array(distinct ${v})".pure.as[JsonValue[Vector[R]]]
+    sql"json_group_array(distinct ${v})".pure.as[JsonValue[Array[R]]]
 
   inline def jsonGroupArrayFilterNullDistinct[R](inline v: Any, inline c: Any) =
-    sql"json_group_array(distinct ${v}) filter (where ${c} is not null)".pure.as[JsonValue[Vector[R]]]
+    sql"json_group_array(distinct ${v}) filter (where ${c} is not null)".pure.as[JsonValue[Array[R]]]
 
   // json_group_object
   inline def jsonGroupObject[R](inline k1: Any, inline v1: Any) =

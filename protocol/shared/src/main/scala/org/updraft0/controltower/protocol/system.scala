@@ -29,11 +29,11 @@ case class SolarSystem(
     regionName: String,
     constellationId: Long,
     constellationName: String,
-    stations: Vector[Station],
-    planets: Vector[Planet],
+    stations: Array[Station],
+    planets: Array[Planet],
     effect: Option[WormholeEffect],
     systemClass: Option[WormholeClass],
-    wormholeStatics: Vector[WormholeStatic],
+    wormholeStatics: Array[WormholeStatic],
     security: Option[Double],
     starTypeId: Option[Long]
 )

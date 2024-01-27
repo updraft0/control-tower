@@ -24,7 +24,7 @@ trait PositionController:
 
   /** Generate new display data based on the previous and new coordinate position
     */
-  def updateDisplayFromPosition(systemId: SystemId, prev: SystemDisplayData, position: Coord): SystemDisplayData
+  def updateDisplayFromPosition(systemId: SystemId, prev: Option[SystemDisplayData], position: Coord): SystemDisplayData
 
 /** Initial implementation of position controller (stateless)
   */
@@ -34,8 +34,7 @@ object PositionController extends PositionController:
     case SystemDisplayData.Manual(x, y) => Coord(x, y)
   override def updateDisplayFromPosition(
       @unused systemId: SystemId,
-      prev: SystemDisplayData,
+      @unused prev: Option[SystemDisplayData],
       position: Coord
   ): SystemDisplayData =
-    prev match
-      case _: SystemDisplayData.Manual => SystemDisplayData.Manual(position.x.toInt, position.y.toInt)
+    SystemDisplayData.Manual(position.x.toInt, position.y.toInt)

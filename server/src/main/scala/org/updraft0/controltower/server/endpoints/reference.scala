@@ -22,7 +22,15 @@ def getAllReference = Endpoints.getAllReference.zServerLogic(_ =>
     .mapBoth(
       dbError,
       (version, factions, signaturesInGroup, shipTypes, starTypes, stationOperations, wormholeTypes) =>
-        Reference(version.id, factions, signaturesInGroup, shipTypes, starTypes, stationOperations, wormholeTypes)
+        Reference(
+          version = version.id,
+          factions = factions.toArray,
+          signaturesInGroup = signaturesInGroup.toArray,
+          shipTypes = shipTypes.toArray,
+          starTypes = starTypes.toArray,
+          stationOperations = stationOperations.toArray,
+          wormholeTypes = wormholeTypes.toArray
+        )
     )
 )
 
@@ -30,7 +38,7 @@ def getAllSolarSystems = Endpoints.getAllSolarSystems.zServerLogic(_ =>
   (ReferenceQueries.getVersion <&> ReferenceQueries.getSolarSystemsByName(None))
     .mapBoth(
       dbError,
-      (version, solarSystems) => ReferenceSolarSystems(version.id, solarSystems)
+      (version, solarSystems) => ReferenceSolarSystems(version.id, solarSystems.toArray)
     )
 )
 

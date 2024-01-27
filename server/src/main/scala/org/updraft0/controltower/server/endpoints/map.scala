@@ -93,8 +93,8 @@ private def insertNewMap(userId: model.UserId, newMap: NewMap) =
     _ <- AuthQueries.createMapPolicyMembers(newMap.policyMembers.map(pm => toModelPolicyMember(map, userId, pm)).toList)
   yield map
 
-def toMapInfo(map: model.MapModel): MapInfo =
-  MapInfo(map.id, map.name, toMapDisplayType(map.displayType), map.createdAt)
+def toMapInfo(map: model.MapModel): MapInfo = /* FIXME store settings */
+  MapInfo(map.id, map.name, toMapDisplayType(map.displayType), MapSettings(12.hours), map.createdAt)
 
 def toModelPolicyMember(map: model.MapModel, userId: model.UserId, m: MapPolicyMember): model.MapPolicyMember =
   model.MapPolicyMember(

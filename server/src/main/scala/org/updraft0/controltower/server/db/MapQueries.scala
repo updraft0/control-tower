@@ -14,10 +14,10 @@ import scala.annotation.nowarn
 case class MapSystemWithAll(
     sys: model.MapSystem,
     display: Option[model.SystemDisplayData],
-    structures: Vector[model.MapSystemStructure],
-    notes: Vector[model.MapSystemNote],
-    signatures: Vector[model.MapSystemSignature],
-    connections: Vector[model.MapWormholeConnection]
+    structures: Array[model.MapSystemStructure],
+    notes: Array[model.MapSystemNote],
+    signatures: Array[model.MapSystemSignature],
+    connections: Array[model.MapWormholeConnection]
 )
 
 /** Queries for map information

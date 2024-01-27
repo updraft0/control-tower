@@ -28,10 +28,10 @@ enum SignatureUpdate:
     case Updated(_, u)   => Some(u)
 
 class PasteSignaturesView(
-    existingSigs: Vector[MapSystemSignature],
+    existingSigs: Array[MapSystemSignature],
     static: SystemStaticData,
     time: Signal[Instant],
-    updates: Observer[Option[List[SignatureUpdate]]],
+    updates: Observer[Option[Array[SignatureUpdate]]],
     shouldReplace: Var[Boolean]
 ) extends ViewController:
 
@@ -46,8 +46,8 @@ class PasteSignaturesView(
       .combineWith(shouldReplace.signal)
       .map {
         case (Right(newSigs), shouldReplace) =>
-          val res = diffExistingWithScanned(shouldReplace, existingSigs, newSigs)
-          updates.onNext(Some(res))
+          val res = diffExistingWithScanned(shouldReplace, existingSigs.toList, newSigs)
+          updates.onNext(Some(res.toArray))
           Right(res)
         case (Left(msg), _) =>
           updates.onNext(None)
@@ -261,7 +261,7 @@ private def signatureFrom(sigId: SigId, group: SignatureGroup, line: ParsedLine,
 
 private def diffExistingWithScanned(
     isReplace: Boolean,
-    existing: Vector[MapSystemSignature],
+    existing: List[MapSystemSignature],
     scanned: List[NewSystemSignature]
 ): List[SignatureUpdate] =
   val existingMap = existing.map(mss => SigId(mss.id) /* FIXME */ -> mss).toMap
