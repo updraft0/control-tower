@@ -319,6 +319,8 @@ private def signatureRow(
     )
 
   def wormholeTargetSelect(w: MapSystemSignature.Wormhole) =
+    org.scalajs.dom.console.info(s"DEBUG: rendering connections: ${connections.map(_.id).mkString(",")}")
+
     val current  = Var(w.connectionId.flatMap(cId => connections.find(_.id == cId)).getOrElse(ConnectionTarget.Unknown))
     val dropdown = OptionDropdown(connections.prepended(ConnectionTarget.Unknown).toIndexedSeq, current)
     td(

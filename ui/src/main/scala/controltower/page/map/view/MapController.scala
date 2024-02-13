@@ -147,10 +147,10 @@ class MapController(rds: ReferenceDataStore, val clock: Signal[Instant])(using O
           allSystems.current -> ((map: Map[Long, MapSystemSnapshot]) =>
             map
               .updatedWith(whc.connection.fromSystemId)(
-                _.map(mss => mss.copy(connections = mss.connections.appended(whc.connection)))
+                _.map(mss => mss.copy(connections = updateConnectionById(mss.connections, whc.connection)))
               )
               .updatedWith(whc.connection.toSystemId)(
-                _.map(mss => mss.copy(connections = mss.connections.appended(whc.connection)))
+                _.map(mss => mss.copy(connections = updateConnectionById(mss.connections, whc.connection)))
               )
           ),
           allConnections.current -> ((conns: Map[Long, MapWormholeConnectionWithSigs]) =>
@@ -161,7 +161,7 @@ class MapController(rds: ReferenceDataStore, val clock: Signal[Instant])(using O
       case MapMessage.ConnectionsRemoved(whcs) =>
         Var.update(
           allSystems.current -> ((map: Map[Long, MapSystemSnapshot]) =>
-            whcs.foldLeft(map) { case (m, whc) =>
+            whcs.foldLeft(map): (m, whc) =>
               m
                 .updatedWith(whc.fromSystemId)(
                   _.map(mss => mss.copy(connections = mss.connections.filterNot(_.id == whc.id)))
@@ -169,7 +169,6 @@ class MapController(rds: ReferenceDataStore, val clock: Signal[Instant])(using O
                 .updatedWith(whc.toSystemId)(
                   _.map(mss => mss.copy(connections = mss.connections.filterNot(_.id == whc.id)))
                 )
-            }
           ),
           allConnections.current -> ((conns: Map[Long, MapWormholeConnectionWithSigs]) =>
             conns.removedAll(whcs.map(_.id))
@@ -242,3 +241,13 @@ class MapController(rds: ReferenceDataStore, val clock: Signal[Instant])(using O
 
 object MapController:
   private val DefaultMapSettings = MapSettings(staleScanThreshold = Duration.ofHours(24))
+
+private inline def updateConnectionById(
+    connections: Array[MapWormholeConnection],
+    whc: MapWormholeConnection
+): Array[MapWormholeConnection] =
+  connections.indexWhere(_.id == whc.id) match
+    case -1 => connections.appended(whc)
+    case idx =>
+      connections.update(idx, whc)
+      connections

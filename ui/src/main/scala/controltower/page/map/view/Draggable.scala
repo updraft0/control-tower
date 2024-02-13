@@ -28,6 +28,7 @@ private def inDraggable(
     f: HtmlElement => Unit,
     gridSnap: Int = DefaultGridSnapPx
 ): HtmlElement =
+  // FIXME initial position is always Coord.Hidden so we always send a display update first time the element is clicked
   val initialState = DragState(isDragging = false, initial = Coord.Hidden)
   val downMouse    = Var[Option[Coord]](None)
   val stateVar     = Var(initialState)
@@ -60,9 +61,8 @@ private def inDraggable(
           Var.update(
             downMouse -> ((_: Option[Coord]) => None),
             stateVar -> { (prev: DragState) =>
-              if (prev.initial != currentPos)
-                updatePos(currentPos)
-              initialState
+              if (prev.initial != currentPos) updatePos(currentPos)
+              DragState(isDragging = false, initial = currentPos)
             }
           )
         ),
