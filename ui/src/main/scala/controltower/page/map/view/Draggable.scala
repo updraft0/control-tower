@@ -5,6 +5,7 @@ import controltower.page.map.Coord
 
 private val DefaultGridSnapPx = 10
 private val MouseButtonLeft   = 0
+private val MouseButtonRight  = 2
 
 case class DragState(isDragging: Boolean, initial: Coord)
 
@@ -21,23 +22,19 @@ case class DragState(isDragging: Boolean, initial: Coord)
   *   The grid snapping pixel size
   */
 private def inDraggable(
-    coordSig: Signal[Coord],
+    position: Var[Coord],
     canDrag: Signal[Boolean],
     updatePos: Coord => Unit,
     f: HtmlElement => Unit,
     gridSnap: Int = DefaultGridSnapPx
 ): HtmlElement =
-  val initialState  = DragState(isDragging = false, initial = Coord.Hidden)
-  val upstreamCoord = Var[Coord](Coord.Hidden)
-  val currentCoord  = Var[Coord](Coord.Hidden)
-  val downMouse     = Var[Option[Coord]](None)
-  val stateVar      = Var(initialState)
+  val initialState = DragState(isDragging = false, initial = Coord.Hidden)
+  val downMouse    = Var[Option[Coord]](None)
+  val stateVar     = Var(initialState)
   div(
-    coordSig --> currentCoord.writer,
-    coordSig --> upstreamCoord.writer,
-    display <-- currentCoord.signal.map(c => if (c == Coord.Hidden) "none" else ""),
-    left <-- currentCoord.signal.map(c => s"${c.x}px"),
-    top <-- currentCoord.signal.map(c => s"${c.y}px"),
+    display <-- position.signal.map(c => if (c == Coord.Hidden) "none" else ""),
+    left <-- position.signal.map(c => s"${c.x}px"),
+    top <-- position.signal.map(c => s"${c.y}px"),
     cls <-- canDrag.map {
       case true  => "draggable-box"
       case false => "pinned-box"
@@ -45,38 +42,40 @@ private def inDraggable(
     inContext(self =>
       modSeq(
         onPointerDown
-          .filter(pev => pev.isPrimary && pev.button == MouseButtonLeft)
+          .filter(pev =>
+            pev.isPrimary && pev.button == MouseButtonLeft && !pev.altKey && !pev.shiftKey && !pev.ctrlKey && !pev.metaKey
+          )
           .compose(
-            _.withCurrentValueOf(canDrag).filter(_._2).map(_._1).withCurrentValueOf(coordSig)
+            _.withCurrentValueOf(canDrag).filter(_._2).map(_._1).withCurrentValueOf(position.signal)
           ) --> { (pev, currentPos) =>
           self.ref.setPointerCapture(pev.pointerId)
           val bbox       = self.ref.getBoundingClientRect()
           val mouseCoord = Coord(x = pev.clientX - bbox.x, y = pev.clientY - bbox.y)
           Var.set(
-            downMouse    -> Some(mouseCoord),
-            stateVar     -> DragState(isDragging = true, initial = currentPos),
-            currentCoord -> currentPos
+            downMouse -> Some(mouseCoord),
+            stateVar  -> DragState(isDragging = true, initial = currentPos)
           )
         },
-        onPointerUp.mapToUnit --> (_ =>
+        onPointerUp.mapToUnit.compose(_.withCurrentValueOf(position.signal)) --> (currentPos =>
           Var.update(
             downMouse -> ((_: Option[Coord]) => None),
             stateVar -> { (prev: DragState) =>
-              if (upstreamCoord.now() != currentCoord.now())
-                updatePos(currentCoord.now())
+              if (prev.initial != currentPos)
+                updatePos(currentPos)
               initialState
             }
           )
         ),
-        onPointerCancel.mapToUnit --> (_ =>
+        onPointerCancel.mapToUnit.compose(_.withCurrentValueOf(stateVar)) --> (currentState =>
           Var.set(
             downMouse -> None,
-            stateVar  -> initialState
+            stateVar  -> initialState,
+            position  -> currentState.initial
           )
         ),
         onPointerMove
           .compose(
-            _.withCurrentValueOf(downMouse.signal, coordSig)
+            _.withCurrentValueOf(downMouse.signal, position.signal)
               .filter(_._2.isDefined)
               .map((ev, mopt, cpos) => (ev, mopt.get, cpos))
           ) --> { (pev, mouseOffset, currentPos) =>
@@ -90,7 +89,8 @@ private def inDraggable(
           val nextTop  = Option.when(rawTop >= 0)(rawTop - (rawTop % gridSnap)).getOrElse(currentPos.y)
 
           val next = Coord(nextLeft, nextTop)
-          currentCoord.set(next)
+          if (position.now() != next)
+            position.set(next)
         }
       )
     ),

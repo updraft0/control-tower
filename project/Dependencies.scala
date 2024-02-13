@@ -14,11 +14,11 @@ object Dependencies {
     val laminar            = "17.0.0-M6"
     val laminext           = "0.17.0-M6"
     val `native-converter` = "0.9.0"
-    val quill              = "4.8.0"
+    val quill              = "4.8.1"
     val `scala-java-time`  = "2.5.0"
     val `sjs-dom`          = "2.8.0+3-b7b5301d-SNAPSHOT" // FIXME
     val snakeyaml          = "2.7"
-    val sqlite             = "3.42.0.0"
+    val sqlite             = "3.45.1.0"
     val sttp               = "3.9.1"
     val tapir              = "1.9.4"
     val waypoint           = "8.0.0-M2"

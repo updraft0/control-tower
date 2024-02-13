@@ -6,7 +6,8 @@ import com.raquo.laminar.api.L.*
   */
 final class HVar[A](value: Var[(Option[A], A)]):
 
-  def signal(using Owner): Signal[A] = current.signal
+  def signal(using Owner): Signal[A]          = current.signal
+  def rawSignal: StrictSignal[(Option[A], A)] = value.signal
 
   def current(using Owner): Var[A] = value.zoom { case ((_, a)) =>
     a

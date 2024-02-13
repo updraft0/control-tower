@@ -50,6 +50,7 @@ object Config:
     case s if s.value.length == 44 => Right(HmacSecret(s))
     case _                         => Left(zio.Config.Error.InvalidData(message = "HMAC secret length != 44"))
   }
+  private given DeriveConfig[DbConfig] = DeriveConfig[java.nio.file.Path].map(DbConfig.apply)
 
   def layer: ZLayer[Any, Throwable, Config] =
     ZLayer(

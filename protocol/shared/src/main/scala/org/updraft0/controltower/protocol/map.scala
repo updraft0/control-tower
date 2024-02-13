@@ -1,19 +1,7 @@
 package org.updraft0.controltower.protocol
 
-import org.updraft0.controltower.constant.WormholeClass
+import org.updraft0.controltower.constant.*
 import java.time.{Instant, Duration}
-import scala.language.implicitConversions
-
-opaque type SigId = String
-
-object SigId:
-  def apply(s: String): SigId = s
-
-  given Conversion[SigId, String] with
-    override def apply(s: SigId): String = s
-
-  given Ordering[SigId] with
-    override def compare(x: SigId, y: SigId): Int = x.compare(y)
 
 enum PolicyMemberType:
   case Character, Corporation, Alliance
@@ -81,6 +69,15 @@ case class MapWormholeConnection(
     createdByCharacterId: Long,
     updatedAt: Instant,
     updatedByCharacterId: Long
+)
+
+case class MapWormholeConnectionRank(fromSystemIdx: Int, fromSystemCount: Int, toSystemIdx: Int, toSystemCount: Int)
+
+case class MapWormholeConnectionWithSigs(
+    connection: MapWormholeConnection,
+    fromSignature: Option[MapSystemSignature.Wormhole],
+    toSignature: Option[MapSystemSignature.Wormhole],
+    rank: MapWormholeConnectionRank
 )
 
 enum SignatureGroup:
@@ -246,6 +243,10 @@ enum MapRequest:
     */
   case AddSystemSignature(systemId: Long, sig: NewSystemSignature)
 
+  /** (non-idempotent) Add a connection between two systems
+    */
+  case AddSystemConnection(fromSystemId: SystemId, toSystemId: SystemId)
+
   /** (idempotent) Update multiple system signatures
     */
   case UpdateSystemSignatures(systemId: Long, replaceAll: Boolean, scanned: Array[NewSystemSignature])
@@ -272,14 +273,21 @@ enum MapRequest:
     */
   case RemoveSystem(systemId: Long)
 
+  /** Remove a connection from the map
+    */
+  case RemoveSystemConnection(connectionId: Long)
+
 // TODO: have a think about connections and when they get cleaned up (delete connection *and* delete signature?)
 // TODO: enforce the level of permissions that a user can have! (and document that)
+// TODO: move to opaque types
 
 enum MapMessage:
+  case ConnectionSnapshot(connection: MapWormholeConnectionWithSigs)
+  case ConnectionsRemoved(connections: Array[MapWormholeConnection])
   case Error(message: String)
-  case MapSnapshot(systems: Array[MapSystemSnapshot], connections: Map[Long, MapWormholeConnection])
+  case MapSnapshot(systems: Map[Long, MapSystemSnapshot], connections: Map[Long, MapWormholeConnectionWithSigs])
   case MapMeta(info: MapInfo, role: MapRole)
-  case SystemSnapshot(systemId: Long, system: MapSystemSnapshot, connections: Map[Long, MapWormholeConnection])
+  case SystemSnapshot(systemId: Long, system: MapSystemSnapshot, connections: Map[Long, MapWormholeConnectionWithSigs])
   case SystemDisplayUpdate(systemId: Long, name: Option[String], displayData: SystemDisplayData)
   case SystemRemoved(systemId: Long)
 

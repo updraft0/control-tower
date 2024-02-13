@@ -1,9 +1,9 @@
 package controltower.page.map.view
 
-import com.raquo.laminar.api.L
+import com.raquo.airstream.state.Var.{VarModTuple, VarTuple}
 import com.raquo.laminar.api.L.*
 import controltower.db.ReferenceDataStore
-import controltower.page.map.{Coord, MapAction, PositionController}
+import controltower.page.map.{Coord, MapAction, VarPositionController}
 import controltower.ui.{HVar, writeChangesTo}
 import org.updraft0.controltower.protocol.*
 
@@ -17,22 +17,27 @@ import scala.util.{Failure, Success}
 
 /** Single place where the state of the map is tracked (without rendering)
   */
-class MapController(rds: ReferenceDataStore, val pos: PositionController, val clock: Signal[Instant])(using Owner):
+class MapController(rds: ReferenceDataStore, val clock: Signal[Instant])(using Owner):
 
   // cached static data that is not assumed to change
   private val cacheSolarSystem = mutable.Map.empty[Long, SolarSystem]
   private var cacheReference   = Option.empty[Reference]
 
-  // the main channels in/out for map updates etc.
-  // TODO unsure if necessary
+  // TODO: this needs to be always in sync with css :/
+  val BoxSize = Coord(140, 40)
+
+  val pos = new VarPositionController(mutable.Map.empty, BoxSize)
+
   val requestBus  = EventBus[MapRequest]()
   val responseBus = EventBus[MapMessage]()
 
   val mapMeta = Var[Option[(MapInfo, MapRole)]](None)
 
-  val allSystems       = HVar[Map[Long, MapSystemSnapshot]](Map.empty)
-  val allConnections   = HVar[Map[Long, MapWormholeConnection]](Map.empty)
-  val selectedSystemId = Var[Option[Long]](None)
+  val allSystems     = HVar[Map[Long, MapSystemSnapshot]](Map.empty)
+  val allConnections = HVar[Map[Long, MapWormholeConnectionWithSigs]](Map.empty)
+
+  val selectedSystemId     = Var[Option[Long]](None)
+  val selectedConnectionId = Var[Option[Long]](None)
 
   val lastError = Var[Option[String]](None)
 
@@ -40,15 +45,25 @@ class MapController(rds: ReferenceDataStore, val pos: PositionController, val cl
   val mapRole: Signal[MapRole] = mapMeta.signal.map(_.map(_._2).getOrElse(MapRole.Viewer))
   val mapSettings: Signal[MapSettings] =
     mapMeta.signal.map(_.map(_._1.settings).getOrElse(MapController.DefaultMapSettings))
-  val selectedSystem: Signal[Option[MapSystemSnapshot]] = selectedSystemId.signal.combineWith(allSystems.signal).map {
-    case (Some(systemId), map) => map.get(systemId)
-    case (None, _)             => None
-  }
 
-  private val allSystemsChanges    = EventBus[CollectionCommand[MapSystemSnapshot]]()
-  private val allConnectionChanges = EventBus[CollectionCommand[MapWormholeConnection]]()
+  val selectedSystem: Signal[Option[MapSystemSnapshot]] =
+    selectedSystemId.signal
+      .combineWith(allSystems.signal)
+      .map:
+        case (Some(systemId), map) => map.get(systemId)
+        case (None, _)             => None
 
-  val allSystemsChangesStream    = allSystemsChanges.events
+  val selectedConnection: Signal[Option[MapWormholeConnectionWithSigs]] =
+    selectedConnectionId.signal
+      .combineWith(allConnections.signal)
+      .map:
+        case (Some(connectionId), conns) => conns.get(connectionId)
+        case (None, _)                   => None
+
+  private val allSystemChanges     = EventBus[CollectionCommand[MapSystemSnapshot]]()
+  private val allConnectionChanges = EventBus[CollectionCommand[MapWormholeConnectionWithSigs]]()
+
+  val allSystemChangesStream     = allSystemChanges.events
   val allConnectionChangesStream = allConnectionChanges.events
 
   // observers etc:
@@ -63,7 +78,7 @@ class MapController(rds: ReferenceDataStore, val pos: PositionController, val cl
         org.scalajs.dom.console.error(s"Failed to lookup reference values: ${ex}")
 
   responseBus.events.addObserver(Observer(handleIncomingMessage(_)))
-  allSystems.writeChangesTo(allSystemsChanges.writer)
+  allSystems.writeChangesTo(allSystemChanges.writer)
   allConnections.writeChangesTo(allConnectionChanges.writer)
 
   // impls
@@ -76,16 +91,21 @@ class MapController(rds: ReferenceDataStore, val pos: PositionController, val cl
       override def now        = self.clock
 
   def clear(): Unit =
-    Var.update(
+    Var.set(
       allSystems.current     -> Map.empty,
-      allConnections.current -> Map.empty
+      allConnections.current -> Map.empty,
+      selectedSystemId       -> Option.empty,
+      selectedConnectionId   -> Option.empty
     )
+    pos.clear()
 
   private def handleMapAction(op: EventStream[MapAction]): EventStream[MapRequest] =
     op.withCurrentValueOf(allSystems.current)
       .collectOpt:
         case (MapAction.AddSignature(systemId, newSig), _) => Some(MapRequest.AddSystemSignature(systemId, newSig))
-        case (MapAction.Direct(req), _)                    => Some(req)
+        case (MapAction.AddConnection(fromSystemId, toSystemId), _) =>
+          Some(MapRequest.AddSystemConnection(SystemId(fromSystemId), SystemId(toSystemId)))
+        case (MapAction.Direct(req), _) => Some(req)
         case (MapAction.IntelChange(systemId, newStance), allSystems) =>
           allSystems
             .get(systemId)
@@ -99,16 +119,15 @@ class MapController(rds: ReferenceDataStore, val pos: PositionController, val cl
           )
         case (MapAction.Remove(systemId), _) =>
           Some(MapRequest.RemoveSystem(systemId))
+        case (MapAction.RemoveConnection(connectionId), _) =>
+          Some(MapRequest.RemoveSystemConnection(connectionId))
         case (MapAction.RemoveSignatures(systemId, sigIds), _) =>
           Some(MapRequest.RemoveSystemSignatures(systemId, sigIds.toList))
         case (MapAction.RemoveAllSignatures(systemId), _) =>
           Some(MapRequest.RemoveAllSystemSignatures(systemId))
         case (MapAction.Reposition(systemId, x, y), allSystemsNow) =>
-          val newDisplayData =
-            pos.updateDisplayFromPosition(systemId, allSystemsNow.get(systemId).flatMap(_.display), Coord(x, y))
-          allSystems.current
-            .update(map => map.updatedWith(systemId)(_.map(mss => mss.copy(display = Some(newDisplayData)))))
-          Some(MapRequest.UpdateSystem(systemId, displayData = Some(newDisplayData)))
+          val displayData = pos.systemDisplayData(systemId).now()
+          Some(MapRequest.UpdateSystem(systemId, displayData))
         case (MapAction.UpdateSignatures(systemId, replaceAll, scanned), _) =>
           Some(MapRequest.UpdateSystemSignatures(systemId, replaceAll, scanned))
         case (MapAction.Select(systemIdOpt), _) =>
@@ -123,18 +142,55 @@ class MapController(rds: ReferenceDataStore, val pos: PositionController, val cl
     ): Map[Long, MapSystemSnapshot] = systems.updatedWith(systemId)(_.map(upd))
 
     msg match
+      case MapMessage.ConnectionSnapshot(whc) =>
+        Var.update(
+          allSystems.current -> ((map: Map[Long, MapSystemSnapshot]) =>
+            map
+              .updatedWith(whc.connection.fromSystemId)(
+                _.map(mss => mss.copy(connections = mss.connections.appended(whc.connection)))
+              )
+              .updatedWith(whc.connection.toSystemId)(
+                _.map(mss => mss.copy(connections = mss.connections.appended(whc.connection)))
+              )
+          ),
+          allConnections.current -> ((conns: Map[Long, MapWormholeConnectionWithSigs]) =>
+            conns.updated(whc.connection.id, whc)
+          )
+        )
+
+      case MapMessage.ConnectionsRemoved(whcs) =>
+        Var.update(
+          allSystems.current -> ((map: Map[Long, MapSystemSnapshot]) =>
+            whcs.foldLeft(map) { case (m, whc) =>
+              m
+                .updatedWith(whc.fromSystemId)(
+                  _.map(mss => mss.copy(connections = mss.connections.filterNot(_.id == whc.id)))
+                )
+                .updatedWith(whc.toSystemId)(
+                  _.map(mss => mss.copy(connections = mss.connections.filterNot(_.id == whc.id)))
+                )
+            }
+          ),
+          allConnections.current -> ((conns: Map[Long, MapWormholeConnectionWithSigs]) =>
+            conns.removedAll(whcs.map(_.id))
+          )
+        )
       case MapMessage.Error(text)         => lastError.set(Some(text))
       case MapMessage.MapMeta(info, role) => mapMeta.set(Some(info -> role))
       case MapMessage.MapSnapshot(systems, connections) =>
         inline def doUpdate() =
           Var.set(
-            allSystems.current     -> systems.map(mss => mss.system.systemId -> mss).toMap,
+            allSystems.current     -> systems,
             allConnections.current -> connections
+          )
+          Var.set(
+            systems.view.values
+              .map(mss => (pos.systemDisplayData(mss.system.systemId) -> mss.display): VarTuple[_])
+              .toSeq*
           )
 
         // get the reference data from the system in cache (manually using future)
-        val systemIds        = systems.map(_.system.systemId).toSet
-        val missingSystemIds = systemIds -- cacheSolarSystem.keys
+        val missingSystemIds = systems.keySet -- cacheSolarSystem.keys
 
         if (missingSystemIds.nonEmpty)
           Future
@@ -150,18 +206,20 @@ class MapController(rds: ReferenceDataStore, val pos: PositionController, val cl
       case MapMessage.SystemRemoved(systemId) =>
         // TODO: what happens to the connections in this case :/
         Var.update(
-          allSystems.current -> ((map: Map[Long, MapSystemSnapshot]) => map.removed(systemId)),
-          selectedSystemId   -> ((sOpt: Option[Long]) => sOpt.filterNot(_ == systemId))
+          allSystems.current              -> ((map: Map[Long, MapSystemSnapshot]) => map.removed(systemId)),
+          selectedSystemId                -> ((sOpt: Option[Long]) => sOpt.filterNot(_ == systemId)),
+          pos.systemDisplayData(systemId) -> ((_: Option[SystemDisplayData]) => None)
         )
       case MapMessage.SystemSnapshot(systemId, system, connections) =>
         inline def doUpdate(@unused solarSystem: SolarSystem) =
           Var.update(
             allSystems.current -> ((map: Map[Long, MapSystemSnapshot]) => map.updated(systemId, system)),
-            allConnections.current -> ((conns: Map[Long, MapWormholeConnection]) =>
+            allConnections.current -> ((conns: Map[Long, MapWormholeConnectionWithSigs]) =>
               connections.foldLeft(conns) { case (conns, (cid, whc)) =>
                 conns.updated(cid, whc)
               }
-            )
+            ),
+            pos.systemDisplayData(systemId) -> ((_: Option[SystemDisplayData]) => system.display)
           )
 
         if (!cacheSolarSystem.contains(systemId))
@@ -178,7 +236,8 @@ class MapController(rds: ReferenceDataStore, val pos: PositionController, val cl
         inline def updateDisplay(mss: MapSystemSnapshot) =
           mss.copy(system = mss.system.copy(name = name), display = Some(displayData))
         Var.update(
-          (allSystems.current, updateInMap(systemId, updateDisplay(_))(_))
+          (allSystems.current, updateInMap(systemId, updateDisplay(_))(_)),
+          (pos.systemDisplayData(systemId), (_: Option[SystemDisplayData]) => Some(displayData))
         )
 
 object MapController:

@@ -141,6 +141,10 @@ $box-height:    40px;
     /* TODO: read about transform-origin */
     /*transform: scale(50%);*/
     /*transform-origin: 0 0 0;*/
+
+    & svg {
+        z-index: -1;
+    }
 }
 
 /* TODO - combine the css here */
@@ -161,7 +165,7 @@ $box-height:    40px;
 }
 
 .draggable-box {
-    cursor: grab;
+    cursor: move;
 }
 
 .pinned-box {
@@ -228,6 +232,17 @@ mark.system-class {
 
 /* TODO more system classes */
 
+span.wormhole-connection-option {
+    margin: 1px 0 1px 0;
+}
+
+span.connection-system-name {
+    border-top: 2px $gray-light solid;
+    border-bottom: 2px $gray-light solid;
+    padding-left: 2px;
+    padding-right: 2px;
+}
+
 mark.system-effect {
     background: inherit;
 
@@ -291,6 +306,36 @@ mark.system-shattered {
 
 .system-effect-wolfrayet {
     color: $wh-color-wolfrayet;
+}
+
+/* Connectors */
+svg circle.connector-end {
+    fill: $gray;
+    stroke: $gray-light;
+    stroke-width: 2px;
+}
+
+svg path.connector-path {
+    fill: none;
+    stroke: $gray;
+    stroke-width: 4px;
+    fill-opacity: 0.8;
+}
+
+svg g.wormhole-connection {
+    pointer-events: bounding-box;
+
+    &:hover, &.selected {
+        /* $orange :mind_blown: see https://codepen.io/sosuke/pen/Pjoqqp */
+        filter: invert(62%) sepia(79%) saturate(2838%) hue-rotate(3deg) brightness(96%) contrast(90%);
+    }
+}
+
+svg path.connector-path-outline {
+    pointer-events: visibleStroke;
+    fill: none;
+    stroke: $gray-light;
+    stroke-width: 8px;
 }
 
 mark.system-name {
@@ -481,48 +526,50 @@ input.input-system-name {
     float: left;
     position: relative;
     opacity: 85%;
-}
 
-#map-toolbar button {
-    padding: 2px;
-    border-left: 1px solid $gray-dark;
-    border-right: 1px solid $gray-dark;
-    border-top: 1px solid $gray;
-    border-bottom: 1px solid $gray;
-    border-radius: 0px 0px 0px 0px;
-    background-color: $gray;
-    font-size: 1.3em;
-    transition: background-color 0.3s;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, .6); /* TODO this looks a bit weird */
-    color: $indigo-light;
-}
+    & button {
+        padding: 2px;
+        border-left: 1px solid $gray-dark;
+        border-right: 1px solid $gray-dark;
+        border-top: 1px solid $gray;
+        border-bottom: 1px solid $gray;
+        border-radius: 0px 0px 0px 0px;
+        background-color: $gray;
+        font-size: 1.3em;
+        transition: background-color 0.3s;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, .6); /* TODO this looks a bit weird */
+        color: $indigo-light;
+    }
 
-#map-toolbar button:first-of-type {
-    border-top: 1px solid $gray-dark;
-    border-radius: 3px 3px 0 0;
-}
+    & button:first-of-type {
+        border-top: 1px solid $gray-dark;
+        border-radius: 3px 3px 0 0;
+    }
 
-#map-toolbar button:last-of-type {
-    border-bottom: 1px solid $gray-dark;
-    border-radius: 0 0 3px 3px;
-}
+    & button:last-of-type {
+        border-bottom: 1px solid $gray-dark;
+        border-radius: 0 0 3px 3px;
+    }
 
-#map-toolbar button:hover:not(:disabled) {
-    background-color: $gray-dark;
-    border: 1px solid $indigo-dark;
-    color: $orange-dark;
-}
+    & button:hover:not(:disabled) {
+        background-color: $gray-dark;
+        border: 1px solid $indigo-dark;
+        color: $orange-dark;
+    }
 
-#map-toolbar button:disabled {
-    color: $gray-light;
-}
+    & button:disabled {
+        color: $gray-light;
+    }
 
-#map-toolbar button#stance-friendly:not(:disabled) {
-    color: $blue;
-}
+    & button#stance-friendly:not(:disabled) {
+        color: $blue;
+    }
 
-#map-toolbar button#stance-hostile:not(:disabled) {
-    color: $red;
+    & button#stance-hostile:not(:disabled),
+    & button#remove-connection:not(:disabled),
+    & button#remove-system:not(:disabled) {
+        color: $red;
+    }
 }
 
 /* new system dialog */
@@ -581,44 +628,62 @@ div.dialog-view {
 }
 
 
-button.add-button {
-    background-color: $green-dark;
-    border: 0;
-    border-radius: 2px;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, .6);
-    float: right;
-    transition: background-color 0.3s;
-    font-weight: bold;
-    margin-right: 5px;
-}
-
-button.add-button:hover {
-    filter: brightness(130%);
-}
-
-button.add-button:focus-visible {
-    outline: 1px solid $orange;
-}
-
 input:focus-visible {
     outline: 1px solid $orange;
 }
 
+/* FIXME fixed pixel widths :/ */
+
 dialog.system-remove-dialog {
-    width: 220px;
+    width: fit-content;
 }
 
-button.remove-button {
-    background-color: $red-dark;
-    border: 0;
-    border-radius: 2px;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, .6);
+dialog.confirm-dialog {
+    width: fit-content;
 }
 
-button.remove-button:hover {
-    filter: brightness(130%);
-}
+dialog {
+    border-radius: 5px;
 
-button.remove-button:focus-visible {
-    outline: 1px solid $orange;
+    & button {
+        border: 0;
+        border-radius: 2px;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, .6);
+        transition: background-color 0.3s;
+        font-weight: bold;
+        margin: 2px;
+
+        &:first-of-type {
+            margin-left: 0;
+        }
+
+        &:last-of-type {
+            margin-right: 0;
+        }
+    }
+
+    & button.add-button, button.ok-button, button.cancel-good-button {
+        background-color: $green-dark;
+    }
+
+    & button.add-button:hover, button.ok-button:hover, button.cancel-good-button:hover {
+        filter: brightness(130%);
+    }
+
+    & button.add-button:focus-visible, button.ok-button:focus-visible, button.cancel-good-button:focus-visible {
+        outline: 1px solid $orange;
+    }
+
+    & button.cancel-button, button.ok-bad-button {
+        background-color: $red-dark;
+    }
+
+    & button.cancel-button:hover, button.ok-bad-button:hover {
+        filter: brightness(130%);
+    }
+
+    & button.cancel-button:focus-visible, button.ok-bad-button:focus-visible {
+        outline: 1px solid $orange;
+    }
+
 }

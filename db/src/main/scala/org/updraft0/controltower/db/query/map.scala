@@ -1,7 +1,7 @@
 package org.updraft0.controltower.db.query
 
 import io.getquill.*
-import org.updraft0.controltower.constant.*
+import org.updraft0.controltower.constant.{SystemId as _, *}
 import org.updraft0.controltower.db.model.*
 import zio.ZIO
 
@@ -82,6 +82,11 @@ object map:
         )
     })
 
+  def getWormholeConnection(mapId: Long, connectionId: Long): DbOperation[Option[MapWormholeConnection]] =
+    ctx
+      .run(mapWormholeConnection.filter(whc => whc.mapId == lift(mapId) && whc.id == lift(connectionId)))
+      .map(_.headOption)
+
   def getWormholeSystemNames: DbOperation[Map[String, Long]] =
     ctx.run(sde.schema.solarSystem.filter(_.name like "J%").map(ss => ss.name -> ss.id)).map(_.toMap)
 
@@ -92,6 +97,16 @@ object map:
     ctx
       .run(mapSystem.filter(ms => ms.mapId == lift(mapId) && ms.systemId == lift(systemId)))
       .map(_.headOption)
+
+  // inserts
+  def insertMapWormholeConnection(value: MapWormholeConnection): DbOperation[MapWormholeConnection] =
+    ctx
+      .run(
+        mapWormholeConnection
+          .insertValue(lift(value))
+          .returningGenerated(_.id)
+      )
+      .map(newId => value.copy(id = newId))
 
   // upserts
   def upsertMap(value: MapModel): DbOperation[Long] =

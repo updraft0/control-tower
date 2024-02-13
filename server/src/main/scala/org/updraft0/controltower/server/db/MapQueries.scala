@@ -11,6 +11,20 @@ import java.time.Instant
 import javax.sql.DataSource
 import scala.annotation.nowarn
 
+case class MapWormholeConnectionRank(
+    connectionId: Long,
+    fromSystemIdx: Int,
+    fromSystemCount: Int,
+    toSystemIdx: Int,
+    toSystemCount: Int
+)
+
+case class MapWormholeConnectionWithSigs(
+    connection: model.MapWormholeConnection,
+    fromSignature: Option[model.MapSystemSignature],
+    toSignature: Option[model.MapSystemSignature]
+)
+
 case class MapSystemWithAll(
     sys: model.MapSystem,
     display: Option[model.SystemDisplayData],
@@ -200,8 +214,8 @@ object MapQueries:
         mss <- mapSystemStructure.leftJoin(ss => ss.systemId == sys.systemId && ss.mapId == sys.mapId && !ss.isDeleted)
         msn <- mapSystemNote.leftJoin(sn => sn.systemId == sys.systemId && sn.mapId == sys.mapId && !sn.isDeleted)
         msi <- mapSystemSignature.leftJoin(si => si.systemId == sys.systemId && si.mapId == sys.mapId && !si.isDeleted)
-        mhc <- mapWormholeConnection.leftJoin(wc =>
-          Option(wc.id) == msi.flatMap(_.wormholeConnectionId) && !wc.isDeleted
+        mhc <- mapWormholeConnection.leftJoin(whc =>
+          whc.mapId == map.id && (whc.fromSystemId == sys.systemId || whc.toSystemId == sys.systemId) && !whc.isDeleted
         )
       yield (sys, dis.map(_.data), mss, msn, msi, mhc)).groupByMap((ms, _, _, _, _, _) => (ms))(
         (ms, dis, mss, msn, msi, mhc) =>
@@ -325,5 +339,106 @@ object MapQueries:
     }).map(
       _.map((mss, dis, structures, notes, signatures, connections) =>
         MapSystemWithAll(mss, dis, structures.value, notes.value, signatures.value, connections.value)
+      )
+    )
+
+  private inline def connectionsWithSigs(inline whc: model.MapWormholeConnection) =
+    for
+      fromSig <- mapSystemSignature.leftJoin(mss =>
+        mss.mapId == whc.mapId && mss.systemId == whc.fromSystemId && mss.wormholeConnectionId.contains(whc.id)
+      )
+      toSig <- mapSystemSignature.leftJoin(mss =>
+        mss.mapId == whc.mapId && mss.systemId == whc.toSystemId && mss.wormholeConnectionId.contains(whc.id)
+      )
+    yield MapWormholeConnectionWithSigs(
+      connection = whc,
+      fromSignature = fromSig,
+      toSignature = toSig
+    )
+
+  def getWormholeConnectionsWithSigs(
+      mapId: MapId,
+      connectionIdOpt: Option[Long],
+      includeDeleted: Boolean = false
+  ): Result[List[MapWormholeConnectionWithSigs]] =
+    run(
+      autoQuote(
+        mapWormholeConnection
+          .filter(whc =>
+            whc.mapId == lift(mapId) && (lift(includeDeleted) || !whc.isDeleted) && lift(connectionIdOpt)
+              .forall(_ == whc.id)
+          )
+          .flatMap(connectionsWithSigs(_))
+      )
+    )
+
+  def getWormholeConnectionsWithSigsBySystemId(
+      mapId: MapId,
+      systemId: Long
+  ): Result[List[MapWormholeConnectionWithSigs]] =
+    run(
+      autoQuote(
+        mapWormholeConnection
+          .filter(whc =>
+            whc.mapId == lift(mapId) && !whc.isDeleted &&
+              (whc.fromSystemId == lift(systemId) || whc.toSystemId == lift(systemId))
+          )
+          .flatMap(connectionsWithSigs(_))
+      )
+    )
+
+  private inline def ranksForConnection(inline whc: model.MapWormholeConnection): MapWormholeConnectionRank =
+    val toRank = infix"rank() over (partition by ${whc.mapId}, ${whc.toSystemId} order by ${whc.id} asc)".pure.as[Int]
+    val toCount = mapWormholeConnection
+      .filter(mwc => mwc.mapId == whc.mapId && !mwc.isDeleted && mwc.toSystemId == whc.toSystemId)
+      .map(_ => 1)
+      .nested
+      .size
+    val fromRank = infix"rank() over (partition by ${whc.mapId}, ${whc.fromSystemId} order by ${whc.id} asc)".pure
+      .as[Int]
+    val fromCount = mapWormholeConnection
+      .filter(mwc => mwc.mapId == whc.mapId && !mwc.isDeleted && mwc.fromSystemId == whc.fromSystemId)
+      .map(_ => 1)
+      .nested
+      .size
+    MapWormholeConnectionRank(whc.id, fromRank, fromCount.toInt, toRank, toCount.toInt)
+
+  def getWormholeConnectionRanksAll(mapId: MapId): Result[List[MapWormholeConnectionRank]] =
+    run(
+      autoQuote(
+        mapWormholeConnection.filter(whc => whc.mapId == lift(mapId) && !whc.isDeleted).map(ranksForConnection(_))
+      )
+    )
+
+  def getWormholeConnectionRanksForSystem(mapId: MapId, systemId: Long): Result[List[MapWormholeConnectionRank]] =
+    run(
+      autoQuote(
+        for
+          allRanks <- mapWormholeConnection
+            .filter(whc => whc.mapId == lift(mapId) && !whc.isDeleted)
+            .map(ranksForConnection(_))
+          _ <- mapWormholeConnection.join(whc =>
+            whc.id == allRanks.connectionId && (whc.fromSystemId == lift(systemId) || whc.toSystemId == lift(systemId))
+          )
+        yield allRanks
+      )
+    )
+
+  def getWormholeConnectionRanksForSystems(
+      mapId: MapId,
+      systemId1: Long,
+      systemId2: Long
+  ): Result[List[MapWormholeConnectionRank]] =
+    run(
+      autoQuote(
+        for
+          allRanks <- mapWormholeConnection
+            .filter(whc => whc.mapId == lift(mapId) && !whc.isDeleted)
+            .map(ranksForConnection(_))
+          _ <- mapWormholeConnection.join(whc =>
+            whc.id == allRanks.connectionId && (whc.fromSystemId == lift(systemId1) || whc.fromSystemId ==
+              lift(systemId2) || whc.toSystemId == lift(systemId1) || whc.toSystemId == lift(systemId2))
+          )
+        yield allRanks
       )
     )

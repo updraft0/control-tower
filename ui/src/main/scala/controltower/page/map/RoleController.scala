@@ -11,6 +11,7 @@ object RoleController:
   def canRepositionSystem(role: MapRole): Boolean  = notViewer(role)
   def canPinUnpinSystem(role: MapRole): Boolean    = notViewer(role)
   def canUpdateIntelStance(role: MapRole): Boolean = notViewer(role)
+  def canChangeConnections(role: MapRole): Boolean = notViewer(role)
 
   private inline def notViewer(role: MapRole) = role match
     case MapRole.Viewer => false

@@ -1,8 +1,11 @@
 package controltower.page.map
 
-import org.updraft0.controltower.protocol.*
+import com.raquo.airstream.state.Var.VarTuple
+import com.raquo.laminar.api.L
+import com.raquo.laminar.api.L.*
+import org.updraft0.controltower.protocol.{SystemId as _, *}
 
-import scala.annotation.unused
+import scala.collection.mutable
 
 case class Coord(x: Double, y: Double)
 
@@ -18,23 +21,34 @@ trait PositionController:
     */
   def newSystemDisplay: SystemDisplayData
 
-  /** Determine the position of the system (given the display data)
-    */
-  def positionOfSystem(systemId: SystemId, display: SystemDisplayData): Coord
+  def systemPosition(systemId: SystemId): Var[Coord]
 
-  /** Generate new display data based on the previous and new coordinate position
-    */
-  def updateDisplayFromPosition(systemId: SystemId, prev: Option[SystemDisplayData], position: Coord): SystemDisplayData
+  def systemDisplayData(systemId: SystemId)(using Owner): Var[Option[SystemDisplayData]]
+
+  def clear(): Unit
+
+  def pointInsideBox(coord: Coord): Option[Long]
 
 /** Initial implementation of position controller (stateless)
   */
-object PositionController extends PositionController:
+class VarPositionController(map: mutable.Map[Long, Var[Coord]], boxSize: Coord) extends PositionController:
   override def newSystemDisplay: SystemDisplayData = SystemDisplayData.Manual(0, 0)
-  override def positionOfSystem(@unused systemId: SystemId, display: SystemDisplayData): Coord = display match
-    case SystemDisplayData.Manual(x, y) => Coord(x, y)
-  override def updateDisplayFromPosition(
-      @unused systemId: SystemId,
-      @unused prev: Option[SystemDisplayData],
-      position: Coord
-  ): SystemDisplayData =
-    SystemDisplayData.Manual(position.x.toInt, position.y.toInt)
+
+  override def systemPosition(systemId: SystemId): Var[Coord] =
+    map.getOrElseUpdate(systemId, Var(Coord.Hidden))
+
+  override def systemDisplayData(systemId: SystemId)(using Owner): Var[Option[SystemDisplayData]] =
+    systemPosition(systemId).zoom(c => Option.when(c != Coord.Hidden)(SystemDisplayData.Manual(c.x.toInt, c.y.toInt))) {
+      case (coord, Some(m: SystemDisplayData.Manual)) => Coord(m.x, m.y)
+      case (_, _)                                     => Coord.Hidden
+    }
+
+  override def clear(): Unit =
+    Var.set(map.view.values.map(v => (v -> Coord.Hidden): VarTuple[_]).toSeq*)
+    map.clear()
+
+  override def pointInsideBox(coord: Coord): Option[Long] =
+    map.view.find((_, coordVar) => isInsideBox(coordVar.now(), boxSize, coord)).map(_._1)
+
+private inline def isInsideBox(boxStart: Coord, boxSize: Coord, point: Coord) =
+  point.x >= boxStart.x && point.y >= boxStart.y && point.x < boxStart.x + boxSize.x && point.y < boxStart.y + boxSize.y

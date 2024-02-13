@@ -140,5 +140,15 @@ Cookie: __Host-CT-Session={{ctsessionid}}
   }
 }
 
+===
+
+{
+  "AddSystemConnection": {
+    "fromSystemId": 30002510,
+    "toSystemId": 31002558
+  }
+}
+
+
 ###
 

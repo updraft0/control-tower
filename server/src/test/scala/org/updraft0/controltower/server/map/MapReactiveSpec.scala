@@ -325,6 +325,11 @@ object MapReactiveSpec extends ZIOSpecDefault:
         )
   )
 
+  // TODO: specs for MapReactive
+  //      group: connection handling
+  //        - adding a signature with a connection sends appropriate updates
+  //        - rank of system signatures (e.g. when you have a ring)
+
 private def modelSignature(
     mapId: MapId,
     systemId: SystemId,

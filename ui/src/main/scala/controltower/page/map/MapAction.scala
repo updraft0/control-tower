@@ -2,7 +2,8 @@ package controltower.page.map
 
 import org.updraft0.controltower.protocol.{IntelStance, MapRequest, NewSystemSignature, SigId}
 
-type SystemId = Long
+type SystemId     = Long
+type ConnectionId = Long
 
 sealed trait SingleSystemAction:
   val systemId: SystemId
@@ -11,6 +12,10 @@ sealed trait SingleSystemAction:
   * are valid)
   */
 enum MapAction:
+
+  /** Add a connection between two systems
+    */
+  case AddConnection(fromSystemId: SystemId, toSystemId: SystemId) extends MapAction
 
   /** Directly send a request to the server (fallback case)
     */
@@ -27,6 +32,10 @@ enum MapAction:
   /** Remove a system from the map
     */
   case Remove(systemId: SystemId) extends MapAction with SingleSystemAction
+
+  /** Remove a single connection from the map
+    */
+  case RemoveConnection(connectionId: ConnectionId) extends MapAction
 
   /** Reposition a system (e.g. via dragging)
     */

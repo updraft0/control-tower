@@ -32,6 +32,7 @@ object Log:
 
   val SessionId    = LogAnnotation[UUID]("sessionId", (_, r) => r, _.toString)
   val SystemId     = LogAnnotation[Long]("systemId", (_, r) => r, _.toString)
+  val SystemIds    = LogAnnotation[Seq[Long]]("systemIds", (l, r) => l ++ r, _.toString)
   val CharacterId  = LogAnnotation[Long]("characterId", (_, r) => r, _.toString)
   val MapId        = LogAnnotation[Long]("mapId", (_, r) => r, _.toString)
   val MapOperation = LogAnnotation[String]("mapOperation", (_, r) => r, identity)

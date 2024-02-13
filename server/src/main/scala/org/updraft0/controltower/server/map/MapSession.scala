@@ -4,13 +4,20 @@ import org.updraft0.controltower.db.{model, query}
 import org.updraft0.controltower.protocol
 import org.updraft0.controltower.protocol.jsoncodec.given
 import org.updraft0.controltower.server.Log
-import org.updraft0.controltower.server.db.{MapQueries, MapSystemWithAll}
+import org.updraft0.controltower.server.db.{
+  MapQueries,
+  MapSystemWithAll,
+  MapWormholeConnectionRank,
+  MapWormholeConnectionWithSigs
+}
 import org.updraft0.controltower.server.endpoints.{toMapInfo, toProtocolRole}
 import zio.*
 import zio.http.ChannelEvent.UserEvent
 import zio.http.{ChannelEvent, Handler, WebSocketChannelEvent, WebSocketFrame}
 import zio.json.*
 import zio.logging.LogAnnotation
+
+// TODO: check permissions!
 
 /** Loosely, a map "session" is an open WebSocket for a single (character, map)
   *
@@ -121,6 +128,11 @@ object MapSession:
           ctx.ourQ.offer(protocol.MapMessage.MapMeta(toMapInfo(map), toProtocolRole(role)))
         case _ => ZIO.logError("BUG: map not set")
       }
+    // connection
+    case addConn: protocol.MapRequest.AddSystemConnection =>
+      ctx.mapQ.offer(Identified(Some(ctx.sessionId), toAddSystemConnection(addConn)))
+    case removeConn: protocol.MapRequest.RemoveSystemConnection =>
+      ctx.mapQ.offer(Identified(Some(ctx.sessionId), toRemoveConnection(removeConn)))
     // system
     case add: protocol.MapRequest.AddSystem =>
       ctx.mapQ.offer(Identified(Some(ctx.sessionId), toAddSystem(add)))
@@ -193,13 +205,27 @@ private def filterToProto(sessionId: MapSessionId)(msg: Identified[MapResponse])
   if (msg.sessionId.forall(_ == sessionId)) toProto(msg.value) else None
 
 private def toProto(msg: MapResponse): Option[protocol.MapMessage] = msg match
+  case MapResponse.ConnectionSnapshot(whc, rank) =>
+    Some(protocol.MapMessage.ConnectionSnapshot(toProtoConnectionWithSigs(whc, rank)))
+  case MapResponse.ConnectionsRemoved(whcs) =>
+    Some(protocol.MapMessage.ConnectionsRemoved(whcs.map(toProtoConnection).toArray))
   case MapResponse.Error(message) => Some(protocol.MapMessage.Error(message))
-  case MapResponse.MapSnapshot(all) =>
-    Some(protocol.MapMessage.MapSnapshot(toProtoSystems(all), toProtoConnections(all)))
-  case MapResponse.SystemSnapshot(systemId, sys) =>
+  case MapResponse.MapSnapshot(systems, connections, connectionRanks) =>
     Some(
-      protocol.MapMessage
-        .SystemSnapshot(systemId, toProtoSystemSnapshot(sys), toProtoConnections(Map(systemId -> sys)))
+      protocol.MapMessage.MapSnapshot(
+        systems = systems.view.mapValues(toProtoSystemSnapshot).toMap,
+        connections =
+          connections.view.mapValues(c => toProtoConnectionWithSigs(c, connectionRanks(c.connection.id))).toMap
+      )
+    )
+  case MapResponse.SystemSnapshot(systemId, sys, connections, connectionRanks) =>
+    Some(
+      protocol.MapMessage.SystemSnapshot(
+        systemId = systemId,
+        system = toProtoSystemSnapshot(sys),
+        connections =
+          connections.view.mapValues(c => toProtoConnectionWithSigs(c, connectionRanks(c.connection.id))).toMap
+      )
     )
   case MapResponse.SystemDisplayUpdate(systemId, name, displayData) =>
     Some(protocol.MapMessage.SystemDisplayUpdate(systemId, name, toProtoDisplay(displayData)))
@@ -214,6 +240,15 @@ private def toAddSystem(msg: protocol.MapRequest.AddSystem) =
     displayData = toDisplayData(msg.displayData),
     stance = msg.stance.map(toIntelStance)
   )
+
+private def toAddSystemConnection(msg: protocol.MapRequest.AddSystemConnection) =
+  MapRequest.AddSystemConnection(
+    fromSystemId = msg.fromSystemId,
+    toSystemId = msg.toSystemId
+  )
+
+private def toRemoveConnection(msg: protocol.MapRequest.RemoveSystemConnection) =
+  MapRequest.RemoveSystemConnection(msg.connectionId)
 
 private def toNewMapSystemSignature(sig: protocol.NewSystemSignature) = sig match
   case protocol.NewSystemSignature.Unknown(signatureId, _) =>
@@ -281,9 +316,6 @@ private def toWhK162Type(tpe: protocol.WormholeK162Type) = tpe match
   case protocol.WormholeK162Type.Losec     => model.WormholeK162Type.Losec
   case protocol.WormholeK162Type.Nullsec   => model.WormholeK162Type.Nullsec
   case protocol.WormholeK162Type.Thera     => model.WormholeK162Type.Thera
-
-private def toProtoSystems(all: Map[SystemId, MapSystemWithAll]): Array[protocol.MapSystemSnapshot] =
-  all.values.map(toProtoSystemSnapshot).toArray
 
 private def toProtoSystemSnapshot(value: MapSystemWithAll): protocol.MapSystemSnapshot =
   protocol.MapSystemSnapshot(
@@ -416,15 +448,6 @@ private def toProtoStructure(value: model.MapSystemStructure): protocol.MapSyste
     updatedByCharacterId = value.updatedByCharacterId
   )
 
-private def toProtoConnections(all: Map[SystemId, MapSystemWithAll]): Map[Long, protocol.MapWormholeConnection] =
-  all.values
-    .flatMap(_.connections)
-    .map(c => c.id -> c)
-    .toMap
-    .view
-    .mapValues(toProtoConnection)
-    .toMap
-
 private def toProtoConnection(value: model.MapWormholeConnection): protocol.MapWormholeConnection =
   protocol.MapWormholeConnection(
     id = value.id,
@@ -435,3 +458,29 @@ private def toProtoConnection(value: model.MapWormholeConnection): protocol.MapW
     updatedAt = value.updatedAt,
     updatedByCharacterId = value.updatedByCharacterId
   )
+
+private def toProtoConnectionRank(value: MapWormholeConnectionRank): protocol.MapWormholeConnectionRank =
+  protocol.MapWormholeConnectionRank(
+    fromSystemIdx = value.fromSystemIdx,
+    fromSystemCount = value.fromSystemCount,
+    toSystemIdx = value.toSystemIdx,
+    toSystemCount = value.toSystemCount
+  )
+
+private def toProtoConnectionWithSigs(
+    value: MapWormholeConnectionWithSigs,
+    rank: MapWormholeConnectionRank
+): protocol.MapWormholeConnectionWithSigs =
+  protocol.MapWormholeConnectionWithSigs(
+    connection = toProtoConnection(value.connection),
+    fromSignature = value.fromSignature.flatMap(toProtoSignatureWormhole(_)),
+    toSignature = value.toSignature.flatMap(toProtoSignatureWormhole(_)),
+    rank = toProtoConnectionRank(rank)
+  )
+
+private inline def toProtoSignatureWormhole(
+    value: model.MapSystemSignature
+): Option[protocol.MapSystemSignature.Wormhole] =
+  toProtoSignature(value) match
+    case ws: protocol.MapSystemSignature.Wormhole => Some(ws)
+    case _                                        => None

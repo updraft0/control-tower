@@ -47,6 +47,7 @@ object Modal:
     val closeBus = new EventBus[Unit]
     val owner    = new ManualOwner()
     val dialog = dialogTag(
+      role := "alertDialog",
       mods,
       inContext(self => onClick --> (ev => if (clickCloses) onDialogClickClose(ev, self.ref, closeBus))),
       content(closeBus.writer, owner)
@@ -65,7 +66,7 @@ object Modal:
     )
     dialog.ref.showModal()
 
-  def showConfirmation(title: String, description: String, onOk: Observer[Unit]) =
+  def showConfirmation(title: HtmlMod, description: HtmlMod, onOk: Observer[Unit], isDestructive: Boolean = false) =
     show(
       (closeMe, _) =>
         div(
@@ -73,20 +74,32 @@ object Modal:
           cls := "confirm-dialog-view",
           div(cls := "dialog-header", title),
           div(cls := "dialog-body", description),
-          button(
-            tpe := "button",
-            "Cancel",
-            onClick.stopPropagation.mapToUnit --> closeMe
-          ),
-          button(
-            tpe := "button",
-            "OK",
-            onClick.stopPropagation.mapToUnit --> { _ =>
-              closeMe.onNext(()); onOk.onNext(())
-            }
+          form(
+            method := "dialog",
+            button(
+              tpe                       := "button",
+              cls("cancel-good-button") := isDestructive,
+              cls("cancel-button")      := !isDestructive,
+              tabIndex                  := 1,
+              "Cancel",
+              autoFocus := isDestructive,
+              onClick.stopPropagation.mapToUnit --> closeMe
+            ),
+            button(
+              tpe                  := "button",
+              cls("ok-button")     := !isDestructive,
+              cls("ok-bad-button") := isDestructive,
+              tabIndex             := 1,
+              "OK",
+              autoFocus := !isDestructive,
+              onClick.stopPropagation.mapToUnit --> { _ =>
+                closeMe.onNext(()); onOk.onNext(())
+              }
+            )
           )
         ),
-      clickCloses = false
+      clickCloses = false,
+      cls := "confirm-dialog"
     )
 
 // thanks to https://stackoverflow.com/a/57463812

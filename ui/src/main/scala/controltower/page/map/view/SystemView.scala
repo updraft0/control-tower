@@ -68,6 +68,7 @@ class SystemView(
     system: Signal[MapSystemSnapshot],
     pos: PositionController,
     selectedSystem: Signal[Option[Long]],
+    connectingState: Var[MapNewConnectionState],
     settings: Signal[MapSettings]
 )(using ctx: MapViewContext)
     extends ViewController:
@@ -81,14 +82,13 @@ class SystemView(
       )
     else
       val solarSystem = ctx.staticData.solarSystemMap(systemId)
-      val currentPos  = system.map(_.display.map(sdd => pos.positionOfSystem(systemId, sdd)).getOrElse(Coord.Hidden))
 
       val canDrag = ctx.mapRole
         .combineWith(system.map(_.system.isPinned))
         .map((role, pinned) => !pinned && RoleController.canRepositionSystem(role))
 
       inDraggable(
-        currentPos,
+        pos.systemPosition(systemId),
         canDrag,
         c => ctx.actions.onNext(MapAction.Reposition(systemId, c.x, c.y)),
         { (box) =>
@@ -126,6 +126,31 @@ class SystemView(
                   cls := "system-rename-dialog"
                 )
               }),
+            // dragging connections handlers
+            inContext(self =>
+              Seq(
+                onPointerDown.preventDefault.stopPropagation.compose(
+                  _.delay(200).filter(pev => pev.isPrimary && pev.button == MouseButtonLeft && pev.shiftKey)
+                ) --> { pev =>
+                  self.ref.setPointerCapture(pev.pointerId)
+
+                  val parent    = self.ref.parentNode.asInstanceOf[org.scalajs.dom.Element]
+                  val parentDim = parent.getBoundingClientRect()
+                  val coord     = Coord(pev.clientX - parentDim.left, pev.clientY - parentDim.top)
+                  connectingState.set(MapNewConnectionState.Start(systemId, coord))
+                },
+                onPointerMove.preventDefault.stopPropagation.compose(
+                  _.withCurrentValueOf(connectingState.signal).filter(_._2 != MapNewConnectionState.Stopped).map(_._1)
+                ) --> { pev =>
+                  val parent    = self.ref.parentNode.asInstanceOf[org.scalajs.dom.Element]
+                  val parentDim = parent.getBoundingClientRect()
+                  val coord     = Coord(pev.clientX - parentDim.left, pev.clientY - parentDim.top)
+                  connectingState.set(MapNewConnectionState.Move(systemId, coord))
+                }
+              )
+            ),
+            onPointerUp.preventDefault.stopPropagation.mapTo(MapNewConnectionState.Stopped) --> connectingState,
+            onPointerCancel.preventDefault.stopPropagation.mapTo(MapNewConnectionState.Stopped) --> connectingState,
             intelStance(system),
             firstLine,
             secondLine
@@ -170,7 +195,7 @@ private inline def systemEffect(ss: SolarSystem) =
 
 private inline def systemShattered(ss: SolarSystem) =
   Option.when(ss.name.startsWith("J0"))(
-    mark(cls := "system-shattered", cls := "ti", cls := "ti-chart-pie-filled")
+    mark(cls := "system-shattered", cls := "ti", cls := "ti-chart-donut-filled")
   )
 
 private inline def systemMapName(s: Signal[MapSystemSnapshot], solarSystem: SolarSystem) =

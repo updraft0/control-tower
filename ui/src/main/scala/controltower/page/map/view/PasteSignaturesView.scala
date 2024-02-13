@@ -3,7 +3,7 @@ package controltower.page.map.view
 import com.raquo.laminar.api.L.*
 import controltower.ui.{ViewController, sequence}
 import org.updraft0.controltower.constant.WormholeClass
-import org.updraft0.controltower.protocol.*
+import org.updraft0.controltower.protocol.{*, given}
 
 import java.time.Instant
 
@@ -229,7 +229,12 @@ def parseLines(text: String): Either[String, List[ParsedLine]] =
 
 def parseLineToSignature(line: ParsedLine, now: Instant): Either[String, NewSystemSignature] =
   for
-    sigId <- Either.cond(SignatureId.isValidSigId(line.signatureId), SigId(line.signatureId), "Invalid signature id")
+    // FIXME: move signature id processing to "constants" package
+    sigId <- Either.cond[String, SigId](
+      SignatureId.isValidSigId(line.signatureId),
+      SigId(line.signatureId),
+      "Invalid signature id"
+    )
     group <- signatureGroupFor(line)
   yield signatureFrom(sigId, group, line, now)
 
@@ -264,8 +269,8 @@ private def diffExistingWithScanned(
     existing: List[MapSystemSignature],
     scanned: List[NewSystemSignature]
 ): List[SignatureUpdate] =
-  val existingMap = existing.map(mss => SigId(mss.id) /* FIXME */ -> mss).toMap
-  val scannedMap  = scanned.map(s => s.id -> s).toMap
+  val existingMap: Map[SigId, MapSystemSignature] = existing.map(mss => (SigId(mss.id): SigId) /* FIXME */ -> mss).toMap
+  val scannedMap: Map[SigId, NewSystemSignature]  = scanned.map(s => (s.id: SigId) -> s).toMap
 
   val (potentialDiffs, removed, added) =
     if (isReplace)

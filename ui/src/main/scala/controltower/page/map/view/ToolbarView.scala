@@ -15,6 +15,7 @@ import scala.util.{Failure, Success}
   */
 class ToolbarView(
     selected: Signal[Option[MapSystemSnapshot]],
+    selectedConnection: Signal[Option[MapWormholeConnectionWithSigs]],
     actions: WriteBus[MapAction],
     mapRole: Signal[MapRole],
     rds: ReferenceDataStore,
@@ -41,11 +42,17 @@ class ToolbarView(
         "ti-trash",
         disableWhenNotSelectedAndRole(selected, mapRole, RoleController.canRemoveSystem),
         onClick.stopPropagation.compose(_.sampleCollectSome(selected)) --> (system =>
-          Modal.show(
-            (closeMe, owner) => systemConfirmRemoveView(actions, system.system.systemId, closeMe, rds)(using owner),
-            clickCloses = true,
-            cls := "system-remove-dialog"
-          ),
+          Modal.showConfirmation(
+            "Confirm removal",
+            span(
+              child.text <-- Signal
+                .fromFuture(rds.systemForId(system.system.systemId))
+                .map(_.flatten.map(_.name).getOrElse(s"?? ${system.system.systemId}"))
+                .map(n => s"Remove system $n?")
+            ),
+            actions.contramap(_ => MapAction.Remove(system.system.systemId)),
+            isDestructive = true
+          )
         )
       ),
       toolbarButtonS(
@@ -81,6 +88,33 @@ class ToolbarView(
               if (s.system.stance == IntelStance.Hostile) IntelStance.Unknown else IntelStance.Hostile
             )
           )
+      ),
+      toolbarButton(
+        id = "remove-connection",
+        icon = "ti-link-off",
+        disableWhenNotSelectedAndRole(selectedConnection, mapRole, RoleController.canChangeConnections),
+        onClick.stopPropagation.compose(_.sampleCollectSome(selectedConnection)) --> (conn =>
+          Modal.showConfirmation(
+            "Confirm removal",
+            span(
+              child.text <-- Signal
+                .fromFuture((for
+                  fromSystem <- rds.systemForId(conn.connection.fromSystemId)
+                  toSystem   <- rds.systemForId(conn.connection.toSystemId)
+                yield fromSystem.map(_.name) -> toSystem.map(_.name)).map {
+                  case (Some(fromName), Some(toName)) => Some(s"Remove connection from $fromName to $toName?")
+                  case _                              => None
+                })
+                .map(
+                  _.flatten.getOrElse(
+                    s"Remove connection between $$${conn.connection.fromSystemId} to $$${conn.connection.toSystemId}"
+                  )
+                )
+            ),
+            actions.contramap(_ => MapAction.RemoveConnection(conn.connection.id)),
+            isDestructive = true
+          )
+        )
       )
     )
 
@@ -195,35 +229,5 @@ private def systemAddView(
         "Add",
         onClick.mapToUnit --> (_ => onSubmit())
       )
-    )
-  )
-
-private def systemConfirmRemoveView(
-    bus: WriteBus[MapAction],
-    systemId: Long,
-    closeMe: Observer[Unit],
-    rds: ReferenceDataStore
-)(using Owner) =
-  div(
-    cls := "system-remove-view",
-    cls := "dialog-view",
-    div(cls := "dialog-header", "Confirm Remove"),
-    div(
-      span("Remove system "),
-      span(
-        child.text <-- Signal
-          .fromFuture(rds.systemForId(systemId))
-          .map(_.flatten.map(_.name).getOrElse(s"?? $systemId"))
-      ),
-      span("?")
-    ),
-    button(
-      tpe := "button",
-      cls := "remove-button",
-      "Remove",
-      onClick.mapToUnit --> { _ =>
-        bus.onNext(MapAction.Remove(systemId))
-        closeMe.onNext(())
-      }
     )
   )

@@ -1,6 +1,10 @@
 package org.updraft0.controltower.protocol
 
 import org.updraft0.controltower.constant.*
+export org.updraft0.controltower.constant.SigId
+export org.updraft0.controltower.constant.SigId.given
+export org.updraft0.controltower.constant.SystemId
+export org.updraft0.controltower.constant.SystemId.given
 import zio.json.*
 import sttp.tapir.*
 import sttp.tapir.SchemaType.SInteger
@@ -8,7 +12,9 @@ import sttp.tapir.SchemaType.SInteger
 object schema:
   given longMapSchema[V: Schema]: Schema[Map[Long, V]] = Schema.schemaForMap[Long, V](_.toString)
 
-  given Schema[SigId] = Schema.string
+  // opaque
+  given Schema[SigId]    = Schema.string
+  given Schema[SystemId] = Schema(SInteger()).format("int64")
 
   // auth
 
@@ -50,26 +56,31 @@ object schema:
   given Schema[PolicyMemberType] = Schema.derived
   given Schema[MapDisplayType]   = Schema.derived
 
-  given Schema[IntelStance]            = Schema.derived
-  given Schema[MapRequest]             = Schema.derived
-  given Schema[MapMessage]             = Schema.derived
-  given Schema[MapSystem]              = Schema.derived
-  given Schema[SystemDisplayData]      = Schema.derived
-  given Schema[Corporation]            = Schema.derived
-  given Schema[MapSystemStructure]     = Schema.derived
-  given Schema[MapSystemNote]          = Schema.derived
-  given Schema[MapWormholeConnection]  = Schema.derived
-  given Schema[SignatureGroup]         = Schema.derived
-  given Schema[WormholeMassSize]       = Schema.derived
-  given Schema[WormholeMassStatus]     = Schema.derived
-  given Schema[WormholeK162Type]       = Schema.derived
-  given Schema[WormholeConnectionType] = Schema.derived
-  given Schema[MapSystemSignature]     = Schema.derived
-  given Schema[MapSystemSnapshot]      = Schema.derived
-  given Schema[NewSystemSignature]     = Schema.derived
+  given Schema[IntelStance]                   = Schema.derived
+  given Schema[MapRequest]                    = Schema.derived
+  given Schema[MapMessage]                    = Schema.derived
+  given Schema[MapSystem]                     = Schema.derived
+  given Schema[SystemDisplayData]             = Schema.derived
+  given Schema[Corporation]                   = Schema.derived
+  given Schema[MapSystemStructure]            = Schema.derived
+  given Schema[MapSystemNote]                 = Schema.derived
+  given Schema[MapWormholeConnection]         = Schema.derived
+  given Schema[MapWormholeConnectionRank]     = Schema.derived
+  given Schema[MapWormholeConnectionWithSigs] = Schema.derived
+  given Schema[SignatureGroup]                = Schema.derived
+  given Schema[WormholeMassSize]              = Schema.derived
+  given Schema[WormholeMassStatus]            = Schema.derived
+  given Schema[WormholeK162Type]              = Schema.derived
+  given Schema[WormholeConnectionType]        = Schema.derived
+  given Schema[MapSystemSignature]            = Schema.derived
+  given Schema[MapSystemSignature.Wormhole]   = Schema.derived
+  given Schema[MapSystemSnapshot]             = Schema.derived
+  given Schema[NewSystemSignature]            = Schema.derived
 
 object jsoncodec:
-  given JsonCodec[SigId] = JsonCodec.string.asInstanceOf[JsonCodec[SigId]]
+  // opaque
+  given JsonCodec[SigId]    = JsonCodec.string.asInstanceOf[JsonCodec[SigId]]
+  given JsonCodec[SystemId] = JsonCodec.long.asInstanceOf[JsonCodec[SystemId]]
 
   // auth
 
@@ -111,20 +122,23 @@ object jsoncodec:
   given JsonCodec[PolicyMemberType] = JsonCodec.string.transform(PolicyMemberType.valueOf, _.toString)
   given JsonCodec[MapDisplayType]   = JsonCodec.string.transform(MapDisplayType.valueOf, _.toString)
 
-  given JsonCodec[IntelStance]            = JsonCodec.string.transform(IntelStance.valueOf, _.toString)
-  given JsonCodec[MapRequest]             = JsonCodec.derived
-  given JsonCodec[MapMessage]             = JsonCodec.derived
-  given JsonCodec[MapSystem]              = JsonCodec.derived
-  given JsonCodec[SystemDisplayData]      = JsonCodec.derived
-  given JsonCodec[Corporation]            = JsonCodec.derived
-  given JsonCodec[MapSystemStructure]     = JsonCodec.derived
-  given JsonCodec[MapSystemNote]          = JsonCodec.derived
-  given JsonCodec[MapWormholeConnection]  = JsonCodec.derived
-  given JsonCodec[SignatureGroup]         = JsonCodec.string.transform(SignatureGroup.valueOf, _.toString)
-  given JsonCodec[WormholeMassSize]       = JsonCodec.string.transform(WormholeMassSize.valueOf, _.toString)
-  given JsonCodec[WormholeMassStatus]     = JsonCodec.string.transform(WormholeMassStatus.valueOf, _.toString)
-  given JsonCodec[WormholeK162Type]       = JsonCodec.string.transform(WormholeK162Type.valueOf, _.toString)
-  given JsonCodec[WormholeConnectionType] = JsonCodec.derived
-  given JsonCodec[MapSystemSignature]     = JsonCodec.derived
-  given JsonCodec[MapSystemSnapshot]      = JsonCodec.derived
-  given JsonCodec[NewSystemSignature]     = JsonCodec.derived
+  given JsonCodec[IntelStance]                   = JsonCodec.string.transform(IntelStance.valueOf, _.toString)
+  given JsonCodec[MapRequest]                    = JsonCodec.derived
+  given JsonCodec[MapMessage]                    = JsonCodec.derived
+  given JsonCodec[MapSystem]                     = JsonCodec.derived
+  given JsonCodec[SystemDisplayData]             = JsonCodec.derived
+  given JsonCodec[Corporation]                   = JsonCodec.derived
+  given JsonCodec[MapSystemStructure]            = JsonCodec.derived
+  given JsonCodec[MapSystemNote]                 = JsonCodec.derived
+  given JsonCodec[MapWormholeConnection]         = JsonCodec.derived
+  given JsonCodec[MapWormholeConnectionRank]     = JsonCodec.derived
+  given JsonCodec[MapWormholeConnectionWithSigs] = JsonCodec.derived
+  given JsonCodec[SignatureGroup]                = JsonCodec.string.transform(SignatureGroup.valueOf, _.toString)
+  given JsonCodec[WormholeMassSize]              = JsonCodec.string.transform(WormholeMassSize.valueOf, _.toString)
+  given JsonCodec[WormholeMassStatus]            = JsonCodec.string.transform(WormholeMassStatus.valueOf, _.toString)
+  given JsonCodec[WormholeK162Type]              = JsonCodec.string.transform(WormholeK162Type.valueOf, _.toString)
+  given JsonCodec[WormholeConnectionType]        = JsonCodec.derived
+  given JsonCodec[MapSystemSignature]            = JsonCodec.derived
+  given JsonCodec[MapSystemSignature.Wormhole]   = JsonCodec.derived
+  given JsonCodec[MapSystemSnapshot]             = JsonCodec.derived
+  given JsonCodec[NewSystemSignature]            = JsonCodec.derived

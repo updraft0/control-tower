@@ -1,8 +1,13 @@
 package org.updraft0.controltower.server.map
 
-import org.updraft0.controltower.db.model.displayType
+import org.updraft0.controltower.db.model.{MapSystemSignature, MapWormholeConnection, displayType}
 import org.updraft0.controltower.db.{model, query}
-import org.updraft0.controltower.server.db.{MapQueries, MapSystemWithAll}
+import org.updraft0.controltower.server.db.{
+  MapQueries,
+  MapSystemWithAll,
+  MapWormholeConnectionRank,
+  MapWormholeConnectionWithSigs
+}
 import org.updraft0.minireactive.*
 import zio.*
 
@@ -12,11 +17,102 @@ import org.updraft0.controltower.server.Log
 import java.time.Instant
 import scala.annotation.unused
 
-type MapId    = Long
-type MapEnv   = javax.sql.DataSource
-type SystemId = Long
+type MapId        = Long
+type MapEnv       = javax.sql.DataSource
+type SystemId     = Long
+type ConnectionId = Long
 
-private type MapState = Map[SystemId, MapSystemWithAll]
+private[map] case class MapState(
+    systems: Map[SystemId, MapSystemWithAll],
+    connections: Map[ConnectionId, MapWormholeConnectionWithSigs],
+    connectionRanks: Map[ConnectionId, MapWormholeConnectionRank]
+):
+  def getSystem(id: SystemId): Option[MapSystemWithAll] = systems.get(id)
+  def hasSystem(id: SystemId): Boolean                  = systems.contains(id)
+
+  def connectionsForSystem(id: SystemId): Map[ConnectionId, MapWormholeConnectionWithSigs] =
+    systems(id).connections.map(c => c.id -> connections(c.id)).toMap
+  def connectionRanksForSystem(id: SystemId): Map[ConnectionId, MapWormholeConnectionRank] =
+    systems(id).connections.map(c => c.id -> connectionRanks(c.id)).toMap
+
+  def updateOne(
+      systemId: SystemId,
+      system: MapSystemWithAll,
+      connectionsChange: List[MapWormholeConnectionWithSigs],
+      connectionRanks: List[MapWormholeConnectionRank]
+  ): MapState =
+    this.copy(
+      systems = this.systems.updated(systemId, system),
+      connections = connectionsChange.foldLeft(this.connections) { case (conns, whc) =>
+        conns.updated(whc.connection.id, whc)
+      },
+      connectionRanks = connectionRanks.foldLeft(this.connectionRanks) { case (ranks, r) =>
+        ranks.updated(r.connectionId, r)
+      }
+    )
+
+  def updateConnection(
+      whc: MapWormholeConnectionWithSigs,
+      connectionRanks: List[MapWormholeConnectionRank]
+  ): MapState =
+    this.copy(
+      systems = this.systems
+        .updatedWith(whc.connection.fromSystemId)(
+          _.map(msa => msa.copy(connections = updateConnectionById(msa.connections, whc.connection)))
+        )
+        .updatedWith(whc.connection.toSystemId)(
+          _.map(msa => msa.copy(connections = updateConnectionById(msa.connections, whc.connection)))
+        ),
+      connections = this.connections.updated(whc.connection.id, whc),
+      connectionRanks = connectionRanks.foldLeft(this.connectionRanks) { case (ranks, r) =>
+        ranks.updated(r.connectionId, r)
+      }
+    )
+
+  def removeConnection(
+      whc: MapWormholeConnectionWithSigs,
+      connectionRanks: List[MapWormholeConnectionRank]
+  ): MapState =
+    this.copy(
+      systems = this.systems
+        .updatedWith(whc.connection.fromSystemId)(
+          _.map(msa =>
+            msa.copy(
+              connections = removeConnectionById(msa.connections, whc.connection),
+              signatures = removeSignatureById(msa.signatures, whc.fromSignature.map(_.signatureId))
+            )
+          )
+        )
+        .updatedWith(whc.connection.toSystemId)(
+          _.map(msa =>
+            msa.copy(
+              connections = removeConnectionById(msa.connections, whc.connection),
+              signatures = removeSignatureById(msa.signatures, whc.toSignature.map(_.signatureId))
+            )
+          )
+        ),
+      connections = this.connections.removed(whc.connection.id),
+      connectionRanks = connectionRanks.foldLeft(this.connectionRanks) { case (ranks, r) =>
+        ranks.updated(r.connectionId, r)
+      }
+    )
+
+  /** Return only ranks that are different
+    */
+  def diffRanks(ranks: List[MapWormholeConnectionRank]): List[MapWormholeConnectionRank] =
+    ranks.filterNot(r => this.connectionRanks.get(r.connectionId).contains(r))
+
+object MapState:
+  def apply(
+      systems: List[MapSystemWithAll],
+      connections: List[MapWormholeConnectionWithSigs],
+      connectionRanks: List[MapWormholeConnectionRank]
+  ): MapState =
+    new MapState(
+      systems.map(msa => msa.sys.systemId -> msa).toMap,
+      connections.map(whc => whc.connection.id -> whc).toMap,
+      connectionRanks.map(whr => whr.connectionId -> whr).toMap
+    )
 
 case class MapSessionId(characterId: Long, sessionId: UUID)
 case class Identified[T](sessionId: Option[MapSessionId], value: T)
@@ -30,7 +126,7 @@ case class NewMapSystemSignature(
     wormholeMassSize: model.WormholeMassSize = model.WormholeMassSize.Unknown,
     wormholeMassStatus: model.WormholeMassStatus = model.WormholeMassStatus.Unknown,
     wormholeK162Type: Option[model.WormholeK162Type] = None,
-    wormholeConnectionId: Option[Long] = None
+    wormholeConnectionId: Option[ConnectionId] = None
 )
 
 enum MapRequest:
@@ -42,6 +138,7 @@ enum MapRequest:
       displayData: model.SystemDisplayData,
       stance: Option[model.IntelStance]
   )
+  case AddSystemConnection(fromSystemId: SystemId, toSystemId: SystemId)
   case AddSystemSignature(
       systemId: SystemId,
       signature: NewMapSystemSignature
@@ -52,11 +149,26 @@ enum MapRequest:
   case RenameSystem(systemId: SystemId, name: Option[String])
   case RemoveSystem(systemId: SystemId)
   case RemoveSystemSignatures(systemId: SystemId, signatures: Option[NonEmptyChunk[String]])
+  case RemoveSystemConnection(connectionId: ConnectionId)
 
 enum MapResponse:
+  case ConnectionSnapshot(
+      connection: MapWormholeConnectionWithSigs,
+      rank: MapWormholeConnectionRank
+  )
+  case ConnectionsRemoved(connections: List[MapWormholeConnection])
   case Error(message: String)
-  case MapSnapshot(all: Map[SystemId, MapSystemWithAll])
-  case SystemSnapshot(systemId: SystemId, sys: MapSystemWithAll)
+  case MapSnapshot(
+      systems: Map[SystemId, MapSystemWithAll],
+      connections: Map[ConnectionId, MapWormholeConnectionWithSigs],
+      connectionRanks: Map[ConnectionId, MapWormholeConnectionRank]
+  )
+  case SystemSnapshot(
+      systemId: SystemId,
+      sys: MapSystemWithAll,
+      connections: Map[ConnectionId, MapWormholeConnectionWithSigs],
+      connectionRanks: Map[ConnectionId, MapWormholeConnectionRank]
+  )
   case SystemDisplayUpdate(systemId: SystemId, name: Option[String], displayData: model.SystemDisplayData)
   case SystemRemoved(systemId: SystemId)
 
@@ -66,10 +178,11 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
   override def tag = "Map"
 
   override def hydrate(key: MapId): URIO[MapEnv, MapState] =
-    query
-      .transaction(MapQueries.getMapSystemAll(key))
-      .orDie
-      .map(allToState)
+    (for
+      systems         <- MapQueries.getMapSystemAll(key)
+      connections     <- MapQueries.getWormholeConnectionsWithSigs(key, None)
+      connectionRanks <- MapQueries.getWormholeConnectionRanksAll(key)
+    yield MapState(systems, connections, connectionRanks)).orDie
 
   override def handle(
       mapId: MapId,
@@ -82,13 +195,19 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
         (query
           .transaction(
             in match
-              case Identified(id, MapRequest.MapSnapshot) =>
-                ZIO.succeed(state -> Chunk.single(Identified(id, MapResponse.MapSnapshot(state))))
+              case Identified(Some(id), MapRequest.MapSnapshot) =>
+                ZIO.succeed(
+                  state -> reply(id, MapResponse.MapSnapshot(state.systems, state.connections, state.connectionRanks))
+                )
               case Identified(Some(sid), add: MapRequest.AddSystem)
-                  if state.get(add.systemId).forall(_.display.isEmpty) =>
+                  if state.getSystem(add.systemId).forall(_.display.isEmpty) =>
                 identified(sid, "add", addSystem(mapId, state, sid, now, add))
               case Identified(_, add: MapRequest.AddSystem) =>
                 ZIO.logDebug(s"no-op adding existing system $add").as(state -> Chunk.empty)
+              case Identified(Some(sid), addConn: MapRequest.AddSystemConnection) =>
+                whenSystemsExist(state, addConn.fromSystemId, addConn.toSystemId)(
+                  identified(sid, "addSystemConnection", insertSystemConnection(mapId, state, sid, now, addConn))
+                )
               case Identified(Some(sid), addSig: MapRequest.AddSystemSignature) =>
                 whenSystemExists(addSig.systemId, state)(
                   identified(sid, "addSystemSignature", upsertSystemSignature(mapId, state, sid, now, addSig))
@@ -109,6 +228,8 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
                 whenSystemExists(rs.systemId, state)(
                   identified(sid, "removeFromDisplay", removeSystemFromDisplay(mapId, state, sid, rs))
                 )
+              case Identified(Some(sid), rsc: MapRequest.RemoveSystemConnection) =>
+                identified(sid, "removeSystemConnection", removeSystemConnection(mapId, state, sid, rsc))
               case Identified(Some(sid), rss: MapRequest.RemoveSystemSignatures) =>
                 whenSystemExists(rss.systemId, state)(
                   identified(sid, "removeSystemSignatures", removeSystemSignatures(mapId, state, sid, now, rss))
@@ -126,9 +247,6 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
 
   private inline def identified[R, E, A](sid: MapSessionId, op: String, f: ZIO[R, E, A]): ZIO[R, E, A] =
     f @@ Log.SessionId(sid.sessionId) @@ Log.CharacterId(sid.characterId) @@ Log.MapOperation(op)
-
-  private def allToState(all: List[MapSystemWithAll]): MapState =
-    all.map(ms => ms.sys.systemId -> ms).toMap
 
   private def addSystem(
       mapId: MapId,
@@ -155,10 +273,65 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
       _ <- query.map.upsertMapSystemDisplay(
         model.MapSystemDisplay(mapId, add.systemId, add.displayData.displayType, add.displayData)
       )
-      sys <- loadSingleSystem(mapId, add.systemId)
-    yield state.updated(sys.sys.systemId, sys) -> Chunk.single(
-      Identified(None, MapResponse.SystemSnapshot(sys.sys.systemId, sys))
+      sys   <- loadSingleSystem(mapId, add.systemId)
+      conns <- MapQueries.getWormholeConnectionsWithSigsBySystemId(mapId, add.systemId)
+      ranks <- MapQueries.getWormholeConnectionRanksForSystem(mapId, add.systemId)
+    yield withState(state.updateOne(sys.sys.systemId, sys, conns, ranks))(s =>
+      s -> broadcast(s.systemSnapshot(sys.sys.systemId))
     )
+
+  private def insertSystemConnection(
+      mapId: MapId,
+      state: MapState,
+      sessionId: MapSessionId,
+      now: Instant,
+      addConn: MapRequest.AddSystemConnection
+  ) =
+    for
+      whc <- query.map.insertMapWormholeConnection(
+        MapWormholeConnection(
+          id = 0L,
+          mapId = mapId,
+          fromSystemId = addConn.fromSystemId,
+          toSystemId = addConn.toSystemId,
+          isDeleted = false,
+          createdAt = now,
+          createdByCharacterId = sessionId.characterId,
+          updatedAt = now,
+          updatedByCharacterId = sessionId.characterId
+        )
+      )
+      conn  <- loadSingleConnection(mapId, whc.id)
+      ranks <- MapQueries.getWormholeConnectionRanksForSystems(mapId, addConn.toSystemId, addConn.fromSystemId)
+    yield withState(state.updateConnection(conn, ranks)): nextState =>
+      nextState -> broadcastMany(
+        state
+          .diffRanks(ranks)
+          .map(r =>
+            MapResponse
+              .ConnectionSnapshot(nextState.connections(r.connectionId), nextState.connectionRanks(r.connectionId))
+          )*
+      )
+
+  private def removeSystemConnection(
+      mapId: MapId,
+      state: MapState,
+      sessionId: MapSessionId,
+      removeConn: MapRequest.RemoveSystemConnection
+  ) =
+    for
+      _ <- query.map.deleteMapWormholeConnection(removeConn.connectionId, sessionId.characterId)
+      whcOpt <- MapQueries
+        .getWormholeConnectionsWithSigs(mapId, Some(removeConn.connectionId), includeDeleted = true)
+        .map(_.headOption)
+      ranks <- whcOpt
+        .map(whc =>
+          MapQueries.getWormholeConnectionRanksForSystems(mapId, whc.connection.toSystemId, whc.connection.fromSystemId)
+        )
+        .getOrElse(ZIO.succeed(Nil))
+    yield whcOpt
+      .map(whc => state.removeConnection(whc, ranks) -> broadcast(MapResponse.ConnectionsRemoved(List(whc.connection))))
+      .getOrElse(state -> Chunk.empty)
 
   private def upsertSystemSignature(
       mapId: MapId,
@@ -172,8 +345,18 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
         newModelSignature(now, sessionId, (mapId, addSig.systemId), addSig.signature)
       )
       sys <- loadSingleSystem(mapId, addSig.systemId)
-    yield state.updated(sys.sys.systemId, sys) -> Chunk.single(
-      Identified(None, MapResponse.SystemSnapshot(sys.sys.systemId, sys))
+      connOpt <- addSig.signature.wormholeConnectionId
+        .map(whcId => loadSingleConnection(mapId, whcId).map(Some(_)))
+        .getOrElse(ZIO.none)
+    yield withState(state.updateOne(sys.sys.systemId, sys, connOpt.toList, Nil))(state =>
+      state -> broadcast(
+        MapResponse.SystemSnapshot(
+          systemId = sys.sys.systemId,
+          sys = sys,
+          connections = state.connectionsForSystem(sys.sys.systemId),
+          connectionRanks = state.connectionRanksForSystem(sys.sys.systemId)
+        )
+      )
     )
 
   private def updateSystemDisplay(mapId: MapId, state: MapState, usd: MapRequest.UpdateSystemDisplay) =
@@ -187,10 +370,13 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
         )
       )
       sys <- loadSingleSystem(mapId, usd.systemId)
-      update =
-        if (state(usd.systemId).display.isEmpty) MapResponse.SystemSnapshot(sys.sys.systemId, sys)
-        else MapResponse.SystemDisplayUpdate(sys.sys.systemId, sys.sys.name, sys.display.get)
-    yield state.updated(sys.sys.systemId, sys) -> Chunk.single(Identified(None, update))
+    yield withState(state.updateOne(sys.sys.systemId, sys, Nil, Nil))(nextState =>
+      nextState ->
+        broadcast(
+          if (state.getSystem(sys.sys.systemId).flatMap(_.display).isEmpty) nextState.systemSnapshot(sys.sys.systemId)
+          else MapResponse.SystemDisplayUpdate(sys.sys.systemId, sys.sys.name, sys.display.get)
+        )
+    )
 
   private def updateSystemAttribute(
       mapId: MapId,
@@ -202,32 +388,35 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
     for
       _   <- query.map.updateMapAttribute(mapId, usa.systemId, usa.pinned, usa.intelStance, now, sessionId.characterId)
       sys <- loadSingleSystem(mapId, usa.systemId)
-    yield state.updated(sys.sys.systemId, sys) -> sys.display
-      .map(displayData => Chunk.single(Identified(None, MapResponse.SystemSnapshot(sys.sys.systemId, sys))))
-      .getOrElse(Chunk.empty)
+    yield withState(state.updateOne(sys.sys.systemId, sys, Nil, Nil))(nextState =>
+      nextState -> sys.display
+        .map(_ => broadcast(nextState.systemSnapshot(sys.sys.systemId)))
+        .getOrElse(Chunk.empty)
+    )
 
   private def updateSystemSignatures(
       mapId: MapId,
-      @unused state: MapState,
+      state: MapState,
       sessionId: MapSessionId,
       now: Instant,
       uss: MapRequest.UpdateSystemSignatures
   ) =
-    // note: signature updates cannot currently change connection ids so only a single system needs to be reloaded
+    // TODO: signature updates cannot currently change connection ids so only a single system needs to be reloaded
     for
       _ <-
         if (uss.replaceAll) query.map.deleteMapSystemSignatures(mapId, uss.systemId, now, sessionId.characterId)
         else ZIO.succeed(0)
       mapSystemId = (mapId, uss.systemId)
-      mapSystem   = state(uss.systemId)
-      _ <- ZIO.foreach(
+      mapSystem   = state.getSystem(uss.systemId).get
+      _ <- ZIO.foreachDiscard(
         uss.scanned
           .map(lookupExisting(mapSystem, _))
           .map((prevOpt, newSig) => toModelSignature(now, sessionId, mapSystemId, prevOpt, newSig))
       )(query.map.upsertMapSystemSignature)
-      sys <- loadSingleSystem(mapId, uss.systemId)
-    yield state.updated(sys.sys.systemId, sys) -> Chunk.single(
-      Identified(None, MapResponse.SystemSnapshot(sys.sys.systemId, sys))
+      sys   <- loadSingleSystem(mapId, uss.systemId)
+      conns <- MapQueries.getWormholeConnectionsWithSigsBySystemId(mapId, uss.systemId)
+    yield withState(state.updateOne(sys.sys.systemId, sys, conns, Nil))(nextState =>
+      nextState -> broadcast(nextState.systemSnapshot(sys.sys.systemId))
     )
 
   private def removeSystemFromDisplay(
@@ -239,9 +428,7 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
     for
       _   <- query.map.deleteMapSystemDisplay(mapId, rs.systemId)
       sys <- loadSingleSystem(mapId, rs.systemId)
-    yield state.updated(sys.sys.systemId, sys) -> Chunk.single(
-      Identified(None, MapResponse.SystemRemoved(sys.sys.systemId))
-    )
+    yield state.updateOne(sys.sys.systemId, sys, Nil, Nil) -> broadcast(MapResponse.SystemRemoved(sys.sys.systemId))
 
   private def renameSystem(
       mapId: MapId,
@@ -253,10 +440,8 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
     for
       _   <- query.map.updateMapSystemName(mapId, rs.systemId, rs.name, now, sessionId.characterId)
       sys <- loadSingleSystem(mapId, rs.systemId)
-    yield state.updated(sys.sys.systemId, sys) -> sys.display
-      .map(displayData =>
-        Chunk.single(Identified(None, MapResponse.SystemDisplayUpdate(sys.sys.systemId, sys.sys.name, displayData)))
-      )
+    yield state.updateOne(sys.sys.systemId, sys, Nil, Nil) -> sys.display
+      .map(displayData => broadcast(MapResponse.SystemDisplayUpdate(sys.sys.systemId, sys.sys.name, displayData)))
       .getOrElse(Chunk.empty)
 
   private def removeSystemSignatures(
@@ -271,9 +456,10 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
         case None => query.map.deleteMapSystemSignatures(mapId, rss.systemId, now, sessionId.characterId)
         case Some(ids) =>
           ZIO.foreach(ids)(id => query.map.deleteMapSystemSignature(mapId, rss.systemId, id, sessionId.characterId))
-      sys <- loadSingleSystem(mapId, rss.systemId)
-    yield state.updated(sys.sys.systemId, sys) -> Chunk.single(
-      Identified(None, MapResponse.SystemSnapshot(sys.sys.systemId, sys))
+      sys   <- loadSingleSystem(mapId, rss.systemId)
+      conns <- MapQueries.getWormholeConnectionsWithSigsBySystemId(mapId, rss.systemId)
+    yield withState(state.updateOne(sys.sys.systemId, sys, conns, Nil))(s =>
+      s -> broadcast(s.systemSnapshot(sys.sys.systemId))
     )
 
   private inline def loadSingleSystem(mapId: MapId, systemId: SystemId) =
@@ -282,10 +468,21 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
       .filterOrDieMessage(_.size == 1)(s"BUG: expected exactly 1 system to be returned")
       .map(_.head)
 
+  private inline def loadSingleConnection(mapId: MapId, connectionId: ConnectionId) =
+    MapQueries
+      .getWormholeConnectionsWithSigs(mapId, Some(connectionId))
+      .filterOrDieMessage(_.size == 1)(s"BUG: expected exactly 1 connection to be returned")
+      .map(_.head)
+
   private inline def whenSystemExists(systemId: SystemId, state: MapState)(
       f: RIO[MapEnv, (MapState, Chunk[Identified[MapResponse]])]
   ) =
-    ZIO.when(state.contains(systemId))(f).map(_.getOrElse(state -> Chunk.empty)) @@ Log.SystemId(systemId)
+    ZIO.when(state.hasSystem(systemId))(f).map(_.getOrElse(state -> Chunk.empty)) @@ Log.SystemId(systemId)
+
+  private inline def whenSystemsExist(state: MapState, systemIds: SystemId*)(
+      f: RIO[MapEnv, (MapState, Chunk[Identified[MapResponse]])]
+  ) =
+    ZIO.when(systemIds.forall(state.hasSystem(_)))(f).map(_.getOrElse(state -> Chunk.empty)) @@ Log.SystemIds(systemIds)
 
   private inline def lookupExisting(
       prev: MapSystemWithAll,
@@ -380,4 +577,50 @@ private def mergeModelSignature(
       wormholeConnectionId = newSig.wormholeConnectionId.orElse(prev.wormholeConnectionId),
       updatedAt = now,
       updatedByCharacterId = sessionId.characterId
+    )
+
+private inline def reply(sessionId: MapSessionId, value: MapResponse): Chunk[Identified[MapResponse]] =
+  Chunk.single(Identified(Some(sessionId), value))
+private inline def broadcast(value: MapResponse): Chunk[Identified[MapResponse]] =
+  Chunk.single(Identified(None, value))
+private inline def broadcastMany(values: MapResponse*): Chunk[Identified[MapResponse]] =
+  Chunk(values.map(v => Identified(None, v))*)
+
+private inline def withState[A](state: MapState)(f: MapState => A): A = f(state)
+
+private inline def updateConnectionById(
+    arr: Array[MapWormholeConnection],
+    whc: MapWormholeConnection
+): Array[MapWormholeConnection] =
+  arr.indexWhere(_.id == whc.id) match
+    case -1 => arr.appended(whc)
+    case idx =>
+      arr.update(idx, whc)
+      arr
+
+private inline def removeConnectionById(
+    arr: Array[MapWormholeConnection],
+    whc: MapWormholeConnection
+) =
+  arr.indexWhere(_.id == whc.id) match
+    case -1  => arr
+    case idx => arr.patch(idx, Nil, 1)
+
+private inline def removeSignatureById(arr: Array[MapSystemSignature], idOpt: Option[String]) =
+  idOpt
+    .map(sigId =>
+      arr.indexWhere(_.signatureId == sigId) match
+        case -1  => arr
+        case idx => arr.patch(idx, Nil, 1)
+    )
+    .getOrElse(arr)
+
+// convenience methods
+extension (s: MapState)
+  def systemSnapshot(systemId: SystemId): MapResponse.SystemSnapshot =
+    MapResponse.SystemSnapshot(
+      systemId = systemId,
+      sys = s.systems(systemId),
+      connections = s.connectionsForSystem(systemId),
+      connectionRanks = s.connectionRanksForSystem(systemId)
     )

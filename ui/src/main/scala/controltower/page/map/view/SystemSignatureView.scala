@@ -21,6 +21,17 @@ private val SigIdRegexFull         = "^[A-Za-z]{3}-[0-9]{3}$".r
 enum SignatureFilter:
   case All, Wormhole, Combat, Indy, Hacking
 
+enum ConnectionTarget:
+  def idOpt: Option[Long] =
+    this match
+      case Unknown               => None
+      case Wormhole(id, _, _, _) => Some(id)
+
+  case Unknown extends ConnectionTarget
+  // TODO: EOL status, mass status etc.
+  case Wormhole(id: Long, toSystemId: Long, toSystemName: Option[String], toSolarSystem: SolarSystem)
+      extends ConnectionTarget
+
 class SystemSignatureView(
     staticData: SystemStaticData,
     selected: Signal[Option[MapSystemSnapshot]],
@@ -213,6 +224,15 @@ private inline def sigView(
           selectedSigs,
           actions.contramap(nss => MapAction.UpdateSignatures(solarSystem.id, false, Array(nss))),
           _,
+          mss.connections.map { whc =>
+            val targetId = if (whc.fromSystemId == solarSystem.id) whc.toSystemId else whc.fromSystemId
+            ConnectionTarget.Wormhole(
+              id = whc.id,
+              toSystemId = targetId,
+              toSystemName = None /* TODO how to lookup name of other system on map */,
+              toSolarSystem = static.solarSystemMap(targetId)
+            )
+          },
           solarSystem,
           static
         )
@@ -227,6 +247,7 @@ private def signatureRow(
     selectedSigs: Selectable[SigId],
     onSigChange: Observer[NewSystemSignature],
     sig: MapSystemSignature,
+    connections: Array[ConnectionTarget.Wormhole],
     solarSystem: SolarSystem,
     static: SystemStaticData
 ) =
@@ -297,6 +318,18 @@ private def signatureRow(
       })
     )
 
+  def wormholeTargetSelect(w: MapSystemSignature.Wormhole) =
+    val current  = Var(w.connectionId.flatMap(cId => connections.find(_.id == cId)).getOrElse(ConnectionTarget.Unknown))
+    val dropdown = OptionDropdown(connections.prepended(ConnectionTarget.Unknown).toIndexedSeq, current)
+    td(
+      cls := "signature-target",
+      cls := "editable",
+      dropdown.view,
+      current.signal.changes --> Observer[ConnectionTarget](ct => {
+        if (ct.idOpt != w.connectionId) onSigChange.onNext(changeWormholeConnectionId(ct.idOpt, w))
+      })
+    )
+
   val signatureUpdatedTd = td(
     cls := "signature-updated",
     cls("signature-stale") <-- time.withCurrentValueOf(settings).map((now, settings) => sigIsStale(sig, settings, now)),
@@ -340,7 +373,7 @@ private def signatureRow(
         td(cls := "signature-id", w.id.take(3)),
         signatureGroupCell(w),
         wormholeSelect(w),
-        td(cls := "signature-target", w.connectionId.map(_.toString).getOrElse("") /* FIXME */ ),
+        wormholeTargetSelect(w),
         signatureUpdatedTd,
         signatureUpdatedByTd
       )
@@ -428,6 +461,17 @@ private def changeWormholeConnectionType(
     connectionId = prev.connectionId
   )
 
+private def changeWormholeConnectionId(newId: Option[Long], prev: MapSystemSignature.Wormhole): NewSystemSignature =
+  NewSystemSignature.Wormhole(
+    id = SigId(prev.id),
+    createdAt = prev.createdAt,
+    isEol = prev.eolAt.isDefined,
+    connectionType = prev.connectionType,
+    massStatus = prev.massStatus,
+    massSize = prev.massSize,
+    connectionId = newId
+  )
+
 given DropdownItem[SignatureGroup] with
   def key(sg: SignatureGroup): String           = sg.toString
   def group(sg: SignatureGroup): Option[String] = None
@@ -437,6 +481,29 @@ given DropdownItem[SignatureClassified] with
   def key(sc: SignatureClassified): String           = sc.name
   def group(sc: SignatureClassified): Option[String] = None
   def view(sc: SignatureClassified): Element         = span(dataAttr("signature-type") := sc.name, sc.name)
+
+given DropdownItem[ConnectionTarget] with
+  def key(ct: ConnectionTarget): String = ct match
+    case ConnectionTarget.Unknown               => "unknown"
+    case ConnectionTarget.Wormhole(id, _, _, _) => id.toString
+  def group(ct: ConnectionTarget): Option[String] = None
+  def view(ct: ConnectionTarget): Element = ct match
+    case ConnectionTarget.Unknown => span(dataAttr("connection-type") := "Unknown", "Unknown")
+    case ConnectionTarget.Wormhole(id, _, toName, toSystem) =>
+      span(
+        cls                       := "wormhole-connection-option",
+        dataAttr("connection-id") := id.toString,
+        span(
+          cls := "connection-system-name",
+          toName.getOrElse(toSystem.name)
+        ),
+        mark(
+          cls := "wh-target-class",
+          cls := "system-class",
+          cls := s"system-class-${toSystem.systemClass.get.toString.toLowerCase}",
+          systemClassString(toSystem.systemClass.get)
+        )
+      )
 
 given (using static: SystemStaticData): DropdownItem[WormholeSelectInfo] with
   def key(wsi: WormholeSelectInfo): String           = wsi.key
