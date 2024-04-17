@@ -1,10 +1,26 @@
 import { defineConfig } from "vite";
 import scalaJSPlugin from "@scala-js/vite-plugin-scalajs";
+import dns from 'dns'
+
+dns.setDefaultResultOrder('verbatim');
+
 
 export default defineConfig({
-    // FIXME this will not solve the cookie problem
     server: {
+        port: 8091,
+        strictPort: true,
+        proxy: {
+            '/api': {
+                preserveHeaderKeyCase: true,
+                autoRewrite: true,
+                secure: false,
+                localAddress: '127.0.0.1',
+                target: 'http://localhost4:8092',
+                ws: true
+            }
+        },
         cors: {
+            origin: true,
             credentials: true
         }
     },

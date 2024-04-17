@@ -174,11 +174,11 @@ object MapView:
     yield new MapView(counter, ct, rds, ws(map), map.characterId, time)
 
   private def ws(map: Page.Map)(using ct: ControlTowerBackend) =
-    WebSocket
-      .url(
-        uri"${ct.wsUrlOpt.get}/api/map/${map.name}/${map.characterId.toString}/ws".toString,
-        "ws"
-      ) // FIXME - use the other constructor
+    val path = s"/api/map/${map.name}/${map.characterId.toString}/ws"
+
+    ct.wsUrlOpt
+      .map(base => WebSocket.url(uri"$base$path".toString, base.scheme.getOrElse("ws")))
+      .getOrElse(WebSocket.path(path))
       .receiveText(_.fromJson[MapMessage].left.map(new RuntimeException(_)))
       .sendText[MapRequest](_.toJson)
       .build()

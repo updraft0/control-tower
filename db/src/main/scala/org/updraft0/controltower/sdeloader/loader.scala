@@ -18,26 +18,24 @@ private[sdeloader] enum ImportState:
 
 /** Loads the whole of the SDE (group) data into the db
   */
-def intoDb(sde: ZStream[Any, parser.Error, GroupedExport]): RIO[DataSource, (Int, Chunk[Long])] =
-  query.transaction(
-    for
-      version <- query.sde.insertVersion(meta = None /* TODO add metadata*/ )
-      res <- sde
-        .mapError(e => ParserException(s"Parser failed: $e", e))
-        .mapAccumZIO(ImportState.Initial(): ImportState) {
-          case (i: ImportState.Initial, GroupedExport.Ungrouped(names: ExportedData.UniqueNames)) =>
-            loadSingle(names)
-              .map(res => nextState(i.copy(uniqueNames = Some(names))) -> res)
-          case (_: ImportState.Initial, _: GroupedExport.RegionSolarSystems) =>
-            unsupported("BUG: Not seen all the data required to load solar systems yet")
-          case (r: ImportState.ReadyForSolarSystems, rss: GroupedExport.RegionSolarSystems) =>
-            loadSolarSystems(r, rss).map(res => r -> res)
-          case (s, GroupedExport.Ungrouped(other)) =>
-            loadSingle(other).map(res => s -> res)
-        }
-        .runCollect
-    yield (version, res)
-  )
+def intoDb(sde: ZStream[Any, parser.Error, GroupedExport], meta: SdeLoadMeta): RIO[DataSource, (Int, Chunk[Long])] =
+  for
+    version <- query.sde.insertVersion(meta)
+    res <- sde
+      .mapError(e => ParserException(s"Parser failed: $e", e))
+      .mapAccumZIO(ImportState.Initial(): ImportState) {
+        case (i: ImportState.Initial, GroupedExport.Ungrouped(names: ExportedData.UniqueNames)) =>
+          loadSingle(names)
+            .map(res => nextState(i.copy(uniqueNames = Some(names))) -> res)
+        case (_: ImportState.Initial, _: GroupedExport.RegionSolarSystems) =>
+          unsupported("BUG: Not seen all the data required to load solar systems yet")
+        case (r: ImportState.ReadyForSolarSystems, rss: GroupedExport.RegionSolarSystems) =>
+          loadSolarSystems(r, rss).map(res => r -> res)
+        case (s, GroupedExport.Ungrouped(other)) =>
+          loadSingle(other).map(res => s -> res)
+      }
+      .runCollect
+  yield (version, res)
 
 private[sdeloader] def nextState(state: ImportState): ImportState = state match {
   case ImportState.Initial(Some(uniqueNames)) =>
@@ -98,36 +96,34 @@ private def insertSolarSystem(
     starCount <- s.star
       .map(ss => query.sde.insertSolarSystemStar(SolarSystemStar(ss.id, ss.typeId)))
       .getOrElse(ZIO.succeed(0L))
-    planetCount   <- ZIO.foreach(s.planets)(p => query.sde.insertSolarSystemPlanet(toPlanet(s, p))).map(_.sum)
-    moonCount     <- insertSolarSystemMoons(s)
-    beltCount     <- insertAsteroidBelts(s)
-    stargateCount <- query.sde.insertStargates(s.stargates.map(sg => toStargate(s, sg)))
+    planetCount <- ZIO.when(s.planets.nonEmpty)(query.sde.insertSolarSystemPlanets(s.planets.map(p => toPlanet(s, p))))
+    moonCount   <- insertSolarSystemMoons(s)
+    beltCount   <- insertAsteroidBelts(s)
+    stargateCount <- ZIO.when(s.stargates.nonEmpty)(query.sde.insertStargates(s.stargates.map(sg => toStargate(s, sg))))
     stationCount  <- insertNpcStations(names, s)
-  yield systemCount + starCount + planetCount + moonCount + beltCount + stargateCount + stationCount
+  yield systemCount + starCount + planetCount.getOrElse(0L) + moonCount.getOrElse(0L) + beltCount.getOrElse(0L) +
+    stargateCount.getOrElse(0L) + stationCount.getOrElse(0L)
 
 private def insertSolarSystemMoons(s: ExportedData.SolarSystem) =
-  ZIO
-    .foreach(s.planets.flatMap(p => p.moons.zipWithIndex.map((planetMoon, moonIdx) => (p, planetMoon, moonIdx))))(
-      (planet, planetMoon, moonIdx) => query.sde.insertSolarSystemMoon(toPlanetMoon(s, planet, planetMoon, moonIdx + 1))
-    )
-    .map(_.sum)
+  val moons = s.planets
+    .flatMap(p => p.moons.zipWithIndex.map((planetMoon, moonIdx) => toPlanetMoon(s, p, planetMoon, moonIdx + 1)))
+
+  ZIO.when(moons.nonEmpty)(query.sde.insertSolarSystemMoons(moons))
 
 private def insertNpcStations(names: Map[Long, sde.UniqueName], s: ExportedData.SolarSystem) =
-  ZIO
-    .foreach(
-      s.planets.flatMap(p =>
-        p.moons.flatMap(m => m.npcStations.map(ns => (p, Some(m), ns))) ++
-          p.stations.map(ns => (p, None, ns))
-      )
-    )((p, m, ns) => query.sde.insertNpcStation(toNpcStation(names, s, p, m, ns)))
-    .map(_.sum)
+  val stations = s.planets
+    .flatMap(p =>
+      p.moons.flatMap(m => m.npcStations.map(ns => (p, Some(m), ns))) ++
+        p.stations.map(ns => (p, None, ns))
+    )
+    .map((p, m, ns) => toNpcStation(names, s, p, m, ns))
+
+  ZIO.when(stations.nonEmpty)(query.sde.insertNpcStations(stations))
 
 private def insertAsteroidBelts(s: ExportedData.SolarSystem) =
-  ZIO
-    .foreach(s.planets.flatMap(p => p.asteroidBelts.map(ab => (p, ab))))((p, ab) =>
-      query.sde.insertSolarSystemAsteroidBelt(toAsteroidBelt(s, p, ab))
-    )
-    .map(_.sum)
+  val belts = s.planets.flatMap(p => p.asteroidBelts.map(ab => toAsteroidBelt(s, p, ab)))
+
+  ZIO.when(belts.nonEmpty)(query.sde.insertSolarSystemAsteroidBelts(belts))
 
 private def toRegion(names: Map[Long, sde.UniqueName], r: ExportedData.Region) =
   Region(

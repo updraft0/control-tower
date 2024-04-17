@@ -13,8 +13,9 @@ import sttp.tapir.client.sttp.{SttpClientInterpreter, WebSocketToPipe}
 import scala.concurrent.Future
 
 class ControlTowerBackend(
-    val backendUrlOpt: Option[Uri] = Some(uri"http://localhost:8080"),
-    val wsUrlOpt: Option[Uri] = Some(uri"ws://localhost:8080") /* FIXME */
+    // no default hardcoding of backend urls - rely on frontend proxy to route appropriately
+    val backendUrlOpt: Option[Uri] = None,
+    val wsUrlOpt: Option[Uri] = None
 ):
   private val fetchBackend = FetchBackend(FetchOptions(Some(RequestCredentials.include), None))
     .asInstanceOf[SttpBackend[Future, AirstreamStreams & WebSockets]]

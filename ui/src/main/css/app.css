@@ -24,8 +24,8 @@
     font-weight: 400;
 
     color-scheme: light dark;
-    color: $ gray-lighter;
-    background-color: $ bg-color;
+    color: $gray-lighter;
+    background-color: $bg-color;
     border: none;
 
     font-synthesis: none;
@@ -41,11 +41,6 @@ table {
 
 /* character */
 
-.character-selection {
-    > div {
-        background: $wh-color-magnetar;
-    }
-}
 
 /* map modal */
 
@@ -125,6 +120,8 @@ $box-height:    40px;
     box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
     border: 1px solid $gray-darker;
     border-radius: 5px;
+
+    background-color: $gray-darker;
 
     margin-left: 2px;
 }

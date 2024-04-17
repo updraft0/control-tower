@@ -20,9 +20,6 @@ object ReferenceQueries:
 
   private val ShipCategoryId = 6
 
-  def getVersion: Result[model.Version] =
-    run(quote(version).sortBy(_.createdAt)(Ord.desc).take(1)).map(_.head)
-
   def getFactions: Result[List[protocol.Faction]] =
     run(faction).map(_.map(f => protocol.Faction(f.id, f.name, f.corporationId, f.militiaCorporationId)))
 

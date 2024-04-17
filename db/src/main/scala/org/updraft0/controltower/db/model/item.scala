@@ -43,6 +43,8 @@ case class StationOperation(id: Long, activityId: Int, name: String, description
 case class StationOperationService(operationId: Long, serviceId: Long)
 case class StationService(id: Long, name: String)
 
+case class SdeLoadMeta(sizeBytes: Long, checksum: String)
+
 /** Metadata about refreshing the SDE import
   */
-case class Version(id: Int, createdAt: Instant, meta: Option[String])
+case class Version(id: Int, createdAt: Instant, meta: SdeLoadMeta)

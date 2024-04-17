@@ -8,7 +8,8 @@ object Endpoints:
   import jsoncodec.given
   import schema.given
 
-  private[controltower] val SessionCookieName = "__Host-CT-Session"
+  // FIXME FIXME FIXME __Secure- cookie prefix - figure out why Chrome does not like it for localhost
+  private[controltower] val SessionCookieName = "CT-Session"
   private val SessionCookieOpt =
     cookie[Option[String]](SessionCookieName).map(_.map(SessionCookie.apply))(_.map(_.value))
   private val SessionCookieDef = cookie[String](SessionCookieName).map(SessionCookie.apply)(_.value)

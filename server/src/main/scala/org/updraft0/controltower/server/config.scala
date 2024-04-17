@@ -37,10 +37,11 @@ case class AuthConfig(secret: HmacSecret, esi: EsiAuthConfig, esiCallbackSecret:
 case class HttpConfig(protocol: String, host: String, port: Int, uiPort: Int)
 
 case class EsiConfig(base: Uri)
+case class SdeConfig(base: Uri)
 
 /** Top-level ControlTower configuration (read from a HOCON file `application.conf`)
   */
-case class Config(auth: AuthConfig, db: DbConfig, esi: EsiConfig, http: HttpConfig)
+case class Config(auth: AuthConfig, db: DbConfig, esi: EsiConfig, sde: SdeConfig, http: HttpConfig)
 
 object Config:
   private given DeriveConfig[zio.Config.Secret]  = DeriveConfig[String].map(zio.Config.Secret.apply)

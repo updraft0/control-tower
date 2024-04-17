@@ -51,4 +51,4 @@ object auth:
     ctx.run(insert(schema.characterAuthToken, lift(tok)))
 
   def insertUser(displayName: String): DbOperation[Long] =
-    ctx.run(quote(schema.user.insertValue(lift(AuthUser(0L, displayName, None))).returningGenerated(_.id)))
+    ctx.run(quote { schema.user.insertValue(AuthUser(0L, lift(displayName), None)).returningGenerated(_.id) })

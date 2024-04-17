@@ -1,11 +1,10 @@
 package org.updraft0.controltower.server
 
-import org.updraft0.controltower.db.query
 import org.updraft0.controltower.server.auth.{SessionCrypto, UserSession}
 import org.updraft0.controltower.server.endpoints.*
 import org.updraft0.controltower.server.map.MapReactive
-import org.updraft0.controltower.{db, sdeloader}
-import org.updraft0.esi.client.EsiClient
+import org.updraft0.controltower.db
+import org.updraft0.esi.client.{EsiClient, SdeClient}
 import org.updraft0.minireactive.MiniReactive
 import sttp.client3.UriContext
 import sttp.model.headers.Origin
@@ -20,7 +19,8 @@ import zio.{Config as _, *}
 /** Entrypoint into the control-tower server
   */
 object Server extends ZIOAppDefault:
-  type EndpointEnv = Config & javax.sql.DataSource & SessionCrypto & EsiClient & UserSession & MapReactive.Service
+  type EndpointEnv = Config & javax.sql.DataSource & SessionCrypto & EsiClient & SdeClient & UserSession &
+    MapReactive.Service
 
   override val bootstrap = Runtime.enableOpSupervision >>> Runtime.enableRuntimeMetrics >>> desktopLogger
 
@@ -44,6 +44,10 @@ object Server extends ZIOAppDefault:
               .Config(c.esi.base, uri"https://${c.auth.esi.host}", c.auth.esi.clientId, c.auth.esi.clientSecret)
           ),
         EsiClient.layer,
+        ZLayer
+          .service[Config]
+          .project(c => SdeClient.Config(c.sde.base)),
+        SdeClient.layer,
         MapReactive.layer,
         DefaultJvmMetrics.live.unit
       )
@@ -79,9 +83,3 @@ object Server extends ZIOAppDefault:
       .toHttp(
         allReferenceEndpoints ++ allAuthEndpoints ++ allMapEndpoints ++ allUserEndpoints
       )
-
-  private def updateReferenceData =
-    // TODO: call the SDE loader intelligently
-    ZIO.logSpan("updateReferenceData")(
-      query.transaction(sdeloader.loadDerivedData) *> ZIO.logInfo("Refreshed WH static data")
-    )

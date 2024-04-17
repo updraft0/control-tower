@@ -12,3 +12,10 @@ Cookie: __Host-CT-Session={{ctsessionid}}
 
 ###
 
+
+# Use this debug the login CORS/secure cookie auth flow
+# @no-redirect
+# @no-cookie-jar
+# @name DebugLogin
+GET {{api}}/auth/login
+

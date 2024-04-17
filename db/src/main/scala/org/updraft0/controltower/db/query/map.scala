@@ -84,43 +84,43 @@ object map:
 
   def getWormholeConnection(mapId: Long, connectionId: Long): DbOperation[Option[MapWormholeConnection]] =
     ctx
-      .run(mapWormholeConnection.filter(whc => whc.mapId == lift(mapId) && whc.id == lift(connectionId)))
+      .run(quote { mapWormholeConnection.filter(whc => whc.mapId == lift(mapId) && whc.id == lift(connectionId)) })
       .map(_.headOption)
 
   def getWormholeSystemNames: DbOperation[Map[String, Long]] =
-    ctx.run(sde.schema.solarSystem.filter(_.name like "J%").map(ss => ss.name -> ss.id)).map(_.toMap)
+    ctx.run(quote { sde.schema.solarSystem.filter(_.name like "J%").map(ss => ss.name -> ss.id) }).map(_.toMap)
 
   def getWormholeTypeNames: DbOperation[List[(String, Long)]] =
-    ctx.run(sde.schema.itemType.filter(_.groupId == lift(WormholeGroupId)).map(it => it.name -> it.id))
+    ctx.run(quote { sde.schema.itemType.filter(_.groupId == lift(WormholeGroupId)).map(it => it.name -> it.id) })
 
   def getMapSystem(mapId: Long, systemId: Long) =
     ctx
-      .run(mapSystem.filter(ms => ms.mapId == lift(mapId) && ms.systemId == lift(systemId)))
+      .run(quote { mapSystem.filter(ms => ms.mapId == lift(mapId) && ms.systemId == lift(systemId)) })
       .map(_.headOption)
 
   // inserts
   def insertMapWormholeConnection(value: MapWormholeConnection): DbOperation[MapWormholeConnection] =
     ctx
-      .run(
+      .run(quote {
         mapWormholeConnection
           .insertValue(lift(value))
           .returningGenerated(_.id)
-      )
+      })
       .map(newId => value.copy(id = newId))
 
   // upserts
   def upsertMap(value: MapModel): DbOperation[Long] =
-    ctx.run(
+    ctx.run(quote {
       mapModel
         .insertValue(lift(value))
         .onConflictUpdate(_.id)(
           (t, e) => t.name -> e.name,
           (t, e) => t.displayType -> e.displayType
         )
-    )
+    })
 
   def upsertMapSystem(value: MapSystem): DbOperation[Long] =
-    ctx.run(
+    ctx.run(quote {
       mapSystem
         .insertValue(lift(value))
         .onConflictUpdate(_.mapId, _.systemId)(
@@ -132,7 +132,7 @@ object map:
           (t, e) => t.updatedAt -> e.updatedAt,
           (t, e) => t.updatedByCharacterId -> e.updatedByCharacterId
         )
-    )
+    })
 
   def updateMapSystemName(
       mapId: Long,
@@ -141,7 +141,7 @@ object map:
       updatedAt: Instant,
       updatedByCharacterId: Long
   ) =
-    ctx.run(
+    ctx.run(quote {
       mapSystem
         .filter(ms => ms.mapId == lift(mapId) && ms.systemId == lift(systemId))
         .update(
@@ -149,7 +149,7 @@ object map:
           _.updatedAt            -> lift(updatedAt),
           _.updatedByCharacterId -> lift(updatedByCharacterId)
         )
-    )
+    })
 
   def updateMapAttribute(
       mapId: Long,
@@ -159,7 +159,7 @@ object map:
       updatedAt: Instant,
       updatedByCharacterId: Long
   ): DbOperation[Long] =
-    ctx.run(
+    ctx.run(quote {
       mapSystem
         .filter(ms => ms.mapId == lift(mapId) && ms.systemId == lift(systemId))
         .update(
@@ -168,34 +168,38 @@ object map:
           _.updatedAt            -> lift(updatedAt),
           _.updatedByCharacterId -> lift(updatedByCharacterId)
         )
-    )
+    })
 
   def upsertMapSystemDisplay(value: MapSystemDisplay): DbOperation[Long] =
     ctx.run(
-      mapSystemDisplay
-        .insertValue(lift(value))
-        .onConflictUpdate(_.mapId, _.systemId)(
-          (t, e) => t.displayType -> e.displayType,
-          (t, e) => t.data -> e.data
-        )
+      quote {
+        mapSystemDisplay
+          .insertValue(lift(value))
+          .onConflictUpdate(_.mapId, _.systemId)(
+            (t, e) => t.displayType -> e.displayType,
+            (t, e) => t.data -> e.data
+          )
+      }
     )
 
   def upsertMapSystemStructure(value: MapSystemStructure): DbOperation[Long] =
     ctx.run(
-      mapSystemStructure
-        .insertValue(lift(value))
-        .onConflictUpdate(_.mapId, _.systemId, _.name)(
-          (t, e) => t.isDeleted -> e.isDeleted,
-          (t, e) => t.ownerCorporationId -> e.ownerCorporationId,
-          (t, e) => t.structureType -> e.structureType,
-          (t, e) => t.location -> e.location,
-          (t, e) => t.updatedAt -> e.updatedAt,
-          (t, e) => t.updatedByCharacterId -> e.updatedByCharacterId
-        )
+      quote {
+        mapSystemStructure
+          .insertValue(lift(value))
+          .onConflictUpdate(_.mapId, _.systemId, _.name)(
+            (t, e) => t.isDeleted -> e.isDeleted,
+            (t, e) => t.ownerCorporationId -> e.ownerCorporationId,
+            (t, e) => t.structureType -> e.structureType,
+            (t, e) => t.location -> e.location,
+            (t, e) => t.updatedAt -> e.updatedAt,
+            (t, e) => t.updatedByCharacterId -> e.updatedByCharacterId
+          )
+      }
     )
 
   def upsertMapSystemNote(value: MapSystemNote): DbOperation[Long] =
-    ctx.run(
+    ctx.run(quote {
       mapSystemNote
         .insertValue(lift(value))
         .onConflictUpdate(_.id)(
@@ -204,7 +208,7 @@ object map:
           (t, e) => t.updatedAt -> e.updatedAt,
           (t, e) => t.updatedByCharacterId -> e.updatedByCharacterId
         )
-    )
+    })
 
   def upsertMapWormholeConnection(value: MapWormholeConnection): DbOperation[Long] =
     ctx.run(

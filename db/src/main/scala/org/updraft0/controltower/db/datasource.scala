@@ -38,7 +38,9 @@ private[db] class MultiDbDatasource(cfg: Config, orig: DataSource, inSdeLoad: Bo
     cfg.flywayConfig.databases.foreach:
       case (name, (path, _)) => executeLogged(s, s"ATTACH DATABASE '$path' AS $name;")
 
-    if (!inSdeLoad) executeLogged(s, "PRAGMA foreign_keys = ON;") // FIXME figure out why SDE load is violating FK
+    // FIXME reenable foreign keys
+    if (false && !inSdeLoad)
+      executeLogged(s, "PRAGMA foreign_keys = ON;") // FIXME figure out why SDE load is violating FK
     s.close()
     c
 

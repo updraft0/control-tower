@@ -3,53 +3,70 @@ package org.updraft0.controltower.server.endpoints
 import org.updraft0.controltower.protocol.*
 import org.updraft0.controltower.server.Server.EndpointEnv
 import org.updraft0.controltower.server.db.ReferenceQueries
+import org.updraft0.controltower.db.query.sde.getLatestVersion
 import sttp.model.StatusCode
 import sttp.tapir.ztapir.*
 import zio.*
 
+private val NoSdeVersion =
+  ZIO.logError("No SDE version loaded").as(StatusCode.InternalServerError -> "BUG: No SDE version found").flip
+
 def getSolarSystem = Endpoints.getSolarSystem.zServerLogic { name =>
-  ReferenceQueries.getSolarSystemByName(name).mapError(dbError).flatMap {
+  ReferenceQueries.getSolarSystemByName(name).flatMapError(logDbError).flatMap {
     case Nil       => ZIO.fail(StatusCode.NotFound -> "")
     case ss :: Nil => ZIO.succeed(ss)
     case _         => ZIO.fail(StatusCode.InternalServerError -> "BUG: non-unique solar system")
   }
 }
 
-def getVersion = Endpoints.getVersion.zServerLogic(_ => ReferenceQueries.getVersion.mapBoth(dbError, _.id))
+def getVersion = Endpoints.getVersion.zServerLogic(_ =>
+  getLatestVersion
+    .flatMapError(logDbError)
+    .flatMap(_.map(ZIO.succeed).getOrElse(NoSdeVersion))
+    .map(_.id)
+)
 
 def getAllReference = Endpoints.getAllReference.zServerLogic(_ =>
-  (ReferenceQueries.getVersion <&> ReferenceQueries.getFactions <&> ReferenceQueries.getSignaturesInGroup <&> ReferenceQueries.getShipTypes <&> ReferenceQueries.getStarTypes <&> ReferenceQueries.getStationOperations <&> ReferenceQueries.getWormholeTypes)
-    .mapBoth(
-      dbError,
-      (version, factions, signaturesInGroup, shipTypes, starTypes, stationOperations, wormholeTypes) =>
-        Reference(
-          version = version.id,
-          factions = factions.toArray,
-          signaturesInGroup = signaturesInGroup.toArray,
-          shipTypes = shipTypes.toArray,
-          starTypes = starTypes.toArray,
-          stationOperations = stationOperations.toArray,
-          wormholeTypes = wormholeTypes.toArray
+  (getLatestVersion <&> ReferenceQueries.getFactions <&> ReferenceQueries.getSignaturesInGroup <&> ReferenceQueries.getShipTypes <&> ReferenceQueries.getStarTypes <&> ReferenceQueries.getStationOperations <&> ReferenceQueries.getWormholeTypes)
+    .flatMapError(logDbError)
+    .flatMap((versionOpt, factions, signaturesInGroup, shipTypes, starTypes, stationOperations, wormholeTypes) =>
+      versionOpt
+        .map(version =>
+          ZIO.succeed(
+            Reference(
+              version = version.id,
+              factions = factions.toArray,
+              signaturesInGroup = signaturesInGroup.toArray,
+              shipTypes = shipTypes.toArray,
+              starTypes = starTypes.toArray,
+              stationOperations = stationOperations.toArray,
+              wormholeTypes = wormholeTypes.toArray
+            )
+          )
         )
+        .getOrElse(NoSdeVersion)
     )
 )
 
 def getAllSolarSystems = Endpoints.getAllSolarSystems.zServerLogic(_ =>
-  (ReferenceQueries.getVersion <&> ReferenceQueries.getSolarSystemsByName(None))
-    .mapBoth(
-      dbError,
-      (version, solarSystems) => ReferenceSolarSystems(version.id, solarSystems.toArray)
+  (getLatestVersion <&> ReferenceQueries.getSolarSystemsByName(None))
+    .flatMapError(logDbError)
+    .flatMap((versionOpt, solarSystems) =>
+      versionOpt
+        .map(v => ZIO.succeed(ReferenceSolarSystems(v.id, solarSystems.toArray)))
+        .getOrElse(NoSdeVersion)
     )
 )
 
-def getFactions  = Endpoints.getFactions.zServerLogic(_ => ReferenceQueries.getFactions.mapError(dbError))
-def getShipTypes = Endpoints.getShipTypes.zServerLogic(_ => ReferenceQueries.getShipTypes.mapError(dbError))
-def getStarTypes = Endpoints.getStarTypes.zServerLogic(_ => ReferenceQueries.getStarTypes.mapError(dbError))
+def getFactions  = Endpoints.getFactions.zServerLogic(_ => ReferenceQueries.getFactions.flatMapError(logDbError))
+def getShipTypes = Endpoints.getShipTypes.zServerLogic(_ => ReferenceQueries.getShipTypes.flatMapError(logDbError))
+def getStarTypes = Endpoints.getStarTypes.zServerLogic(_ => ReferenceQueries.getStarTypes.flatMapError(logDbError))
 def getStationOperations =
-  Endpoints.getStationOperations.zServerLogic(_ => ReferenceQueries.getStationOperations.mapError(dbError))
-def getWormholeTypes = Endpoints.getWormholeTypes.zServerLogic(_ => ReferenceQueries.getWormholeTypes.mapError(dbError))
+  Endpoints.getStationOperations.zServerLogic(_ => ReferenceQueries.getStationOperations.flatMapError(logDbError))
+def getWormholeTypes =
+  Endpoints.getWormholeTypes.zServerLogic(_ => ReferenceQueries.getWormholeTypes.flatMapError(logDbError))
 def getSignaturesInGroup =
-  Endpoints.getSignaturesInGroup.zServerLogic(_ => ReferenceQueries.getSignaturesInGroup.mapError(dbError))
+  Endpoints.getSignaturesInGroup.zServerLogic(_ => ReferenceQueries.getSignaturesInGroup.flatMapError(logDbError))
 
 def allReferenceEndpoints: List[ZServerEndpoint[EndpointEnv, Any]] =
   List(
