@@ -11,6 +11,8 @@ import zio.json.*
 import java.security.PublicKey
 import java.time.Instant
 
+given CanEqual[JwtAlgorithm, JwtAlgorithm] = CanEqual.derived
+
 enum EsiError:
   case InvalidJwt(reason: Throwable)
   case ValidationError(message: String)

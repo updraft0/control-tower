@@ -15,7 +15,7 @@ class OptionDropdown[E](
     options: Seq[E],
     current: Var[E],
     @scala.annotation.unused mouseLeaveDelay: Duration = 500.millis
-)(using D: DropdownItem[E]):
+)(using D: DropdownItem[E], @scala.annotation.unused _ce: CanEqual[E, E]):
 
   private val parentId = s"option-dropdown-${hashCode().abs}"
   private val expanded = Var(false)

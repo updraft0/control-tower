@@ -17,6 +17,9 @@ import zio.http.{ChannelEvent, Handler, WebSocketChannelEvent, WebSocketFrame}
 import zio.json.*
 import zio.logging.LogAnnotation
 
+given CanEqual[WebSocketChannelEvent, WebSocketChannelEvent]   = CanEqual.derived
+given CanEqual[ChannelEvent.UserEvent, ChannelEvent.UserEvent] = CanEqual.derived
+
 // TODO: check permissions!
 
 /** Loosely, a map "session" is an open WebSocket for a single (character, map)

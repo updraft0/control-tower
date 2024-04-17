@@ -25,7 +25,7 @@ object Dependencies {
     val zio                = "2.0.22"
     val `zio-config`       = "4.0.1"
     val `zio-json`         = "0.6.2"
-    val `zio-logging`      = "2.1.15" // TODO 2.2.0
+    val `zio-logging`      = "2.1.15"                     // TODO 2.2.0
     val `zio-metrics`      = "2.2.1"
   }
 

@@ -6,6 +6,7 @@ import com.raquo.airstream.ownership.ManualOwner
 import org.scalajs.dom
 import org.scalajs.dom.MouseEvent
 
+// FIXME dead code
 // note: thanks to @yurique for this idea
 //
 //class Modal(mods: Mod[ReactiveHtmlElement[dom.HTMLDialogElement]]*) extends Base:
@@ -33,6 +34,8 @@ import org.scalajs.dom.MouseEvent
 //  )
 
 //  val el: ReactiveHtmlElement[dom.HTMLDialogElement] = dialog
+
+given equalEventTarget[El <: dom.Element]: CanEqual[dom.EventTarget, El] = CanEqual.derived
 
 object Modal:
   lazy val onClose: EventProp[dom.UIEvent] = eventProp("close")

@@ -7,7 +7,7 @@ import org.updraft0.controltower.protocol.{SystemId as _, *}
 
 import scala.collection.mutable
 
-case class Coord(x: Double, y: Double)
+case class Coord(x: Double, y: Double) derives CanEqual
 
 object Coord:
   val Hidden = Coord(-1, -1)

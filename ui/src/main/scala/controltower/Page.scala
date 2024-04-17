@@ -2,7 +2,7 @@ package controltower
 
 import zio.json.*
 
-enum Page:
+enum Page derives CanEqual:
   case Landing
   case Map(characterId: Long, name: String)
 

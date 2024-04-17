@@ -15,6 +15,8 @@ object SigId:
   given Ordering[SigId] with
     override def compare(x: SigId, y: SigId): Int = x.compare(y)
 
+  given CanEqual[SigId, SigId] = CanEqual.derived
+
 // SystemId
 
 opaque type SystemId = Long
@@ -27,3 +29,5 @@ object SystemId:
 
   given Ordering[SystemId] with
     override def compare(x: SystemId, y: SystemId): Int = x.compare(y)
+
+  given CanEqual[SystemId, SystemId] = CanEqual.derived

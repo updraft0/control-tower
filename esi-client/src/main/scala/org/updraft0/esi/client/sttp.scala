@@ -6,6 +6,8 @@ import sttp.client3.httpclient.zio.SttpClient
 import sttp.client3.logging.{DefaultLog, LogLevel, Logger, LoggingWithResponseBodyBackend}
 import zio.{Cause, Task, ZIO}
 
+given CanEqual[LogLevel, LogLevel] = CanEqual.derived
+
 private val zioLogger: Logger[Task] = new Logger[Task]:
   override def apply(level: LogLevel, message: => String): Task[Unit] =
     level match

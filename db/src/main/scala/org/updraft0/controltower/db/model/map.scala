@@ -1,29 +1,30 @@
 package org.updraft0.controltower.db.model
 
 import java.time.Instant
+import scala.CanEqual
 
 type MapId    = Long
 type SystemId = Long
 
-enum ChainNamingStrategy extends Enum[ChainNamingStrategy]:
+enum ChainNamingStrategy extends Enum[ChainNamingStrategy] derives CanEqual:
   case Manual
 
-enum SignatureGroup extends Enum[SignatureGroup]:
+enum SignatureGroup extends Enum[SignatureGroup] derives CanEqual:
   case Unknown, Combat, Data, Gas, Ghost, Ore, Relic, Wormhole
 
-enum WormholeMassSize extends Enum[WormholeMassSize]:
+enum WormholeMassSize extends Enum[WormholeMassSize] derives CanEqual:
   case Unknown, XL, L, M, S
 
-enum WormholeMassStatus extends Enum[WormholeMassStatus]:
+enum WormholeMassStatus extends Enum[WormholeMassStatus] derives CanEqual:
   case Unknown, Fresh, Reduced, Critical
 
-enum WormholeK162Type extends Enum[WormholeK162Type]:
+enum WormholeK162Type extends Enum[WormholeK162Type] derives CanEqual:
   case Unknown, Dangerous, Deadly, Hisec, Losec, Nullsec, Thera
 
-enum IntelStance extends Enum[IntelStance]:
+enum IntelStance extends Enum[IntelStance] derives CanEqual:
   case Unknown, Friendly, Hostile
 
-enum MapDisplayType extends Enum[MapDisplayType]:
+enum MapDisplayType extends Enum[MapDisplayType] derives CanEqual:
   case Manual
 
 enum SystemDisplayData:
@@ -108,7 +109,7 @@ case class MapSystemSignature(
     createdByCharacterId: CharacterId,
     updatedAt: Instant,
     updatedByCharacterId: CharacterId
-)
+) derives CanEqual
 
 case class Alliance(
     id: AllianceId,

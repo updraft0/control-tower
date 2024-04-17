@@ -1,6 +1,6 @@
 package org.updraft0.controltower.protocol
 
-enum MapRole:
+enum MapRole derives CanEqual:
   case Viewer, Editor, Admin
 
 case class UserCharacter(name: String, characterId: Long, corporationId: Long, allianceId: Option[Long])

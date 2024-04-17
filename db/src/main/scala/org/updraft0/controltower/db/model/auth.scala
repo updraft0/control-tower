@@ -42,10 +42,10 @@ case class UserSession(
     userAgent: Option[String]
 )
 
-enum MapRole:
+enum MapRole derives CanEqual:
   case Viewer, Editor, Admin
 
-enum PolicyMemberType:
+enum PolicyMemberType derives CanEqual:
   case Character, Corporation, Alliance
 
 case class MapPolicy(

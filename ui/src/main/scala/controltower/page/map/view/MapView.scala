@@ -16,6 +16,9 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.language.implicitConversions
 
+// TODO: duplication
+given equalEventTarget[El <: org.scalajs.dom.Element]: CanEqual[org.scalajs.dom.EventTarget, El] = CanEqual.derived
+
 private class MapView(
     id: Int,
     @unused ct: ControlTowerBackend,
@@ -183,7 +186,7 @@ object MapView:
       .sendText[MapRequest](_.toJson)
       .build()
 
-enum MapNewConnectionState:
+enum MapNewConnectionState derives CanEqual:
   case Start(fromSystemId: Long, initial: Coord) extends MapNewConnectionState
   case Move(fromSystemId: Long, at: Coord)       extends MapNewConnectionState
   case Stopped                                   extends MapNewConnectionState

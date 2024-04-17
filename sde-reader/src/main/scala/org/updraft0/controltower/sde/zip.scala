@@ -35,7 +35,7 @@ object zip:
       .attempt(zis.readNBytes(entry.getSize.toInt))
       .flatMap(bytes => ZIO.attempt(ZipEntry(entry.getName, entry.getSize, entry.isDirectory, bytes)))
 
-  private def nextOrFail[A](action: => A): ZIO[Any, Option[Throwable], A] =
+  private def nextOrFail[A <: AnyRef](action: => A): ZIO[Any, Option[Throwable], A] =
     ZIO
       .attempt(action)
       .mapError(e => Some(e))

@@ -3,7 +3,7 @@ package org.updraft0.controltower.protocol
 import org.updraft0.controltower.constant.*
 import java.time.{Instant, Duration}
 
-enum PolicyMemberType:
+enum PolicyMemberType derives CanEqual:
   case Character, Corporation, Alliance
 
 case class MapPolicyMember(
@@ -78,18 +78,18 @@ case class MapWormholeConnectionWithSigs(
     fromSignature: Option[MapSystemSignature.Wormhole],
     toSignature: Option[MapSystemSignature.Wormhole],
     rank: MapWormholeConnectionRank
-)
+) derives CanEqual
 
-enum SignatureGroup:
+enum SignatureGroup derives CanEqual:
   case Unknown, Combat, Data, Gas, Ghost, Ore, Relic, Wormhole
 
-enum WormholeMassSize:
+enum WormholeMassSize derives CanEqual:
   case Unknown, XL, L, M, S
 
-enum WormholeMassStatus:
+enum WormholeMassStatus derives CanEqual:
   case Unknown, Fresh, Reduced, Critical
 
-enum WormholeK162Type:
+enum WormholeK162Type derives CanEqual:
   case Unknown, Dangerous, Deadly, Hisec, Losec, Nullsec, Thera
 
   def possibleTarget: List[WormholeClass] = this match
@@ -101,10 +101,10 @@ enum WormholeK162Type:
     case Nullsec   => List(WormholeClass.NS)
     case Thera     => List(WormholeClass.Thera)
 
-enum IntelStance:
+enum IntelStance derives CanEqual:
   case Unknown, Friendly, Hostile
 
-enum MapDisplayType:
+enum MapDisplayType derives CanEqual:
   case Manual
 
 enum SystemDisplayData:
@@ -116,7 +116,7 @@ extension (sd: SystemDisplayData)
   def displayType: MapDisplayType = sd match
     case _: SystemDisplayData.Manual => MapDisplayType.Manual
 
-enum WormholeConnectionType:
+enum WormholeConnectionType derives CanEqual:
   case Unknown
   case K162(sub: WormholeK162Type)
   case Known(typeId: Long)
@@ -128,7 +128,7 @@ enum MapSystemSignature(
     val updatedAt: Instant,
     val updatedByCharacterId: Long,
     val signatureGroup: SignatureGroup
-):
+) derives CanEqual:
   case Unknown(
       override val id: String,
       override val createdAt: Instant,
@@ -210,9 +210,9 @@ case class MapSystemSnapshot(
     notes: Array[MapSystemNote],
     structures: Array[MapSystemStructure],
     connections: Array[MapWormholeConnection]
-)
+) derives CanEqual
 
-enum NewSystemName:
+enum NewSystemName derives CanEqual:
   case None
   case Name(value: String)
 
@@ -220,7 +220,7 @@ enum NewSystemName:
     case None        => Option.empty
     case Name(value) => Some(value)
 
-enum MapRequest:
+enum MapRequest derives CanEqual:
   /** A snapshot of the map's systems, signatures, connections + intel data
     */
   case GetSnapshot

@@ -12,7 +12,7 @@ private case class WormholeSelectInfo(
     group: String,
     targetClass: Option[WormholeClass],
     connectionType: WormholeConnectionType
-)
+) derives CanEqual
 
 private object SignatureId:
   val MaxLength = 7

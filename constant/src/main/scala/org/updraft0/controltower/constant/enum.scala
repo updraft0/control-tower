@@ -1,9 +1,9 @@
 package org.updraft0.controltower.constant
 
-enum SpaceType:
+enum SpaceType derives CanEqual:
   case Known, Wormhole, Pochven, Abyssal, Internal
 
-enum WormholeClass(val value: Int, val spaceType: SpaceType):
+enum WormholeClass(val value: Int, val spaceType: SpaceType) derives CanEqual:
   // "normal" w-space
   case C1 extends WormholeClass(1, SpaceType.Wormhole)
   case C2 extends WormholeClass(2, SpaceType.Wormhole)
@@ -40,7 +40,7 @@ enum WormholeClass(val value: Int, val spaceType: SpaceType):
 object WormholeClasses:
   lazy val ById = WormholeClass.values.map(c => c.value -> c).toMap
 
-enum WormholeEffect(val typeId: Long):
+enum WormholeEffect(val typeId: Long) derives CanEqual:
   case Magnetar    extends WormholeEffect(30574)
   case BlackHole   extends WormholeEffect(30575)
   case RedGiant    extends WormholeEffect(30576)

@@ -18,10 +18,10 @@ private val SigIdNameDashPrefix    = "^[A-Za-z]{3}-".r
 private val SigIdNameDashNumPrefix = "^[A-Za-z]{3}-[0-9]{1,3}$".r
 private val SigIdRegexFull         = "^[A-Za-z]{3}-[0-9]{3}$".r
 
-enum SignatureFilter:
+enum SignatureFilter derives CanEqual:
   case All, Wormhole, Combat, Indy, Hacking
 
-enum ConnectionTarget:
+enum ConnectionTarget derives CanEqual:
   def idOpt: Option[Long] =
     this match
       case Unknown               => None

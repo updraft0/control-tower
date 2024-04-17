@@ -13,11 +13,11 @@ import scala.collection.mutable
 
 import java.time.Instant
 
-enum SignatureClassified(val name: String):
+enum SignatureClassified(val name: String) derives CanEqual:
   case Wormhole(override val name: String, typeId: Long) extends SignatureClassified(name)
   case Other(override val name: String)                  extends SignatureClassified(name)
 
-enum SystemScanStatus:
+enum SystemScanStatus derives CanEqual:
   case Unscanned
   case PartiallyScanned
   case FullyScanned

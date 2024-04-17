@@ -114,7 +114,7 @@ object MapState:
       connectionRanks.map(whr => whr.connectionId -> whr).toMap
     )
 
-case class MapSessionId(characterId: Long, sessionId: UUID)
+case class MapSessionId(characterId: Long, sessionId: UUID) derives CanEqual
 case class Identified[T](sessionId: Option[MapSessionId], value: T)
 
 case class NewMapSystemSignature(
@@ -129,7 +129,7 @@ case class NewMapSystemSignature(
     wormholeConnectionId: Option[ConnectionId] = None
 )
 
-enum MapRequest:
+enum MapRequest derives CanEqual:
   case MapSnapshot
   case AddSystem(
       systemId: SystemId,

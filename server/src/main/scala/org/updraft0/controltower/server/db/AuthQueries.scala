@@ -18,6 +18,8 @@ object AuthQueries:
   import auth.given
   import auth.schema.*
 
+  given CanEqual[UUID, UUID] = CanEqual.derived
+
   private inline def getSessionById(sessionId: UUID) =
     quote {
       userSession

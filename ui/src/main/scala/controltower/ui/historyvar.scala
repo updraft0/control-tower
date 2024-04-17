@@ -20,7 +20,7 @@ final class HVar[A](value: Var[(Option[A], A)]):
 object HVar:
   def apply[A](initial: A): HVar[A] = new HVar[A](Var(None -> initial))
 
-extension [K, V](h: HVar[Map[K, V]])
+extension [K, V](h: HVar[Map[K, V]])(using CanEqual[V, V])
   def writeChangesTo(
       writeBus: WriteBus[CollectionCommand[V]],
       isSame: (K, V, V) => Boolean = (_: K, a: V, b: V) => a == b

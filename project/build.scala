@@ -34,13 +34,21 @@ object build {
     manifestSetting,
     crossVersion := CrossVersion.binary,
     scalacOptions ++= Seq(
-      "-Wunused:all",
+//      "-Wunused:all",
       "-feature",
       "-deprecation",
       "-Wunused:imports,privates,locals,implicits",
       "-Werror",
-      "-language:implicitConversions"
+      "-language:implicitConversions",
+      "-language:strictEquality"
 //      "-explain"
+    ),
+    Test / scalacOptions --= Seq(
+      "-language:strictEquality", // TODO fixup tests and remove this
+      "-Wunused:imports,privates,locals,implicits",
+    ),
+    Test / scalacOptions ++= Seq(
+      "-Wunused:privates,locals,implicits",
     ),
     resolvers ++= Resolver.sonatypeOssRepos("snapshots") // FIXME
   ) ++ targetSettings

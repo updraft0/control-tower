@@ -143,13 +143,10 @@ object MiniReactive:
           (took, res) = resT
           _ <- processingTime.update(took.toMillis.toDouble)
           // FIXME do timeout
-//          _     <- ZIO.logInfo(s"got next state for k ${key} : ${state}")
           (nextState, msgs) = res
           _ <- stateRef.set(nextState)
           _ <- outboxCounter.update(msgs.size)
-//          _ <- ZIO.logInfo(s"offering msgs")
           _ <- ZIO.iterate(msgs)(_.nonEmpty)(outbox.offerAll)
-//          _ <- ZIO.logInfo(s"offered ${msgs}, out: $out, hub: $hubSize")
         yield ()).forever.supervised(sup).forkScoped
 
       private def stop(state: State[K, S, I, O]): UIO[Unit] =
@@ -157,45 +154,3 @@ object MiniReactive:
           state.fiber.interrupt.ignoreLogged *>
           state.inbox.shutdown *>
           state.outbox.shutdown
-
-// Example
-// FIXME move this out
-
-case class User(id: Long, name: String, age: Int)
-
-enum UserChange:
-  case Name(newName: String)
-  case Birthday
-
-object UserEntity extends ReactiveEntity[Any, Long, User, UserChange, User]:
-  override def tag = "user"
-  override def hydrate(key: Long) =
-    ZIO.succeed(User(key, "Bob", 1)) // everyone is always called Bob
-
-  override def handle(key: Long, state: User, in: UserChange) =
-    ZIO.succeed(
-      in match
-        case UserChange.Name(newName) =>
-          val newUser = state.copy(name = newName)
-          newUser -> Chunk(newUser)
-        case UserChange.Birthday =>
-          val newUser = state.copy(age = state.age + 1)
-          newUser -> Chunk(newUser)
-    )
-
-import zio.stream.ZStream
-
-object MiniReactiveExample extends ZIOAppDefault:
-  def run =
-    for
-      _     <- ZIO.logInfo("Starting")
-      r     <- MiniReactive(UserEntity, MiniReactiveConfig(100, 10.seconds))
-      sub1  <- r.subscribe(1).flatMap(ZStream.fromQueue(_).tap(v => ZIO.logInfo(s"got ${v}")).runDrain).fork
-      sub2  <- r.subscribe(2).flatMap(ZStream.fromQueue(_).tap(v => ZIO.logInfo(s"got ${v}")).runDrain).fork
-      prod1 <- r.enqueue(1).flatMap(q => q.offer(UserChange.Birthday).delay(5.seconds).repeatN(50)).fork
-      prod2 <- r.enqueue(1).flatMap(q => q.offer(UserChange.Name("Alice")).delay(13.seconds)).fork
-      _     <- ZIO.logInfo("Started")
-      _     <- ZIO.sleep(5.seconds)
-      _     <- sub1.dump.flatMap(d => ZIO.logInfo(s"dumped: $d"))
-      _     <- ZIO.never
-    yield ()

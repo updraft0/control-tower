@@ -7,6 +7,8 @@ import zio.logging.slf4j.bridge.Slf4jBridge
 import java.time.format.DateTimeFormatter
 import java.util.UUID
 
+given CanEqual[LogLevel, LogLevel] = CanEqual.derived
+
 private[server] def desktopLogFormat = {
   import LogFormat.*
 
