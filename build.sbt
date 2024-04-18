@@ -73,6 +73,15 @@ lazy val server = project
     Seq(
       libraryDependencies ++= jwt ++ tapir ++ `tapir-zio-json` ++ `tapir-server`,
       libraryDependencies ++= zio ++ `zio-config` ++ `zio-test`,
+      // runtime
+      Universal / javaOptions ++= Seq(
+        "-J-ea",
+        "-J-server",
+        "-J-Xms400m",
+        "-Dquill.query.tooLong=200",
+        "-Dquill.binds.log=false"
+      ),
+
       // docker packaging
       Docker / packageName                 := "controltower",
       Docker / defaultLinuxInstallLocation := "/app",
@@ -80,10 +89,11 @@ lazy val server = project
         "CT_DB_PATH" -> "/app/db"
       ),
       dockerExposedVolumes := Seq("/app/db"),
-      dockerBaseImage      := "ghcr.io/graalvm/graalvm-community:22.0.1",
+      dockerBaseImage      := "ghcr.io/graalvm/graalvm-community:22",
       dockerExposedPorts   := Seq(8092),
       dockerRepository     := Some("ghcr.io"),
-      dockerUsername       := Some("updraft0")
+      dockerUsername       := Some("updraft0"),
+      dockerUpdateLatest   := true
     )
   )
   .dependsOn(protocol.jvm, db, `esi-client`, `mini-reactive`)

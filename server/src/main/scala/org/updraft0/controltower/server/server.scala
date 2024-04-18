@@ -21,7 +21,7 @@ object Server extends ZIOAppDefault:
   type EndpointEnv = Config & javax.sql.DataSource & SessionCrypto & EsiClient & SdeClient & UserSession &
     MapReactive.Service
 
-  override val bootstrap = Runtime.enableOpSupervision >>> Runtime.enableRuntimeMetrics >>> desktopLogger
+  override val bootstrap = Runtime.enableRuntimeMetrics >>> desktopLogger
 
   override def run =
     (updateReferenceData *> ZServer
@@ -55,10 +55,11 @@ object Server extends ZIOAppDefault:
     ZLayer(
       ZIO.serviceWith[Config]: cfg =>
         ZServer.defaultWith(
-          _.binding(cfg.http.host, cfg.http.port).responseCompression(
-            // TODO revisit compression options if needed
-            ZServer.Config.ResponseCompressionConfig(1000, Vector(ZServer.Config.CompressionOptions.gzip(level = 1)))
-          )
+          _.binding(cfg.http.listenHost, cfg.http.port)
+            .responseCompression(
+              // TODO revisit compression options if needed
+              ZServer.Config.ResponseCompressionConfig(1000, Vector(ZServer.Config.CompressionOptions.gzip(level = 1)))
+            )
         )
     ).flatten
 

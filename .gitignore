@@ -27,3 +27,6 @@ target-idea/
 
 # Requests
 /requests/*.private.env.json
+
+# env
+/secret.env

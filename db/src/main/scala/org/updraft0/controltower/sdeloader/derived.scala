@@ -14,34 +14,30 @@ import javax.sql.DataSource
   */
 def loadDerivedData: RIO[DataSource, Long] =
   for
-    whc <- loadDerivedWormholeAttributes()
-    sc  <- loadDerivedWormholeStatics()
-    sig <- loadSignaturesInGroup()
+    whc <- ZIO.logSpan("loading wormhole attributes")(loadDerivedWormholeAttributes())
+    sc  <- ZIO.logSpan("loading wormhole statics")(loadDerivedWormholeStatics())
+    sig <- ZIO.logSpan("loading group signature types")(loadSignaturesInGroup())
   yield whc + sc + sig
 
 private def loadDerivedWormholeAttributes(): RIO[DataSource, Long] =
   map.getWormholesUsingTypeDogma
     .map(_.map(toWormhole.tupled.apply).filterNot(_.name.startsWith("QA ")))
-    .flatMap(whs => ZIO.foreach(whs)(map.upsertWormhole).map(_.sum))
+    .flatMap(whs => map.upsertWormholes(whs))
 
 private def loadDerivedWormholeStatics(): RIO[DataSource, Long] =
   for
     systemsByName <- map.getWormholeSystemNames
     wormholeTypes <- wormholeTypeNamesNonUnique
     statics       <- readSystemStatics(systemsByName, wormholeTypes).runCollect
-    loaded <- ZIO.foreach(statics)(s =>
-      map.upsertSystemStatic(s).tapError(_ => ZIO.logError(s"failed to load static: $s"))
-    )
-  yield loaded.sum
+    loaded        <- map.upsertSystemStatics(statics.toList)
+  yield loaded
 
 private def loadSignaturesInGroup(): RIO[DataSource, Long] =
   for
     wormholeTypes <- wormholeTypeNamesNonUnique
     sigs          <- readSignaturesInGroup(wormholeTypes).runCollect
-    loaded <- ZIO.foreach(sigs)(s =>
-      map.upsertSignatureInGroup(s).tapError(_ => ZIO.logError(s"failed to load sig $s"))
-    )
-  yield loaded.sum
+    loaded        <- map.upsertSignaturesInGroup(sigs.toList)
+  yield loaded
 
 private inline def wormholeTypeNamesNonUnique =
   // some wormhole names like J244 are not unique, and because these are loaded from SDE using a lowest id first

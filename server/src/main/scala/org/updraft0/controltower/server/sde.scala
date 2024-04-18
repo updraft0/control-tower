@@ -13,7 +13,8 @@ import javax.sql.DataSource
 
 def updateReferenceData =
   ZIO.logSpan("updateReferenceData")(
-    checkSdeAndReload().unit *> query.transaction(sdeloader.loadDerivedData) *> ZIO.logInfo("Refreshed WH static data")
+    checkSdeAndReload().unit *> query.map.vacuumMap *> query.transaction(sdeloader.loadDerivedData) *>
+      ZIO.logInfo("Refreshed WH static data")
   )
 
 /** Load while checking if up to date

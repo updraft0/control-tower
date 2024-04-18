@@ -13,6 +13,8 @@ object map:
   import ctx.{*, given}
   import zio.json.*
 
+  private val BatchRows = 5_000
+
   private val WormholeGroupId = 988L
 
   // this is always stored as json in the db
@@ -88,7 +90,9 @@ object map:
       .map(_.headOption)
 
   def getWormholeSystemNames: DbOperation[Map[String, Long]] =
-    ctx.run(quote { sde.schema.solarSystem.filter(_.name like "J%").map(ss => ss.name -> ss.id) }).map(_.toMap)
+    ctx
+      .run(quote(sde.schema.solarSystem.map(ss => ss.name -> ss.id)))
+      .map(_.filter((n, _) => n.startsWith("J") || n == "Thera" || n == "Turnur").toMap)
 
   def getWormholeTypeNames: DbOperation[List[(String, Long)]] =
     ctx.run(quote { sde.schema.itemType.filter(_.groupId == lift(WormholeGroupId)).map(it => it.name -> it.id) })
@@ -241,14 +245,25 @@ object map:
         )
     )
 
-  def upsertSystemStatic(value: SystemStaticWormhole): DbOperation[Long] =
-    ctx.run(systemStaticWormhole.insertValue(lift(value)).onConflictIgnore(_.systemId, _.staticTypeId, _.validFrom))
+  def upsertSystemStatics(values: List[SystemStaticWormhole]): DbOperation[Long] =
+    ctx
+      .run(
+        liftQuery(values)
+          .foreach(v => systemStaticWormhole.insertValue(v).onConflictIgnore(_.systemId, _.staticTypeId, _.validFrom)),
+        BatchRows
+      )
+      .map(_.sum)
 
-  def upsertSignatureInGroup(value: SignatureInGroup): DbOperation[Long] =
-    ctx.run(signatureInGroup.insertValue(lift(value)).onConflictIgnore(_.name, _.signatureGroup))
+  def upsertSignaturesInGroup(values: List[SignatureInGroup]): DbOperation[Long] =
+    ctx
+      .run(
+        liftQuery(values).foreach(v => signatureInGroup.insertValue(v).onConflictIgnore(_.name, _.signatureGroup)),
+        BatchRows
+      )
+      .map(_.sum)
 
-  def upsertWormhole(value: Wormhole): DbOperation[Long] =
-    ctx.run(wormhole.insertValue(lift(value)).onConflictIgnore(_.name))
+  def upsertWormholes(values: List[Wormhole]): DbOperation[Long] =
+    ctx.run(liftQuery(values).foreach(v => wormhole.insertValue(v).onConflictIgnore(_.name)), BatchRows).map(_.sum)
 
   // deletes
   def deleteMapSystemDisplay(mapId: MapId, systemId: SystemId): DbOperation[Long] =
@@ -312,6 +327,11 @@ object map:
         .filter(_.name == lift(name))
         .update(_.isDeleted -> lift(true), _.updatedByCharacterId -> lift(byCharacterId), _.updatedAt -> unixepoch)
     )
+
+  def vacuumMap: DbOperation[Long] =
+    // TODO this is a bit strange
+    val vac = "VACUUM map;"
+    ctx.run(quote(infix"#$vac".as[Action[Unit]]))
 
 private def whClassesFromSet(set: BitSet): Set[WormholeClass] =
   val res = Set.newBuilder[WormholeClass]

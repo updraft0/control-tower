@@ -1,0 +1,28 @@
+version: '3'
+services:
+  frontend:
+    restart: always
+    image: ghcr.io/updraft0/controltower-fe
+    ports:
+      - "8091:8080"
+    volumes:
+      - ./ui/nginx.conf:/etc/nginx/nginx.conf:z,ro
+    depends_on:
+      backend:
+        condition: service_healthy
+  backend:
+    restart: always
+    image: ghcr.io/updraft0/controltower
+    env_file:
+      - ./secret.env
+    environment:
+      - CT_HTTP_UI_PORT=8091
+#    volumes:
+#      - ./composedb:/app/db:Z
+    ports:
+      - "8092:8092"
+    healthcheck:
+      test: ["CMD", "curl", "http://localhost:8092/api/reference/version"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
