@@ -66,11 +66,24 @@ lazy val protocol =
 
 lazy val server = project
   .in(file("server"))
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
   .settings(
     commonSettings,
     Seq(
       libraryDependencies ++= jwt ++ tapir ++ `tapir-zio-json` ++ `tapir-server`,
-      libraryDependencies ++= zio ++ `zio-config` ++ `zio-test`
+      libraryDependencies ++= zio ++ `zio-config` ++ `zio-test`,
+      // docker packaging
+      Docker / packageName                 := "controltower",
+      Docker / defaultLinuxInstallLocation := "/app",
+      dockerEnvVars := Map(
+        "CT_DB_PATH" -> "/app/db"
+      ),
+      dockerExposedVolumes := Seq("/app/db"),
+      dockerBaseImage      := "ghcr.io/graalvm/graalvm-community:22.0.1",
+      dockerExposedPorts   := Seq(8092),
+      dockerRepository     := Some("ghcr.io"),
+      dockerUsername       := Some("updraft0")
     )
   )
   .dependsOn(protocol.jvm, db, `esi-client`, `mini-reactive`)

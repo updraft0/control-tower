@@ -34,7 +34,7 @@ case class EsiAuthConfig(
 )
 case class HmacSecret(value: zio.Config.Secret)
 case class AuthConfig(secret: HmacSecret, esi: EsiAuthConfig, esiCallbackSecret: HmacSecret, sessionExpiry: Duration)
-case class HttpConfig(protocol: String, host: String, port: Int, uiPort: Int)
+case class HttpConfig(protocol: String, host: String, listenHost: String, port: Int, uiPort: Int)
 
 case class EsiConfig(base: Uri)
 case class SdeConfig(base: Uri)

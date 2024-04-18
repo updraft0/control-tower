@@ -8,6 +8,7 @@ import sbt.Keys.libraryDependencies
 object Dependencies {
 
   object Versions {
+    val brotli             = "1.16.0"
     val flyway             = "9.21.1"
     val jsoniter           = "2.28.4"
     val jwt                = "10.0.0"
@@ -72,7 +73,9 @@ object Dependencies {
   )
 
   val `tapir-server` = Seq(
-    "com.softwaremill.sttp.tapir" %% "tapir-zio-http-server" % Versions.tapir
+    "com.softwaremill.sttp.tapir" %% "tapir-zio-http-server" % Versions.tapir,
+    // runtime
+    "com.aayushatharva.brotli4j" % "brotli4j" % Versions.brotli % Runtime
   )
 
   val zio = Seq(

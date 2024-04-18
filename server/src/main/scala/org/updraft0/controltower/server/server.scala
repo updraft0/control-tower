@@ -7,7 +7,6 @@ import org.updraft0.controltower.db
 import org.updraft0.esi.client.{EsiClient, SdeClient}
 import org.updraft0.minireactive.MiniReactive
 import sttp.client3.UriContext
-import sttp.model.headers.Origin
 import sttp.tapir.server.interceptor.cors.*
 import sttp.tapir.server.ziohttp.{ZioHttpInterpreter, ZioHttpServerOptions}
 import zio.http.{HttpApp, Server as ZServer}
@@ -72,12 +71,7 @@ object Server extends ZIOAppDefault:
   private def httpApp: HttpApp[EndpointEnv] =
     ZioHttpInterpreter(
       ZioHttpServerOptions.customiseInterceptors
-        .corsInterceptor(
-          CORSInterceptor.customOrThrow(
-            // FIXME - do we need this? Don't think so
-            CORSConfig.default.allowCredentials.allowOrigin(Origin.Host("http", "localhost", Some(5173)))
-          )
-        )
+        .corsInterceptor(CORSInterceptor.default)
         .options
     )
       .toHttp(
