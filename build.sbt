@@ -95,6 +95,10 @@ lazy val ui = project
     scalaJSLinkerConfig ~= {
       _.withSourceMap(true)
     },
+    Compile / fullOptJS / scalaJSLinkerConfig ~= {
+      _.withSourceMap(false)
+        .withModuleSplitStyle(ModuleSplitStyle.FewestModules)
+    },
     scalaJSUseMainModuleInitializer := true,
     libraryDependencies ++= Seq(
       // doesn't seem to be a nice way to refer to both scala and scalajs dependencies in one place *sigh*
