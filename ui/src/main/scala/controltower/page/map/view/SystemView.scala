@@ -195,7 +195,7 @@ private inline def systemEffect(ss: SolarSystem) =
 
 private inline def systemShattered(ss: SolarSystem) =
   Option.when(ss.name.startsWith("J0"))(
-    mark(cls := "system-shattered", cls := "ti", cls := "ti-chart-donut-filled")
+    mark(cls := "system-shattered", cls := "ti", cls := "ti-storm")
   )
 
 private inline def systemMapName(s: Signal[MapSystemSnapshot], solarSystem: SolarSystem) =
@@ -230,8 +230,8 @@ private inline def systemScanStatus(
       .map:
         case SystemScanStatus.Unscanned         => "ti-alert-circle-filled"
         case SystemScanStatus.PartiallyScanned  => "ti-alert-circle-filled"
-        case SystemScanStatus.FullyScanned      => "ti-circle-filled"
-        case SystemScanStatus.FullyScannedStale => "ti-clock-filled"
+        case SystemScanStatus.FullyScanned      => "ti-square-rounded-check-filled"
+        case SystemScanStatus.FullyScannedStale => "ti-bell-z-filled"
   )
 
 private inline def systemIsPinned(s: Signal[MapSystem]) =

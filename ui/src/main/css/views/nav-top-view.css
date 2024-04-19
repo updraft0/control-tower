@@ -1,0 +1,73 @@
+div#nav-top-view {
+    height: 1.4em;
+    margin-bottom: 4px;
+    user-select: none;
+
+    /* darker look */
+    border: 1px solid $gray-darkest;
+    background-color: $gray-darkest;
+
+    display: flex;
+
+    & > * {
+        align-self: center;
+    }
+
+    & > span {
+        margin-left: 2px;
+    }
+
+
+    /* nav buttons */
+    & button.nav-button {
+        background-color: inherit;
+        color: $gray-lighter;
+        border: none;
+        border-radius: 2px;
+        font-size: 1.1em;
+        height: 1.3em;
+
+        /* FIXME why this? */
+        padding-left: 1em;
+
+        &:hover {
+            background: $teal-dark;
+            color: $orange;
+        }
+    }
+
+    & button:last-of-type {
+        margin-right: 0.2em;
+    }
+
+    /* current user indicator */
+    & span.map-role {
+        color: $gray-light;
+        font-size: 0.9em;
+    }
+
+    & img.character-image {
+        display: inline-block;
+        height: 1em;
+        border-radius: 2px;
+    }
+
+    /* current time */
+    & span.time-status {
+        font-weight: bold;
+        font-size: 0.9em;
+        color: $gray;
+        margin-left: auto;
+    }
+
+    /* connection status icon */
+    & i {
+    }
+
+    & i.connection-status.ti-link {
+        color: $green;
+    }
+    & i.connection-status.ti-unlink {
+        color: $red;
+    }
+}

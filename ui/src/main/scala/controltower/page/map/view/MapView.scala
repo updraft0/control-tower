@@ -20,11 +20,11 @@ import scala.language.implicitConversions
 given equalEventTarget[El <: org.scalajs.dom.Element]: CanEqual[org.scalajs.dom.EventTarget, El] = CanEqual.derived
 
 private class MapView(
-    id: Int,
+    viewId: Int,
+    page: Page.Map,
     @unused ct: ControlTowerBackend,
     rds: ReferenceDataStore,
     ws: WebSocket[MapMessage, MapRequest],
-    @unused characterId: Long,
     time: Signal[Instant]
 ) extends ViewController:
 
@@ -32,7 +32,7 @@ private class MapView(
   private var controller: MapController = _
 
   override def view: Element = div(
-    idAttr := s"map-controller-view-${id}",
+    idAttr := s"map-controller-view-${viewId}",
     child.maybe <-- mapTop,
     connect,
     ws.connect
@@ -87,6 +87,7 @@ private class MapView(
     // TODO: move this into the controller?
     val connectingSystem = HVar(MapNewConnectionState.Stopped)
 
+    val navTopView = NavTopView(page.name, page.characterId, time, mapCtx.mapRole, ws.isConnected)
     val systemInfoView =
       SolarSystemInfoView(
         static,
@@ -159,6 +160,7 @@ private class MapView(
       ),
       div(
         idAttr := "map-left-sidebar",
+        navTopView.view,
         systemInfoView.view,
         systemSignatureView.view
       )
@@ -174,7 +176,7 @@ object MapView:
     for
       rds <- ReferenceDataStore.usingBackend()
       _ = (counter += 1)
-    yield new MapView(counter, ct, rds, ws(map), map.characterId, time)
+    yield new MapView(counter, map, ct, rds, ws(map), time)
 
   private def ws(map: Page.Map)(using ct: ControlTowerBackend) =
     val path = s"/api/map/${map.name}/${map.characterId.toString}/ws"

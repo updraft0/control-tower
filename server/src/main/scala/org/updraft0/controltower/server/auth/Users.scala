@@ -53,7 +53,7 @@ object Users:
       @unused jwt: JwtAuthResponse,
       @unused tokenMeta: EsiTokenMeta,
       @unused user: AuthUser
-  ): ZIO[Env, Throwable, Unit] = ???
+  ): ZIO[Env, Throwable, Unit] = ??? // FIXME implement this!
 
   private def updateRefreshToken(
       @unused jwt: JwtAuthResponse,

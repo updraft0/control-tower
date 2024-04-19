@@ -79,7 +79,7 @@ class ToolbarView(
       ),
       toolbarButton(
         id = "stance-hostile",
-        icon = "ti-tank",
+        icon = "ti-swords",
         disableWhenNotSelectedAndRole(selected, mapRole, RoleController.canUpdateIntelStance),
         onClick.stopPropagation.compose(_.sampleCollectSome(selected)) -->
           actions.contramap[MapSystemSnapshot](s =>

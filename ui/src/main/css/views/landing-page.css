@@ -13,16 +13,39 @@
             border-top-right-radius: 7px;
         }
 
-        mark {
+        & div {
+            background: $gray-darker;
+            color: $gray-lighter;
+            display: block;
             border-bottom: 2px solid $gray;
             border-left: 2px solid $gray;
             border-right: 2px solid $gray;
-            display: block;
-            background: $gray-darker;
-            color: $gray-lighter;
-            text-align: center;
-            user-select: none;
+            height: 100%;
+            width: 100%;
+
+
+            & button.logout {
+                display: inline-block;
+                border: none;
+                color: $red;
+                font-size: 1em;
+                margin-left: 2px;
+
+                &:hover {
+                    color: $orange;
+                }
+            }
+
+            & mark {
+                margin-left: 2px;
+                background-color: inherit;
+                color: $gray-lighter;
+                text-align: center;
+                user-select: none;
+            }
         }
+
+
     }
 
     & td.map-link {

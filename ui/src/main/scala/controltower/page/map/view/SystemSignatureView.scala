@@ -9,8 +9,8 @@ import org.updraft0.controltower.protocol.*
 
 import java.time.{Duration, Instant}
 
-private val CharacterImageSize = 32
-private val SignatureIdLength  = 7
+val CharacterImageSize        = 32
+private val SignatureIdLength = 7
 
 // TODO: move SigId validation to protocol
 private val SigIdNamePrefix        = "^[A-Za-z]{1,3}".r

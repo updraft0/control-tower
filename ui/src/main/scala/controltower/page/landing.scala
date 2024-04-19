@@ -26,8 +26,9 @@ object LandingPage:
       cls := "landing-page",
       "Control Tower Landing page",
       child <-- userInfo.signal.map(
-        _.map(renderCharacterMapSelection).getOrElse(renderLogin(ct.loginUrl))
-      )
+        _.map(renderCharacterMapSelection).getOrElse(emptyNode)
+      ),
+      renderLogin(ct.loginUrl)
     )
 
   private def renderCharacterMapSelection(userInfo: UserInfo)(using ControlTowerBackend) =
@@ -73,7 +74,10 @@ object LandingPage:
   private def renderCharacter(char: UserCharacter) =
     nodeSeq(
       ESI.characterImage(char.characterId, char.name),
-      mark(char.name)
+      div(
+        button(tpe := "button", cls := "logout", cls := "ti", cls := "ti-logout"), // FIXME implement
+        mark(char.name)
+      )
     )
 
   private def newMapLink(char: UserCharacter)(using ct: ControlTowerBackend) =
@@ -90,6 +94,8 @@ object LandingPage:
     val page = Page.Map(map.characterId, map.mapName)
     a(
       Routes.navigateTo(page),
+      i(cls := "ti", cls := "ti-map"),
+      " ",
       map.mapName
     )
 
