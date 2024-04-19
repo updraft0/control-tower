@@ -149,13 +149,3 @@ Cookie: __Host-CT-Session={{ctsessionid}}
   }
 }
 
-
-###
-
-
-
-GET http://localhost:8091/api/reference/version
-
-###
-
-HEAD https://eve-static-data-export.s3-eu-west-1.amazonaws.com/tranquility/sde.zip

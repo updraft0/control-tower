@@ -7,6 +7,9 @@
 /* controls */
 @import 'components/option-dropdown.css';
 
+/* pages */
+@import 'views/landing-page.css';
+
 /* map views */
 @import 'views/map-system-signature-view.css';
 

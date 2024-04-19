@@ -28,7 +28,7 @@ private[db] class MultiDbDatasource(cfg: Config, orig: DataSource, inSdeLoad: Bo
   private val logger = LoggerFactory.getLogger(getClass)
 
   private inline def executeLogged(s: java.sql.Statement, q: String) =
-    logger.debug(s"exec: ${q}")
+    logger.trace(s"exec: ${q}")
     s.execute(q)
 
   override def getConnection: Connection =

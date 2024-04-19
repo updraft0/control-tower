@@ -23,6 +23,7 @@ object LandingPage:
       case Right(value) => userInfo.set(Some(value))
     }
     div(
+      cls := "landing-page",
       "Control Tower Landing page",
       child <-- userInfo.signal.map(
         _.map(renderCharacterMapSelection).getOrElse(renderLogin(ct.loginUrl))
@@ -41,30 +42,28 @@ object LandingPage:
         )
       ),
       tbody(
-        userInfo.characters.flatMap { char =>
-          charMaps.get(char.characterId) match {
-            case None =>
-              List(
-                tr(
-                  td(cls := "character", renderCharacter(char)),
-                  td(cls := "map-link", newMapLink(char))
-                )
-              )
-            case Some(maps) =>
-              (maps.sortBy(_.mapName).map { map =>
-                tr(
-                  td(cls := "character", rowSpan := maps.length + 1, renderCharacter(char)),
-                  td(cls := "map-link", mapLink(map))
-                )
-              } ::: List(
-                tr(
-                  td(cls := "map-link", newMapLink(char))
-                )
-              ))
-          }
-        }
+        userInfo.characters
+          .sortBy(_.name)
+          .map(char => char -> charMaps.getOrElse(char.characterId, Nil).sortBy(_.mapName))
+          .map(renderCharacterMaps)
       )
     )
+
+  private def renderCharacterMaps(char: UserCharacter, maps: List[UserCharacterMap])(using ControlTowerBackend) =
+    maps match
+      case Nil =>
+        List(
+          tr(
+            td(cls := "character", renderCharacter(char)),
+            td(cls := "map-link", newMapLink(char))
+          )
+        )
+      case map :: xs =>
+        tr(
+          td(cls := "character", rowSpan := maps.length + 1, renderCharacter(char)),
+          td(cls := "map-link", mapLink(map))
+        ) :: xs.map(map => tr(td(cls := "map-link", mapLink(map)))) :::
+          List(tr(td(cls := "map-link", newMapLink(char))))
 
   private def renderLogin(login: Uri) =
     div(
@@ -72,20 +71,19 @@ object LandingPage:
     )
 
   private def renderCharacter(char: UserCharacter) =
-    div(
+    nodeSeq(
       ESI.characterImage(char.characterId, char.name),
-      p(char.name)
+      mark(char.name)
     )
 
   private def newMapLink(char: UserCharacter)(using ct: ControlTowerBackend) =
-    div(
-      button(
-        tpe("button"),
-        "New map",
-        onClick.preventDefault --> { _ =>
-          Modal.show((closeMe, owner) => NewMapDialogView(char, closeMe)(using ct, owner), clickCloses = false)
-        }
-      )
+    button(
+      cls := "new-map",
+      tpe("button"),
+      "New map",
+      onClick.preventDefault --> { _ =>
+        Modal.show((closeMe, owner) => NewMapDialogView(char, closeMe)(using ct, owner), clickCloses = false)
+      }
     )
 
   private def mapLink(map: UserCharacterMap) =

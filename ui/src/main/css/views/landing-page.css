@@ -1,0 +1,57 @@
+.landing-page {
+
+    & table {
+        border-collapse: collapse;
+    }
+
+    & td.character {
+
+        & img.character-image {
+            display: block;
+            border: 2px solid $gray;
+            border-top-left-radius: 7px;
+            border-top-right-radius: 7px;
+        }
+
+        mark {
+            border-bottom: 2px solid $gray;
+            border-left: 2px solid $gray;
+            border-right: 2px solid $gray;
+            display: block;
+            background: $gray-darker;
+            color: $gray-lighter;
+            text-align: center;
+            user-select: none;
+        }
+    }
+
+    & td.map-link {
+        & a, & button.new-map {
+            display: block;
+            height: 2em;
+            min-width: 6em;
+            max-width: 12em;
+            text-align: center;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 0.9em;
+            padding-left: 2px;
+            padding-right: 2px;
+
+            border: 2px solid $gray-darker;
+            color: $gray-lighter;
+            background: $teal-darkest;
+
+            &:hover {
+                border: 2px solid $orange;
+            }
+        }
+
+        & button.new-map {
+            background: $green-dark;
+            color: $gray-lightest;
+        }
+    }
+
+}

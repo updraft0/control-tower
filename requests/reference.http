@@ -3,6 +3,12 @@
 ## These endpoints return "static" data and do not require authentication
 ###
 
+# Most basic request - get the synthetic version of SDE
+# @name GetVersion
+GET {{api}}/reference/version
+
+###
+
 # @name GetRefSolarSystem
 GET {{api}}/reference/system/Rens
 

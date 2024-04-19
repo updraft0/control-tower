@@ -68,10 +68,10 @@ private def checkUserCanAccessMap(
     .transaction {
       for
         maps     <- MapPolicy.allowedMapIdsForUser(user.userId).map(_.filter(_._1 == characterId))
-        mapNames <- MapQueries.getMapNamesByIds(maps.map(_._2))
+        mapNames <- MapQueries.getMapNamesByIds(maps.map(_._2)).map(_.filter(_._2 == mapName))
         _        <- ZIO.when(mapNames.isEmpty)(ZIO.fail(ValidationError("No maps found")))
         _        <- ZIO.when(mapNames.size > 1)(ZIO.fail(ValidationError("Map name is ambiguous")))
-      yield (maps.head._2, maps.head._3)
+      yield maps.find((c, m, _) => c == characterId && m == mapNames.head._1).map((_, m, r) => m -> r).head
     }
     .tapErrorCause(ZIO.logWarningCause("failed while checking user access", _))
     .mapError(toUserError)
