@@ -68,7 +68,13 @@ object LandingPage:
 
   private def renderLogin(login: Uri) =
     div(
-      a(href := login.toString, "Login to Eve Online")
+      a(
+        href := login.toString,
+        img(
+          src := "https://web.ccpgamescdn.com/eveonlineassets/developers/eve-sso-login-black-large.png",
+          alt := "Login to EVE Online"
+        )
+      )
     )
 
   private def renderCharacter(char: UserCharacter) =

@@ -20,10 +20,10 @@ object Users:
         (AuthQueries.getUserCharactersBySessionId(sessionId) <*>
           AuthQueries.getUserByCharacterId(tokenMeta.characterId))
           .flatMap {
-            case (None, None)                  => newUser(jwt, tokenMeta, sessionId)
-            case (None, Some((user, char)))    => newSession(jwt, tokenMeta, user, char, sessionId)
-            case (Some((_, user, _)), None)    => addCharacterToUser(jwt, tokenMeta, user)
-            case (Some(_), Some((user, char))) => updateRefreshToken(jwt, tokenMeta, user, char)
+            case (None, None)                     => newUser(jwt, tokenMeta, sessionId)
+            case (None, Some((user, char)))       => newSession(jwt, tokenMeta, user, char, sessionId)
+            case (Some((session, user, _)), None) => addCharacterToUser(jwt, tokenMeta, user, session)
+            case (Some(_), Some((user, char)))    => updateRefreshToken(jwt, tokenMeta, user, char)
           }
       )
     }
@@ -50,10 +50,19 @@ object Users:
     newUserSession(user.id, sessionId).flatMap(auth.insertUserSession).unit
 
   private def addCharacterToUser(
-      @unused jwt: JwtAuthResponse,
-      @unused tokenMeta: EsiTokenMeta,
-      @unused user: AuthUser
-  ): ZIO[Env, Throwable, Unit] = ??? // FIXME implement this!
+      jwt: JwtAuthResponse,
+      tokenMeta: EsiTokenMeta,
+      user: AuthUser,
+      session: UserSession
+  ): ZIO[Env, Throwable, Unit] =
+    for
+      char <- getUserCharacterFromEsi(tokenMeta.characterId, tokenMeta.characterOwnerHash)
+      _    <- auth.insertUserCharacter(UserCharacter(user.id, char.id))
+      _    <- auth.insertCharacter(char)
+      _ <- auth.insertAuthToken(
+        CharacterAuthToken(tokenMeta.characterId, jwt.accessToken.value, jwt.refreshToken, tokenMeta.expiry, None)
+      )
+    yield ()
 
   private def updateRefreshToken(
       @unused jwt: JwtAuthResponse,
