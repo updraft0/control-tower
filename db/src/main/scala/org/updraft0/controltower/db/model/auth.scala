@@ -22,6 +22,7 @@ case class AuthCharacter(
 
 case class CharacterAuthToken(
     characterId: CharacterId,
+    nonce: String,
     token: String,
     refreshToken: String,
     expiresAt: Instant,

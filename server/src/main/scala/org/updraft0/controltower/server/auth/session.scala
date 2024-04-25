@@ -1,8 +1,8 @@
 package org.updraft0.controltower.server.auth
 
 import org.updraft0.controltower.protocol
-import org.updraft0.controltower.server.{Config, HmacSecret}
-import zio.{FiberRef, URIO, ZIO, ZLayer}
+import org.updraft0.controltower.server.{Config, BytesSecret}
+import zio.*
 
 import java.util.UUID
 import javax.crypto.Mac
@@ -27,7 +27,7 @@ object SessionCookie:
       case _ => None
 
 class SessionCrypto(private val secret: SecretKeySpec, private val callbackSecret: SecretKeySpec):
-  def this(key: HmacSecret, callbackKey: HmacSecret) =
+  def this(key: BytesSecret, callbackKey: BytesSecret) =
     this(secretKeySpec(key), secretKeySpec(callbackKey))
 
 object SessionCrypto:
@@ -35,9 +35,9 @@ object SessionCrypto:
   def layer: ZLayer[Config, Nothing, SessionCrypto] =
     ZLayer(ZIO.serviceWith[Config](c => new SessionCrypto(c.auth.secret, c.auth.esiCallbackSecret)))
 
-  def newSessionCookie: URIO[SessionCrypto, SessionCookie] =
+  def newSessionCookie: RIO[SessionCrypto, SessionCookie] =
     ZIO
-      .randomWith(_.nextUUID)
+      .attempt(UUID.randomUUID())
       .flatMap(uuid =>
         ZIO.serviceWith[SessionCrypto](sc => SessionCookie(uuid, sc.secret.hmac(uuid.toString.getBytes)))
       )
@@ -71,7 +71,7 @@ object SessionCrypto:
 
 private val HmacSha256 = "HmacSHA256"
 
-private def secretKeySpec(key: HmacSecret): SecretKeySpec =
+private def secretKeySpec(key: BytesSecret): SecretKeySpec =
   new SecretKeySpec(Base64.getDecoder.decode(key.value.value.asString), HmacSha256)
 
 extension (s: SecretKeySpec)

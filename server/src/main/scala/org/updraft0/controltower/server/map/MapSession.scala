@@ -16,6 +16,7 @@ import zio.http.ChannelEvent.UserEvent
 import zio.http.{ChannelEvent, Handler, WebSocketChannelEvent, WebSocketFrame}
 import zio.json.*
 import zio.logging.LogAnnotation
+import java.util.UUID
 
 given CanEqual[WebSocketChannelEvent, WebSocketChannelEvent]   = CanEqual.derived
 given CanEqual[ChannelEvent.UserEvent, ChannelEvent.UserEvent] = CanEqual.derived
@@ -100,7 +101,7 @@ object MapSession:
       f: ZIO[R & Scope.Closeable & MapSessionId, Throwable, Any]
   ): ZIO[R, Throwable, Any] =
     for
-      sessionId <- ZIO.randomWith(_.nextUUID).map(MapSessionId(characterId, _))
+      sessionId <- ZIO.attempt(UUID.randomUUID()).map(MapSessionId(characterId, _))
       scope     <- Scope.make
       res <- f.provideSome[R](ZLayer.succeed(scope), ZLayer.succeed(sessionId)) @@ Log.SessionId(
         sessionId.sessionId

@@ -4,7 +4,6 @@ import org.updraft0.controltower.protocol.{SessionCookie as _, *}
 import org.updraft0.controltower.server.Config
 import org.updraft0.controltower.server.Server.EndpointEnv
 import org.updraft0.controltower.server.auth.*
-import org.updraft0.esi.client.EsiClient
 import sttp.client3.UriContext
 import sttp.model.Uri
 import sttp.model.headers.{Cookie, CookieValueWithMeta}
@@ -12,29 +11,26 @@ import sttp.tapir.ztapir.*
 import zio.{Config as _, *}
 import java.util.UUID
 
-def loginRedirect = Endpoints.loginRedirect.zServerLogic[Config & SessionCrypto] { cookieOpt =>
+def loginRedirect = Endpoints.loginRedirect.zServerLogic[Config & SessionCrypto]: cookieOpt =>
   for
     conf                <- ZIO.service[Config]
     now                 <- ZIO.clockWith(_.instant)
     sessionCookieOpt    <- cookieOpt.map(SessionCrypto.validate).getOrElse(ZIO.none)
-    newSessionCookieOpt <- ZIO.when(sessionCookieOpt.isEmpty)(SessionCrypto.newSessionCookie)
+    newSessionCookieOpt <- ZIO.when(sessionCookieOpt.isEmpty)(SessionCrypto.newSessionCookie).orDie
     callbackCode        <- SessionCrypto.callbackCode(sessionCookieOpt.orElse(newSessionCookieOpt).get)
   yield (
     oauth2LoginEndpoint(conf, callbackCode).toString,
     newSessionCookieOpt.map(toCookieValue(conf, _))
   )
-}
 
-def oauth2Callback = Endpoints.oauth2Callback.zServerLogic[Config & javax.sql.DataSource & SessionCrypto & EsiClient] {
-  code =>
-    for
-      redirectBack <- ZIO.serviceWith[Config](uiUrl)
-      sessionIdOpt <- SessionCrypto.validateCallbackCode(code.state)
-      _ <- sessionIdOpt match
-        case None      => ZIO.logWarning("no valid callback session code found, login will not proceed")
-        case Some(sid) => Users.loginCallback(code.code, sid).ignoreLogged
-    yield redirectBack.toString
-}
+def oauth2Callback = Endpoints.oauth2Callback.zServerLogic: code =>
+  for
+    redirectBack <- ZIO.serviceWith[Config](uiUrl)
+    sessionIdOpt <- SessionCrypto.validateCallbackCode(code.state)
+    _ <- sessionIdOpt match
+      case None      => ZIO.logWarning("no valid callback session code found, login will not proceed")
+      case Some(sid) => Users.loginCallback(code.code, sid).ignoreLogged
+  yield redirectBack.toString
 
 def allAuthEndpoints: List[ZServerEndpoint[EndpointEnv, Any]] =
   List(

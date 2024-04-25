@@ -53,6 +53,7 @@ object Endpoints:
     .out(RedirectHeader)
     .out(statusCode(StatusCode.PermanentRedirect))
     .out(setCookieOpt(SessionCookieName))
+    .errorOut(plainBody[String])
     .description("Login to ESI (redirect)")
 
   val oauth2Callback = auth.get

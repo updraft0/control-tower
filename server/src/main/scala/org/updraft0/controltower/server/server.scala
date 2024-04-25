@@ -1,6 +1,6 @@
 package org.updraft0.controltower.server
 
-import org.updraft0.controltower.server.auth.{SessionCrypto, UserSession}
+import org.updraft0.controltower.server.auth.{SessionCrypto, UserSession, TokenCrypto}
 import org.updraft0.controltower.server.endpoints.*
 import org.updraft0.controltower.server.map.MapReactive
 import org.updraft0.controltower.db
@@ -15,11 +15,13 @@ import zio.metrics.connectors.{MetricsConfig, prometheus}
 import zio.metrics.jvm.DefaultJvmMetrics
 import zio.{Config as _, *}
 
+import java.security.SecureRandom
+
 /** Entrypoint into the control-tower server
   */
 object Server extends ZIOAppDefault:
   type EndpointEnv = Config & javax.sql.DataSource & SessionCrypto & EsiClient & SdeClient & UserSession &
-    MapReactive.Service
+    MapReactive.Service & TokenCrypto & SecureRandom
 
   override val bootstrap = Runtime.enableRuntimeMetrics >>> desktopLogger
 
@@ -48,7 +50,9 @@ object Server extends ZIOAppDefault:
           .project(c => SdeClient.Config(c.sde.base)),
         SdeClient.layer,
         MapReactive.layer,
-        DefaultJvmMetrics.live.unit
+        DefaultJvmMetrics.live.unit,
+        TokenCrypto.layer,
+        ZLayer(ZIO.attempt(new SecureRandom()))
       )
 
   private def httpConfigLayer: ZLayer[Config, Throwable, ZServer] =

@@ -32,8 +32,14 @@ case class EsiAuthConfig(
     scopes: List[String],
     keys: EsiKeys
 )
-case class HmacSecret(value: zio.Config.Secret)
-case class AuthConfig(secret: HmacSecret, esi: EsiAuthConfig, esiCallbackSecret: HmacSecret, sessionExpiry: Duration)
+case class BytesSecret(value: zio.Config.Secret)
+case class AuthConfig(
+    secret: BytesSecret,
+    esi: EsiAuthConfig,
+    esiCallbackSecret: BytesSecret,
+    sessionExpiry: Duration,
+    encryptionSecret: BytesSecret
+)
 case class HttpConfig(protocol: String, host: String, listenHost: String, port: Int, uiPort: Int)
 
 case class EsiConfig(base: Uri)
@@ -47,10 +53,10 @@ object Config:
   private given DeriveConfig[zio.Config.Secret]  = DeriveConfig[String].map(zio.Config.Secret.apply)
   private given DeriveConfig[java.nio.file.Path] = DeriveConfig[String].map(java.nio.file.Paths.get(_))
   private given DeriveConfig[Uri]                = DeriveConfig[String].mapAttempt(Uri.unsafeParse)
-  private given DeriveConfig[HmacSecret] = DeriveConfig[zio.Config.Secret].mapOrFail {
-    case s if s.value.length == 44 => Right(HmacSecret(s))
-    case _                         => Left(zio.Config.Error.InvalidData(message = "HMAC secret length != 44"))
-  }
+  private given DeriveConfig[BytesSecret] = DeriveConfig[zio.Config.Secret].mapOrFail:
+    case s if s.value.length == 44 => Right(BytesSecret(s))
+    case _                         => Left(zio.Config.Error.InvalidData(message = "Bytes secret length != 44"))
+
   private given DeriveConfig[DbConfig] = DeriveConfig[java.nio.file.Path].map(DbConfig.apply)
 
   def layer: ZLayer[Any, Throwable, Config] =

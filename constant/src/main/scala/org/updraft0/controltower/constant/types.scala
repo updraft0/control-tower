@@ -2,6 +2,20 @@ package org.updraft0.controltower.constant
 
 import scala.language.implicitConversions
 
+// CharacterId
+opaque type CharacterId = Long
+
+object CharacterId:
+  def apply(i: Long): CharacterId = i
+
+  given Conversion[CharacterId, Long] with
+    override def apply(s: CharacterId): Long = s
+
+  given Ordering[CharacterId] with
+    override def compare(x: CharacterId, y: CharacterId): Int = x.compare(y)
+
+  given CanEqual[CharacterId, CharacterId] = CanEqual.derived
+
 // SigId
 
 opaque type SigId = String

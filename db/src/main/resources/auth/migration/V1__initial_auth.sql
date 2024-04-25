@@ -21,6 +21,7 @@ CREATE TABLE auth.character
 CREATE TABLE auth.character_auth_token
 (
     character_id  INTEGER PRIMARY KEY,
+    nonce         TEXT    NOT NULL,
     token         TEXT    NOT NULL,
     refresh_token TEXT    NOT NULL,
     expires_at    INTEGER NOT NULL,
