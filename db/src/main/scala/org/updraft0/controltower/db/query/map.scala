@@ -1,7 +1,7 @@
 package org.updraft0.controltower.db.query
 
 import io.getquill.*
-import org.updraft0.controltower.constant.{SystemId as _, *}
+import org.updraft0.controltower.constant.{SystemId as _, CharacterId as _, *}
 import org.updraft0.controltower.db.model.*
 import zio.ZIO
 
