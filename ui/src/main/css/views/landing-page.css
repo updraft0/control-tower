@@ -1,6 +1,15 @@
 .landing-page {
 
+    & #map-selection {
+        margin-left: 6em;
+        margin-right: 6em;
+        display: grid;
+        grid-auto-columns: max-content;
+        grid-template-columns: 1fr 1fr 1fr 1fr 1fr; /* TODO hmnn is this really better? */
+    }
+
     & table {
+        display: inline-block;
         border-collapse: collapse;
     }
 

@@ -34,37 +34,36 @@ object LandingPage:
   private def renderCharacterMapSelection(userInfo: UserInfo)(using ControlTowerBackend) =
     val charMaps = userInfo.maps.groupBy(_.characterId)
 
-    table(
-      cls := "map-selection",
-      thead(
-        tr(
-          th("Character"),
-          th("Map")
-        )
-      ),
-      tbody(
-        userInfo.characters
-          .sortBy(_.name)
-          .map(char => char -> charMaps.getOrElse(char.characterId, Nil).sortBy(_.mapName))
-          .map(renderCharacterMaps)
-      )
+    div(
+      idAttr := "map-selection",
+      cls    := "map-selection",
+      userInfo.characters
+        .sortBy(_.name)
+        .map(char => char -> charMaps.getOrElse(char.characterId, Nil).sortBy(_.mapName))
+        .map(renderCharacterMaps)
     )
 
   private def renderCharacterMaps(char: UserCharacter, maps: List[UserCharacterMap])(using ControlTowerBackend) =
     maps match
       case Nil =>
-        List(
-          tr(
-            td(cls := "character", renderCharacter(char)),
-            td(cls := "map-link", newMapLink(char))
+        table(
+          cls := "character-maps",
+          List(
+            tr(
+              td(cls := "character", renderCharacter(char)),
+              td(cls := "map-link", newMapLink(char))
+            )
           )
         )
       case map :: xs =>
-        tr(
-          td(cls := "character", rowSpan := maps.length + 1, renderCharacter(char)),
-          td(cls := "map-link", mapLink(map))
-        ) :: xs.map(map => tr(td(cls := "map-link", mapLink(map)))) :::
-          List(tr(td(cls := "map-link", newMapLink(char))))
+        table(
+          cls := "character-maps",
+          tr(
+            td(cls := "character", rowSpan := maps.length + 1, renderCharacter(char)),
+            td(cls := "map-link", mapLink(map))
+          ) :: xs.map(map => tr(td(cls := "map-link", mapLink(map)))) :::
+            List(tr(td(cls := "map-link", newMapLink(char))))
+        )
 
   private def renderLogin(login: Uri) =
     div(
@@ -77,11 +76,26 @@ object LandingPage:
       )
     )
 
-  private def renderCharacter(char: UserCharacter) =
+  private def renderCharacter(char: UserCharacter)(using ct: ControlTowerBackend) =
+    import com.raquo.laminar.api.features.unitArrows
     nodeSeq(
       ESI.characterImage(char.characterId, char.name),
       div(
-        button(tpe := "button", cls := "logout", cls := "ti", cls := "ti-logout"), // FIXME implement
+        button(
+          tpe := "button",
+          cls := "logout",
+          cls := "ti",
+          cls := "ti-logout",
+          onClick.preventDefault --> Modal.showConfirmation(
+            s"Logout ${char.name}?",
+            s"Are you sure you want to logout ${char.name} from the map",
+            onOk = Observer(_ =>
+              ct.logoutUserCharacter(char.characterId)
+                .onComplete(_ => Routes.router.pushState(Page.Landing))
+            ),
+            isDestructive = true
+          )
+        ),
         mark(char.name)
       )
     )
@@ -112,7 +126,7 @@ object NewMapDialogView:
     val defaultPerm = MapPolicyMember(0L, PolicyMemberType.Character, isDeny = false, MapRole.Viewer)
 
     val validationError = Var(Option.empty[String])
-    val permissionsVar  = FakeVectorVar[MapPolicyMember]()
+    val permissionsVar  = FakeVectorVar[MapPolicyMember]() // TODO use something else!
     permissionsVar.append(MapPolicyMember(char.characterId, PolicyMemberType.Character, isDeny = false, MapRole.Admin))
 
     div(

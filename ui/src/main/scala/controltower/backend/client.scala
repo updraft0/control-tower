@@ -30,6 +30,8 @@ class ControlTowerBackend(
   val getReferenceAll: () => Future[Reference]                = () => callNormalThrows(Endpoints.getAllReference)(())
 
   val getUserInfo: () => Future[Either[String, UserInfo]] = () => callSecure(Endpoints.getUserInfo)(())
+  val logoutUserCharacter: Long => Future[Either[String, Unit]] = (id: Long) =>
+    callSecure(Endpoints.logoutUserCharacter)(id)
 
   val createMap: NewMap => Future[Either[String, MapInfo]] = newMap => callSecure(Endpoints.createMap)(newMap)
   // endregion

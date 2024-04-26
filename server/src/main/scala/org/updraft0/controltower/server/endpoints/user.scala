@@ -44,9 +44,24 @@ def getUserInfo = Endpoints.getUserInfo
         }
   )
 
+def logoutUserCharacter = Endpoints.logoutUserCharacter
+  .zServerSecurityLogic(validateSession)
+  .serverLogic(user =>
+    characterId =>
+      Users
+        .logoutCharacterFromUser(user.sessionId, characterId)
+        .tapErrorCause(ZIO.logWarningCause("failed query", _))
+        .orElseFail("Failure while trying to logout user character")
+        .flatMap {
+          case true  => ZIO.unit
+          case false => ZIO.fail("Unable to remove")
+        }
+  )
+
 def allUserEndpoints: List[ZServerEndpoint[EndpointEnv, Any]] =
   List(
-    getUserInfo.widen[EndpointEnv]
+    getUserInfo.widen[EndpointEnv],
+    logoutUserCharacter.widen[EndpointEnv]
   )
 
 private def toUserInfo(

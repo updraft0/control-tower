@@ -3,6 +3,10 @@ package controltower.ui
 import scala.collection.mutable
 import com.raquo.laminar.api.L.*
 
+/** Workaround for split vars not being mappable - this is an incremental (CollectionCommand) transformer of input
+  * elements of a collection with key that is changing to an output collection that also caches the transformation
+  * result so that no unnecessary DOM changes occur (though this class is more generic than that)
+  */
 class CollectionCommandTransformer[In, Cache, Out, Key](
     key: In => Key,
     cache: Var[In] => Cache,

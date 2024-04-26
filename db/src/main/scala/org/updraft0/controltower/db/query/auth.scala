@@ -34,12 +34,20 @@ object auth:
     inline def mapPolicy          = quote(querySchema[MapPolicy]("auth.map_policy"))
     inline def mapPolicyMember    = quote(querySchema[MapPolicyMember]("auth.map_policy_member"))
 
-  private inline def insert[T](inline entity: Quoted[EntityQuery[T]], inline value: T): Insert[T] = quote {
-    entity.insertValue(value)
-  }
+  private inline def insert[T](inline entity: Quoted[EntityQuery[T]], inline value: T): Insert[T] =
+    quote(entity.insertValue(value))
 
-  def insertCharacter(char: AuthCharacter): DbOperation[Long] =
-    ctx.run(insert(schema.character, lift(char)))
+  def upsertCharacter(char: AuthCharacter): DbOperation[Long] =
+    ctx.run(
+      schema.character
+        .insertValue(lift(char))
+        .onConflictUpdate(_.id)(
+          (t, e) => t.ownerHash -> e.ownerHash,
+          (t, e) => t.corporationId -> e.corporationId,
+          (t, e) => t.allianceId -> e.allianceId,
+          (t, _) => t.updatedAt -> Some(unixepoch)
+        )
+    )
 
   def insertUserCharacter(userChar: UserCharacter): DbOperation[Long] =
     ctx.run(insert(schema.userCharacter, lift(userChar)))
@@ -47,8 +55,23 @@ object auth:
   def insertUserSession(sess: UserSession): DbOperation[Long] =
     ctx.run(insert(schema.userSession, lift(sess)))
 
-  def insertAuthToken(tok: CharacterAuthToken): DbOperation[Long] =
-    ctx.run(insert(schema.characterAuthToken, lift(tok)))
+  def upsertAuthToken(tok: CharacterAuthToken): DbOperation[Long] =
+    ctx.run(
+      schema.characterAuthToken
+        .insertValue(lift(tok))
+        .onConflictUpdate(_.characterId)(
+          (t, e) => t.nonce -> e.nonce,
+          (t, e) => t.refreshToken -> e.refreshToken,
+          (t, e) => t.token -> e.token,
+          (t, e) => t.expiresAt -> e.expiresAt,
+          (t, e) => t.updatedAt -> Some(unixepoch)
+        )
+    )
 
   def insertUser(displayName: String): DbOperation[Long] =
     ctx.run(quote { schema.user.insertValue(AuthUser(0L, lift(displayName), None)).returningGenerated(_.id) })
+
+  def removeCharacterFromUser(userId: Long, characterId: Long): DbOperation[Long] =
+    ctx.run(
+      quote(schema.userCharacter.filter(uc => uc.userId == lift(userId) && uc.characterId == lift(characterId)).delete)
+    )

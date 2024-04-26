@@ -73,6 +73,11 @@ object Endpoints:
     .out(jsonBody[UserInfo])
     .description("Return basic user information including their characters and maps")
 
+  val logoutUserCharacter = user
+    .in("character" / path[Long]("characterId"))
+    .delete
+    .description("Logs a character out from all user's sessions")
+
   // endregion
 
   // region Map

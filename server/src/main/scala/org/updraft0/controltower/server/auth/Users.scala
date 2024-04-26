@@ -10,8 +10,12 @@ import org.updraft0.esi.client.{EsiClient, JwtAuthResponse}
 import zio.*
 
 import java.security.SecureRandom
+import java.time.Instant
 import java.util.UUID
-import scala.annotation.unused
+
+/** In-memory representation of auth for a character
+  */
+case class CharacterAuth(userId: Long, characterId: Long, token: String, refreshToken: Base64, expiry: Instant)
 
 object Users:
   type Env = Config & javax.sql.DataSource & EsiClient & SecureRandom & TokenCrypto
@@ -32,25 +36,39 @@ object Users:
       )
     }
 
+  def logoutCharacterFromUser(sessionId: UUID, characterId: Long): ZIO[Env, Throwable, Boolean] =
+    AuthQueries
+      .getUserCharactersBySessionId(sessionId)
+      .flatMap:
+        case Some((user, _, chars)) if chars.exists(_.id == characterId) =>
+          auth.removeCharacterFromUser(user.userId, characterId).map(count => if (count > 0) true else false)
+        case _ => ZIO.succeed(false)
+
   private def newUser(jwt: JwtAuthResponse, tokenMeta: EsiTokenMeta, sessionId: UUID): ZIO[Env, Throwable, Unit] =
     for
       char   <- getUserCharacterFromEsi(tokenMeta.characterId, tokenMeta.characterOwnerHash)
       userId <- auth.insertUser(displayName = char.name)
       _      <- auth.insertUserCharacter(UserCharacter(userId, char.id))
-      _      <- auth.insertCharacter(char)
+      _      <- auth.upsertCharacter(char)
       _      <- newUserSession(userId, sessionId).flatMap(auth.insertUserSession)
       token  <- encryptJwtResponse(tokenMeta, jwt)
-      _      <- auth.insertAuthToken(token)
+      _      <- auth.upsertAuthToken(token)
     yield ()
 
   private def newSession(
-      @unused jwt: JwtAuthResponse,
-      @unused tokenMeta: EsiTokenMeta,
+      jwt: JwtAuthResponse,
+      tokenMeta: EsiTokenMeta,
       user: AuthUser,
-      @unused char: AuthCharacter,
+      char: AuthCharacter,
       sessionId: UUID
   ): ZIO[Env, Throwable, Unit] =
-    newUserSession(user.id, sessionId).flatMap(auth.insertUserSession).unit
+    for
+      sess  <- newUserSession(user.id, sessionId)
+      _     <- auth.insertUserSession(sess)
+      _     <- auth.upsertCharacter(char)
+      token <- encryptJwtResponse(tokenMeta, jwt)
+      _     <- auth.upsertAuthToken(token)
+    yield ()
 
   private def addCharacterToUser(
       jwt: JwtAuthResponse,
@@ -61,17 +79,23 @@ object Users:
     for
       char  <- getUserCharacterFromEsi(tokenMeta.characterId, tokenMeta.characterOwnerHash)
       _     <- auth.insertUserCharacter(UserCharacter(user.id, char.id))
-      _     <- auth.insertCharacter(char)
+      _     <- auth.upsertCharacter(char)
       token <- encryptJwtResponse(tokenMeta, jwt)
-      _     <- auth.insertAuthToken(token)
+      _     <- auth.upsertAuthToken(token)
     yield ()
 
   private def updateRefreshToken(
-      @unused jwt: JwtAuthResponse,
-      @unused tokenMeta: EsiTokenMeta,
-      @unused user: AuthUser,
-      @unused char: AuthCharacter
-  ): ZIO[Env, Throwable, Unit] = ZIO.logWarning("TODO updateRefreshToken not implemented") // FIXME implement this?
+      jwt: JwtAuthResponse,
+      tokenMeta: EsiTokenMeta,
+      user: AuthUser,
+      char: AuthCharacter
+  ): ZIO[Env, Throwable, Unit] =
+    for
+      char  <- getUserCharacterFromEsi(tokenMeta.characterId, tokenMeta.characterOwnerHash)
+      _     <- auth.upsertCharacter(char)
+      token <- encryptJwtResponse(tokenMeta, jwt)
+      _     <- auth.upsertAuthToken(token)
+    yield ()
 
   private def newUserSession(userId: Long, sessionId: UUID) =
     for
