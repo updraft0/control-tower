@@ -2,7 +2,7 @@ package org.updraft0.controltower.server
 
 import org.updraft0.controltower.server.auth.{SessionCrypto, UserSession, TokenCrypto}
 import org.updraft0.controltower.server.endpoints.*
-import org.updraft0.controltower.server.map.MapReactive
+import org.updraft0.controltower.server.map.{MapReactive, MapSessionManager}
 import org.updraft0.controltower.db
 import org.updraft0.esi.client.{EsiClient, SdeClient}
 import org.updraft0.minireactive.MiniReactive
@@ -21,7 +21,7 @@ import java.security.SecureRandom
   */
 object Server extends ZIOAppDefault:
   type EndpointEnv = Config & javax.sql.DataSource & SessionCrypto & EsiClient & SdeClient & UserSession &
-    MapReactive.Service & TokenCrypto & SecureRandom
+    MapReactive.Service & TokenCrypto & SecureRandom & MapSessionManager
 
   override val bootstrap = Runtime.enableRuntimeMetrics >>> desktopLogger
 
@@ -52,7 +52,8 @@ object Server extends ZIOAppDefault:
         MapReactive.layer,
         DefaultJvmMetrics.live.unit,
         TokenCrypto.layer,
-        ZLayer(ZIO.attempt(new SecureRandom()))
+        ZLayer(ZIO.attempt(new SecureRandom())),
+        MapSessionManager.layer
       )
 
   private def httpConfigLayer: ZLayer[Config, Throwable, ZServer] =

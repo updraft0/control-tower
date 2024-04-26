@@ -6,7 +6,7 @@ import org.updraft0.controltower.protocol.{SessionCookie as _, *}
 import org.updraft0.controltower.server.Server.EndpointEnv
 import org.updraft0.controltower.server.auth.*
 import org.updraft0.controltower.server.db.{AuthQueries, MapQueries}
-import org.updraft0.controltower.server.map.MapSession
+import org.updraft0.controltower.server.map.{MapSessionManager, MapSession}
 import sttp.capabilities.zio.ZioStreams
 import sttp.tapir.ztapir.*
 import zio.{Config as _, *}
@@ -45,11 +45,15 @@ def mapWebSocket: zio.http.HttpApp[EndpointEnv] =
   Routes(
     Method.GET / "api" / "map" / string("mapName") / long("characterId") / "ws" ->
       handler { (mapName: String, characterId: Long, req: Request) =>
-        validCookie(req).flatMap(user =>
-          checkUserCanAccessMap(user, characterId, mapName)
-            .mapError(Response.text(_).status(Status.Unauthorized))
-            .flatMap((mapId, mapRole) => MapSession(mapId, characterId, user.userId, mapRole).toResponse)
-        )
+        ZIO.scoped:
+          for
+            user        <- validCookie(req)
+            sessionMsgs <- ZIO.serviceWithZIO[MapSessionManager](_.messages)
+            mapTup <- checkUserCanAccessMap(user, characterId, mapName)
+              .mapError(Response.text(_).status(Status.Unauthorized))
+            (mapId, mapRole) = mapTup
+            resp <- MapSession(mapId, characterId, user.userId, mapRole, sessionMsgs).toResponse
+          yield resp
       }
   ).toHttpApp
 

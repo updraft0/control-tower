@@ -3,7 +3,7 @@ package controltower.page.map.view
 import com.raquo.laminar.api.L.*
 import controltower.backend.ESI
 import controltower.component.*
-import controltower.page.map.MapAction
+import controltower.page.map.{MapAction, RoleController}
 import controltower.ui.*
 import org.updraft0.controltower.protocol.*
 
@@ -37,6 +37,7 @@ class SystemSignatureView(
     selected: Signal[Option[MapSystemSnapshot]],
     actions: WriteBus[MapAction],
     settings: Signal[MapSettings],
+    mapRole: Signal[MapRole],
     time: Signal[Instant]
 ) extends ViewController:
 
@@ -50,7 +51,7 @@ class SystemSignatureView(
       hideIfEmptyOpt(selected),
       table(
         children <-- selected.map {
-          case Some(selected) => sigView(selected, filter, staticData, settings, time, actions)
+          case Some(selected) => sigView(selected, filter, staticData, settings, mapRole, time, actions)
           case None           => nodeSeq()
         }
       )
@@ -61,6 +62,7 @@ private inline def sigView(
     currentFilter: Var[SignatureFilter],
     static: SystemStaticData,
     settings: Signal[MapSettings],
+    mapRole: Signal[MapRole],
     time: Signal[Instant],
     actions: WriteBus[MapAction]
 ) =
@@ -102,6 +104,7 @@ private inline def sigView(
               typ    := "button",
               cls    := "ti",
               cls    := "ti-clipboard-plus",
+              disabled <-- mapRole.map(!RoleController.canEditSignatures(_)),
               onClick.stopPropagation.mapToUnit --> (_ =>
                 Modal.show(
                   pasteSignaturesView(
@@ -124,6 +127,7 @@ private inline def sigView(
               typ    := "button",
               cls    := "ti",
               cls    := "ti-plus",
+              disabled <-- mapRole.map(!RoleController.canEditSignatures(_)),
               onClick.stopPropagation.mapToUnit --> (_ =>
                 Modal.show(
                   addSingleSignatureView(
@@ -142,7 +146,12 @@ private inline def sigView(
             button(
               idAttr := "sig-edit-signature",
               typ    := "button",
-              disabled <-- selectedSigs.signal.map(_.size != 1),
+              disabled <-- Signal
+                .combine(
+                  selectedSigs.signal.map(_.size != 1),
+                  mapRole.map(!RoleController.canEditSignatures(_))
+                )
+                .mapN(_ || _),
               cls := "ti",
               cls := "ti-pencil",
               onClick.stopPropagation.mapToUnit.compose(_.withCurrentValueOf(selectedSigs.signal)) --> (selected =>
@@ -164,7 +173,12 @@ private inline def sigView(
             button(
               idAttr := "sig-remove-selected",
               typ    := "button",
-              disabled <-- selectedSigs.signal.map(_.isEmpty),
+              disabled <-- Signal
+                .combine(
+                  selectedSigs.signal.map(_.isEmpty),
+                  mapRole.map(!RoleController.canEditSignatures(_))
+                )
+                .mapN(_ || _),
               cls := "sig-destructive",
               cls := "ti",
               cls := "ti-eraser",
@@ -182,6 +196,7 @@ private inline def sigView(
               cls    := "sig-destructive",
               cls    := "ti",
               cls    := "ti-clear-all",
+              disabled <-- mapRole.map(!RoleController.canEditSignatures(_)),
               onClick.stopPropagation.mapToUnit --> (_ =>
                 Modal.showConfirmation(
                   "Remove all signatures?",
@@ -234,7 +249,8 @@ private inline def sigView(
             )
           },
           solarSystem,
-          static
+          static,
+          isEditingDisabled = mapRole.map(!RoleController.canEditSignatures(_))
         )
       )
     )
@@ -249,7 +265,8 @@ private def signatureRow(
     sig: MapSystemSignature,
     connections: Array[ConnectionTarget.Wormhole],
     solarSystem: SolarSystem,
-    static: SystemStaticData
+    static: SystemStaticData,
+    isEditingDisabled: Observable[Boolean]
 ) =
   val toggleSelected = selectedSigs.toggle(SigId(sig.id))
   val isSelected     = selectedSigs.isSelected(SigId(sig.id))
@@ -259,7 +276,8 @@ private def signatureRow(
     val group = Var(s.signatureGroup)
     val dropdown = OptionDropdown(
       SignatureGroup.values.toSeq.filterNot(s.signatureGroup != SignatureGroup.Unknown && _ == SignatureGroup.Unknown),
-      group
+      group,
+      isDisabled = isEditingDisabled
     )
     td(
       cls := "signature-group",
@@ -283,7 +301,7 @@ private def signatureRow(
     val signaturesInGroup =
       solarSystem.systemClass.flatMap(whc => static.signatureByClassAndGroup(whc).get(s.group)).toList.flatten
 
-    val dropdown = OptionDropdown(signaturesInGroup, sigType)
+    val dropdown = OptionDropdown(signaturesInGroup, sigType, isDisabled = isEditingDisabled)
 
     td(
       cls := "signature-type",
@@ -306,7 +324,7 @@ private def signatureRow(
     val wormholeType       = Var(possibleWormholeTypes.find(_.connectionType == w.connectionType).get)
     given SystemStaticData = static
 
-    val dropdown = OptionDropdown(possibleWormholeTypes, wormholeType)
+    val dropdown = OptionDropdown(possibleWormholeTypes, wormholeType, isDisabled = isEditingDisabled)
 
     td(
       cls := "signature-type",
@@ -319,8 +337,12 @@ private def signatureRow(
     )
 
   def wormholeTargetSelect(w: MapSystemSignature.Wormhole) =
-    val current  = Var(w.connectionId.flatMap(cId => connections.find(_.id == cId)).getOrElse(ConnectionTarget.Unknown))
-    val dropdown = OptionDropdown(connections.prepended(ConnectionTarget.Unknown).toIndexedSeq, current)
+    val current = Var(w.connectionId.flatMap(cId => connections.find(_.id == cId)).getOrElse(ConnectionTarget.Unknown))
+    val dropdown = OptionDropdown(
+      connections.prepended(ConnectionTarget.Unknown).toIndexedSeq,
+      current,
+      isDisabled = isEditingDisabled
+    )
     td(
       cls := "signature-target",
       cls := "editable",

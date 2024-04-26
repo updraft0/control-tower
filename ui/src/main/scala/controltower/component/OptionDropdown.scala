@@ -14,7 +14,8 @@ trait DropdownItem[E]:
 class OptionDropdown[E](
     options: Seq[E],
     current: Var[E],
-    @scala.annotation.unused mouseLeaveDelay: Duration = 500.millis
+    mouseLeaveDelay: Duration = 500.millis,
+    isDisabled: Observable[Boolean] = Val(false)
 )(using D: DropdownItem[E], @scala.annotation.unused _ce: CanEqual[E, E]):
 
   private val parentId = s"option-dropdown-${hashCode().abs}"
@@ -32,9 +33,10 @@ class OptionDropdown[E](
 //        expanded.set(true)
 //    },
     button(
-      cls           := "select-button",
-      typ           := "button",
-      role          := "combobox",
+      cls  := "select-button",
+      typ  := "button",
+      role := "combobox",
+      disabled <-- isDisabled,
       aria.hasPopup := true,
 //      aria.labelledBy := "select button", FIXME
       aria.expanded <-- expanded,

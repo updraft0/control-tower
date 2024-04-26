@@ -6,6 +6,7 @@ import org.updraft0.controltower.protocol.MapRole
   */
 object RoleController:
   def canAddSystem(role: MapRole): Boolean         = notViewer(role)
+  def canEditSignatures(role: MapRole): Boolean    = notViewer(role)
   def canRemoveSystem(role: MapRole): Boolean      = notViewer(role)
   def canRenameSystem(role: MapRole): Boolean      = notViewer(role)
   def canRepositionSystem(role: MapRole): Boolean  = notViewer(role)

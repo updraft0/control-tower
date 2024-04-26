@@ -94,7 +94,14 @@ private class MapView(
         controller.selectedSystem.map(_.map(mss => SystemInfo(mss.system.systemId, mss.system.name)))
       )
     val systemSignatureView =
-      SystemSignatureView(static, controller.selectedSystem, mapCtx.actions, controller.mapSettings, time)
+      SystemSignatureView(
+        static,
+        controller.selectedSystem,
+        mapCtx.actions,
+        controller.mapSettings,
+        mapCtx.mapRole,
+        time
+      )
 
     val systemNodesTransformer = CollectionCommandTransformer[MapSystemSnapshot, SystemView, Element, Long](
       _.system.systemId,

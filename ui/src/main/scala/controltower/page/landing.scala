@@ -13,6 +13,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success}
 
 object LandingPage:
+  val LoginWithEveImageUrlLarge = "https://web.ccpgamescdn.com/eveonlineassets/developers/eve-sso-login-black-large.png"
+
   def renderPage(using ct: ControlTowerBackend) =
     val userInfo = Var[Option[UserInfo]](None)
 
@@ -69,10 +71,7 @@ object LandingPage:
     div(
       a(
         href := login.toString,
-        img(
-          src := "https://web.ccpgamescdn.com/eveonlineassets/developers/eve-sso-login-black-large.png",
-          alt := "Login to EVE Online"
-        )
+        img(src := LoginWithEveImageUrlLarge, alt := "Login to EVE Online")
       )
     )
 
@@ -166,7 +165,6 @@ object NewMapDialogView:
             val perms = permissionsVar.now().filterNot(_._2.memberId == 0).map(_._2)
 
             val newMap = NewMap(name, perms.toArray, MapDisplayType.Manual)
-            dom.console.debug(s"creating new map: ${newMap}")
             ct.createMap(newMap).onComplete {
               case Failure(ex)          => dom.console.error("failed to call newMap", ex) // FIXME this isn't called??
               case Success(Left(error)) => validationError.set(Some(error))
@@ -189,6 +187,7 @@ object NewMapDialogView:
         )
       ),
       td(
+        // TODO refactor out the select to be generic
         select(
           controlled(
             value <-- policyVar.signal.map(_.memberType.toString),
@@ -196,10 +195,7 @@ object NewMapDialogView:
               m.copy(memberType = PolicyMemberType.valueOf(s))
             )
           ),
-          // FIXME quick hack to hardcode, cannot use varargs as they cannot be spliced in currently
-          option(value := PolicyMemberType.Character.toString, PolicyMemberType.Character.toString),
-          option(value := PolicyMemberType.Alliance.toString, PolicyMemberType.Alliance.toString),
-          option(value := PolicyMemberType.Corporation.toString, PolicyMemberType.Corporation.toString)
+          PolicyMemberType.values.map(pmt => option(value := pmt.toString, pmt.toString))
         )
       ),
       td(
@@ -208,10 +204,7 @@ object NewMapDialogView:
             value <-- policyVar.signal.map(_.role.toString),
             onChange.mapToValue --> policyVar.onUpdateZoom[String]((m, s) => m.copy(role = MapRole.valueOf(s)))
           ),
-          // FIXME see PolicyMemberType above
-          option(value := MapRole.Admin.toString, MapRole.Admin.toString),
-          option(value := MapRole.Viewer.toString, MapRole.Viewer.toString),
-          option(value := MapRole.Editor.toString, MapRole.Editor.toString)
+          MapRole.values.map(mr => option(value := mr.toString, mr.toString))
         )
       ),
       td(

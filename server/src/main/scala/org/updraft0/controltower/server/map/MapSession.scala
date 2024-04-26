@@ -23,6 +23,9 @@ given CanEqual[ChannelEvent.UserEvent, ChannelEvent.UserEvent] = CanEqual.derive
 
 // TODO: check permissions!
 
+enum MapSessionMessage:
+  case RoleChanged(characterId: Long, role: Option[model.MapRole])
+
 /** Loosely, a map "session" is an open WebSocket for a single (character, map)
   *
   * @note
@@ -47,14 +50,16 @@ object MapSession:
       mapRole: Ref[model.MapRole],
       mapQ: Enqueue[Identified[MapRequest]],
       resQ: Dequeue[Identified[MapResponse]],
-      ourQ: Queue[protocol.MapMessage]
+      ourQ: Queue[protocol.MapMessage],
+      metaQ: Dequeue[MapSessionMessage]
   )
 
   def apply(
       mapId: MapId,
       characterId: Long,
       userId: Long,
-      initialRole: model.MapRole
+      initialRole: model.MapRole,
+      sessionMessages: Dequeue[MapSessionMessage]
   ) = Handler.webSocket: chan =>
     inContext(mapId, characterId, userId)(
       for
@@ -65,7 +70,7 @@ object MapSession:
         resQ    <- mapE.subscribe(mapId)
         ourQ    <- Queue.bounded[protocol.MapMessage](OurQueueSize)
         mapRole <- Ref.make(initialRole)
-        ctx = Context(mapId, sid, userId, mapRole, mapQ, resQ, ourQ)
+        ctx = Context(mapId, sid, userId, mapRole, mapQ, resQ, ourQ, sessionMessages)
         // close the scope (and the subscription) if the websocket is closed
         _ <- ZIO
           .serviceWithZIO[Scope.Closeable](scope =>
@@ -76,10 +81,11 @@ object MapSession:
           .forkDaemon
         // run the receive from websocket -> queue of inbox and receive from outbox --> websocket in parallel, in scope
         recv <- ZIO
-          .whileLoop(true)(chan.receive.flatMap(decodeMessage(_)).flatMap {
-            case Right(msg)  => processMessage(ctx, msg).unit
-            case Left(error) => ourQ.offer(protocol.MapMessage.Error(error)).ignoreLogged
-          })(identity)
+          .whileLoop(true)((chan.receive.flatMap(decodeMessage(_)) <*> mapRole.get).flatMap:
+            case (Right(msg), mapRole) if isAllowed(msg, mapRole) => processMessage(ctx, msg).unit
+            case (Right(msg), mapRole) => ourQ.offer(protocol.MapMessage.Error("Permission denied")).ignoreLogged
+            case (Left(error), _)      => ourQ.offer(protocol.MapMessage.Error(error)).ignoreLogged
+          )(identity)
           .forkScoped
         send <- ZIO
           .whileLoop(true)(resQ.take.map(filterToProto(sid)(_)).flatMap {
@@ -91,6 +97,16 @@ object MapSession:
           .whileLoop(true)(ourQ.take.flatMap(msg => chan.send(ChannelEvent.Read(WebSocketFrame.Text(msg.toJson)))))(
             identity
           )
+          .forkScoped
+        // process any session messages
+        _ <- ZIO
+          .whileLoop(true)(sessionMessages.take.flatMap:
+            case MapSessionMessage.RoleChanged(charId, Some(newRole)) =>
+              mapRole.set(newRole).when(charId == characterId)
+            case MapSessionMessage.RoleChanged(charId, None) =>
+              // this should close the map
+              ZIO.logInfo(s"character no longer has any roles") *> ZIO.interrupt
+          )(identity)
           .forkScoped
         _ <- recv.join
         _ <- send.join
@@ -204,6 +220,11 @@ object MapSession:
           MapRequest.RemoveSystemSignatures(systemId, None)
         )
       )
+
+private def isAllowed(msg: protocol.MapRequest, role: model.MapRole): Boolean = (msg, role) match
+  case (protocol.MapRequest.GetMapInfo | protocol.MapRequest.GetSnapshot, _) => true
+  case (_, model.MapRole.Viewer)                                             => false
+  case (_, _)                                                                => true
 
 private def filterToProto(sessionId: MapSessionId)(msg: Identified[MapResponse]): Option[protocol.MapMessage] =
   if (msg.sessionId.forall(_ == sessionId)) toProto(msg.value) else None
