@@ -4,13 +4,14 @@ import com.raquo.laminar.api.L.*
 import controltower.{Page, Routes}
 import controltower.backend.ESI
 import controltower.ui.ViewController
+import org.updraft0.controltower.constant.CharacterId
 import org.updraft0.controltower.protocol.*
 
 import java.time.{Instant, LocalDate, LocalTime}
 
 class NavTopView(
     mapName: String,
-    characterId: Long,
+    characterId: Signal[CharacterId],
     time: Signal[Instant],
     mapRole: Signal[MapRole],
     isConnected: Signal[Boolean]
@@ -29,9 +30,9 @@ class NavTopView(
 private def navButton(id: String, mods: Modifier[Button]*) =
   button(idAttr := id, tpe := "button", cls := "nav-button", mods)
 
-private def userInfo(mapName: String, characterId: Long, mapRole: Signal[MapRole]) =
+private def userInfo(mapName: String, characterId: Signal[CharacterId], mapRole: Signal[MapRole]) =
   nodeSeq(
-    ESI.characterImage(characterId, "???", size = CharacterImageSize),
+    ESI.characterImageS(characterId.map(id => id -> "?"), size = CharacterImageSize),
     span(cls := "map-role", child.text <-- mapRole.map(r => s"${mapName}/${r.toString}"))
   )
 

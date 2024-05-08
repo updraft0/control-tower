@@ -2,6 +2,7 @@ package org.updraft0.controltower.server.db
 
 import io.getquill.*
 import io.getquill.extras.*
+import org.updraft0.controltower.constant.CharacterId
 import org.updraft0.controltower.db.model
 import org.updraft0.controltower.db.query.*
 import zio.*
@@ -9,7 +10,7 @@ import zio.*
 import javax.sql.DataSource
 import java.util.UUID
 
-case class CharacterMapRole(characterId: Long, mapId: Long, role: model.MapRole)
+case class CharacterMapRole(characterId: CharacterId, mapId: Long, role: model.MapRole)
 
 /** Queries for user/auth related operations
   */
@@ -27,9 +28,12 @@ object AuthQueries:
         .filter(us => sql"${us.expiresAt} > (unixepoch() * 1000)".asCondition)
     }
 
+  def getCharacterByName(name: String): Result[Option[model.AuthCharacter]] =
+    run(quote(character.filter(_.name == lift(name)))).map(_.headOption)
+
   def getUserCharacterByIdAndCharId(
       userId: Long,
-      characterId: Long
+      characterId: CharacterId
   ): Result[Option[(model.AuthUser, model.AuthCharacter)]] =
     getUserCharactersById(userId).map(_.flatMap((u, chars) => chars.find(_.id == characterId).map(c => (u -> c))))
 
@@ -62,7 +66,7 @@ object AuthQueries:
       case xs  => Some(xs.head._1, xs.head._2, xs.map(_._3))
     }
 
-  def getUserByCharacterId(characterId: Long): Result[Option[(model.AuthUser, model.AuthCharacter)]] =
+  def getUserByCharacterId(characterId: CharacterId): Result[Option[(model.AuthUser, model.AuthCharacter)]] =
     run(quote {
       (for
         charJoin <- userCharacter.filter(_.characterId == lift(characterId))
@@ -75,17 +79,20 @@ object AuthQueries:
       case _        => None
     }
 
-  def getMapPoliciesForCharacter(characterIds: List[Long]): Result[Map[Long, List[model.MapPolicyMember]]] =
-    inline def userRoles(inline cids: List[Long]) = quote {
+  def getMapPoliciesForCharacter(
+      characterIds: List[CharacterId]
+  ): Result[Map[CharacterId, List[model.MapPolicyMember]]] =
+    inline def userRoles(inline cids: List[CharacterId]) = quote {
       for
         char <- character.filter(c => liftQuery(cids).contains(c.id))
         roles <- mapPolicyMember
-          .join(_.memberId == char.id)
+          .join(m => infix"${m.memberId} = ${char.id}".asCondition)
+          // .join(_.memberId == char.id) FIXME workaround against opaque type vs non-opaque join
           .filter(_.memberType == lift(model.PolicyMemberType.Character))
       yield char.id -> roles
     }
 
-    inline def userCorporationRoles(inline cids: List[Long]) = quote {
+    inline def userCorporationRoles(inline cids: List[CharacterId]) = quote {
       for
         char <- character.filter(c => liftQuery(cids).contains(c.id))
         roles <- mapPolicyMember
@@ -94,7 +101,7 @@ object AuthQueries:
       yield char.id -> roles
     }
 
-    inline def userAllianceRoles(inline cids: List[Long]) = quote {
+    inline def userAllianceRoles(inline cids: List[CharacterId]) = quote {
       for
         char <- character.filter(c => liftQuery(cids).contains(c.id))
         roles <- mapPolicyMember

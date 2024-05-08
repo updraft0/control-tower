@@ -124,17 +124,17 @@ enum WormholeConnectionType derives CanEqual:
 enum MapSystemSignature(
     val id: String,
     val createdAt: Instant,
-    val createdByCharacterId: Long,
+    val createdByCharacterId: CharacterId,
     val updatedAt: Instant,
-    val updatedByCharacterId: Long,
+    val updatedByCharacterId: CharacterId,
     val signatureGroup: SignatureGroup
 ) derives CanEqual:
   case Unknown(
       override val id: String,
       override val createdAt: Instant,
-      override val createdByCharacterId: Long,
+      override val createdByCharacterId: CharacterId,
       override val updatedAt: Instant,
-      override val updatedByCharacterId: Long
+      override val updatedByCharacterId: CharacterId
   ) extends MapSystemSignature(
         id,
         createdAt,
@@ -151,9 +151,9 @@ enum MapSystemSignature(
       massSize: WormholeMassSize,
       connectionId: Option[Long],
       override val createdAt: Instant,
-      override val createdByCharacterId: Long,
+      override val createdByCharacterId: CharacterId,
       override val updatedAt: Instant,
-      override val updatedByCharacterId: Long
+      override val updatedByCharacterId: CharacterId
   ) extends MapSystemSignature(
         id,
         createdAt,
@@ -168,9 +168,9 @@ enum MapSystemSignature(
       group: SignatureGroup,
       name: Option[String],
       override val createdAt: Instant,
-      override val createdByCharacterId: Long,
+      override val createdByCharacterId: CharacterId,
       override val updatedAt: Instant,
-      override val updatedByCharacterId: Long
+      override val updatedByCharacterId: CharacterId
   ) extends MapSystemSignature(
         id,
         createdAt,
@@ -286,7 +286,7 @@ enum MapMessage:
   case ConnectionsRemoved(connections: Array[MapWormholeConnection])
   case Error(message: String)
   case MapSnapshot(systems: Map[Long, MapSystemSnapshot], connections: Map[Long, MapWormholeConnectionWithSigs])
-  case MapMeta(info: MapInfo, role: MapRole)
+  case MapMeta(characterId: CharacterId, info: MapInfo, role: MapRole)
   case SystemSnapshot(systemId: Long, system: MapSystemSnapshot, connections: Map[Long, MapWormholeConnectionWithSigs])
   case SystemDisplayUpdate(systemId: Long, name: Option[String], displayData: SystemDisplayData)
   case SystemRemoved(systemId: Long)

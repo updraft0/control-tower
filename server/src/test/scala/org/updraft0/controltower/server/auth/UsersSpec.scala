@@ -1,5 +1,6 @@
 package org.updraft0.controltower.server.auth
 
+import org.updraft0.controltower.constant.CharacterId
 import org.updraft0.esi.client.{JwtAuthResponse, JwtString}
 import zio.*
 import zio.test.*
@@ -27,7 +28,7 @@ object UsersSpec extends ZIOSpecDefault:
           enc <- Users.encryptJwtResponse(meta, jwt)
           dec <- Users.decryptAuthToken(enc)
         yield assertTrue(
-          enc.characterId == 1234L,
+          enc.characterId == CharacterId(1234L),
           enc.expiresAt == meta.expiry,
           enc.refreshToken == encrypt(
             Base64.raw(enc.nonce),

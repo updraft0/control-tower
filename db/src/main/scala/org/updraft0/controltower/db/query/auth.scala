@@ -1,12 +1,16 @@
 package org.updraft0.controltower.db.query
 
 import io.getquill.*
+import org.updraft0.controltower.constant.CharacterId
 import org.updraft0.controltower.db.model.*
 import zio.ZIO
 
 object auth:
   import schema.*
   import ctx.*
+
+  given MappedEncoding[Long, CharacterId] = MappedEncoding(CharacterId.apply)
+  given MappedEncoding[CharacterId, Long] = MappedEncoding(identity)
 
   // TODO: not sure about location of these
   given MappedEncoding[String, MapRole] = MappedEncoding {
@@ -71,7 +75,7 @@ object auth:
   def insertUser(displayName: String): DbOperation[Long] =
     ctx.run(quote { schema.user.insertValue(AuthUser(0L, lift(displayName), None)).returningGenerated(_.id) })
 
-  def removeCharacterFromUser(userId: Long, characterId: Long): DbOperation[Long] =
+  def removeCharacterFromUser(userId: Long, characterId: CharacterId): DbOperation[Long] =
     ctx.run(
       quote(schema.userCharacter.filter(uc => uc.userId == lift(userId) && uc.characterId == lift(characterId)).delete)
     )

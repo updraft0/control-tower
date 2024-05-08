@@ -1,5 +1,6 @@
 package org.updraft0.controltower.server.map
 
+import org.updraft0.controltower.constant.CharacterId
 import org.updraft0.controltower.db.model.*
 import zio.test.*
 import java.time.Instant
@@ -7,8 +8,8 @@ import java.util.UUID
 
 object MapReactiveSpec extends ZIOSpecDefault:
 
-  val DummySession  = MapSessionId(12345L, UUID.fromString("40000000-3000-2000-1000-000000000000"))
-  val DummySession2 = MapSessionId(67890L, UUID.fromString("50000000-6000-7000-8000-900000000000"))
+  val DummySession  = MapSessionId(CharacterId(12345L), UUID.fromString("40000000-3000-2000-1000-000000000000"))
+  val DummySession2 = MapSessionId(CharacterId(67890L), UUID.fromString("50000000-6000-7000-8000-900000000000"))
 
   val Time1 = Instant.ofEpochMilli(201000L)
   val Time2 = Instant.ofEpochMilli(202000L)
@@ -93,9 +94,9 @@ object MapReactiveSpec extends ZIOSpecDefault:
           "REL-001",
           signatureGroup = SignatureGroup.Unknown,
           createdAt = Time1,
-          createdByCharacterId = 42L,
+          createdByCharacterId = CharacterId(42L),
           updatedAt = Time1,
-          updatedByCharacterId = 42L
+          updatedByCharacterId = CharacterId(42L)
         )
         val newSig = NewMapSystemSignature("REL-001", SignatureGroup.Relic, Some("Decayed Blood Raider Mass Grave"))
         val expected = modelSignature(
@@ -105,7 +106,7 @@ object MapReactiveSpec extends ZIOSpecDefault:
           signatureGroup = SignatureGroup.Relic,
           signatureTypeName = Some("Decayed Blood Raider Mass Grave"),
           createdAt = Time1,
-          createdByCharacterId = 42L,
+          createdByCharacterId = CharacterId(42L),
           updatedAt = Time2,
           updatedByCharacterId = DummySession.characterId
         )
@@ -120,9 +121,9 @@ object MapReactiveSpec extends ZIOSpecDefault:
           "WHO-003",
           signatureGroup = SignatureGroup.Unknown,
           createdAt = Time1,
-          createdByCharacterId = 42L,
+          createdByCharacterId = CharacterId(42L),
           updatedAt = Time1,
-          updatedByCharacterId = 42L
+          updatedByCharacterId = CharacterId(42L)
         )
         val newSig = NewMapSystemSignature("WHO-003", SignatureGroup.Wormhole)
         val expected = modelSignature(
@@ -133,7 +134,7 @@ object MapReactiveSpec extends ZIOSpecDefault:
           wormholeMassSize = Some(WormholeMassSize.Unknown),
           wormholeMassStatus = Some(WormholeMassStatus.Unknown),
           createdAt = Time1,
-          createdByCharacterId = 42L,
+          createdByCharacterId = CharacterId(42L),
           updatedAt = Time2,
           updatedByCharacterId = DummySession.characterId
         )
@@ -150,9 +151,9 @@ object MapReactiveSpec extends ZIOSpecDefault:
           wormholeMassSize = Some(WormholeMassSize.Unknown),
           wormholeMassStatus = Some(WormholeMassStatus.Unknown),
           createdAt = Time1,
-          createdByCharacterId = 42L,
+          createdByCharacterId = CharacterId(42L),
           updatedAt = Time1,
-          updatedByCharacterId = 42L
+          updatedByCharacterId = CharacterId(42L)
         )
         val newSig = NewMapSystemSignature(
           "WHO-004",
@@ -169,7 +170,7 @@ object MapReactiveSpec extends ZIOSpecDefault:
           wormholeMassStatus = Some(WormholeMassStatus.Fresh),
           wormholeK162Type = Some(WormholeK162Type.Dangerous),
           createdAt = Time1,
-          createdByCharacterId = 42L,
+          createdByCharacterId = CharacterId(42L),
           updatedAt = Time2,
           updatedByCharacterId = DummySession.characterId
         )
@@ -186,9 +187,9 @@ object MapReactiveSpec extends ZIOSpecDefault:
           wormholeMassSize = Some(WormholeMassSize.Unknown),
           wormholeMassStatus = Some(WormholeMassStatus.Unknown),
           createdAt = Time1,
-          createdByCharacterId = 42L,
+          createdByCharacterId = CharacterId(42L),
           updatedAt = Time1,
-          updatedByCharacterId = 42L
+          updatedByCharacterId = CharacterId(42L)
         )
         val newSig = NewMapSystemSignature(
           "WHO-005",
@@ -206,7 +207,7 @@ object MapReactiveSpec extends ZIOSpecDefault:
           wormholeMassStatus = Some(WormholeMassStatus.Fresh),
           wormholeTypeId = Some(34439),
           createdAt = Time1,
-          createdByCharacterId = 42L,
+          createdByCharacterId = CharacterId(42L),
           updatedAt = Time2,
           updatedByCharacterId = DummySession.characterId
         )
@@ -225,9 +226,9 @@ object MapReactiveSpec extends ZIOSpecDefault:
           wormholeTypeId = Some(34439),
           wormholeConnectionId = Some(1234L),
           createdAt = Time1,
-          createdByCharacterId = 42L,
+          createdByCharacterId = CharacterId(42L),
           updatedAt = Time1,
-          updatedByCharacterId = 42L
+          updatedByCharacterId = CharacterId(42L)
         )
         val newSig = NewMapSystemSignature("WHO-006", SignatureGroup.Wormhole)
         val expected = prevSig.copy(
@@ -249,9 +250,9 @@ object MapReactiveSpec extends ZIOSpecDefault:
           wormholeEolAt = Some(Time1),
           wormholeTypeId = Some(34439),
           createdAt = Time1,
-          createdByCharacterId = 42L,
+          createdByCharacterId = CharacterId(42L),
           updatedAt = Time1,
-          updatedByCharacterId = 42L
+          updatedByCharacterId = CharacterId(42L)
         )
         val newSig = NewMapSystemSignature("WHO-007", SignatureGroup.Unknown)
         val expected = prevSig.copy(
@@ -274,9 +275,9 @@ object MapReactiveSpec extends ZIOSpecDefault:
           wormholeMassStatus = Some(WormholeMassStatus.Fresh),
           wormholeConnectionId = Some(1234L),
           createdAt = Time1,
-          createdByCharacterId = 42L,
+          createdByCharacterId = CharacterId(42L),
           updatedAt = Time1,
-          updatedByCharacterId = 42L
+          updatedByCharacterId = CharacterId(42L)
         )
         val newSig = NewMapSystemSignature("WHO-008", SignatureGroup.Wormhole, wormholeTypeId = Some(34439))
         val expected = modelSignature(
@@ -289,7 +290,7 @@ object MapReactiveSpec extends ZIOSpecDefault:
           wormholeTypeId = Some(34439),
           wormholeConnectionId = Some(1234L),
           createdAt = Time1,
-          createdByCharacterId = 42L,
+          createdByCharacterId = CharacterId(42L),
           updatedAt = Time2,
           updatedByCharacterId = DummySession.characterId
         )
@@ -308,9 +309,9 @@ object MapReactiveSpec extends ZIOSpecDefault:
           wormholeEolAt = Some(Time1),
           wormholeTypeId = Some(34439),
           createdAt = Time1,
-          createdByCharacterId = 42L,
+          createdByCharacterId = CharacterId(42L),
           updatedAt = Time1,
-          updatedByCharacterId = 42L
+          updatedByCharacterId = CharacterId(42L)
         )
         val newSig = NewMapSystemSignature("WHO-009", SignatureGroup.Wormhole, wormholeIsEol = Some(false))
         val expected = prevSig.copy(
@@ -345,9 +346,9 @@ private def modelSignature(
     wormholeK162Type: Option[WormholeK162Type] = None,
     wormholeConnectionId: Option[Long] = None,
     createdAt: Instant = Instant.EPOCH,
-    createdByCharacterId: CharacterId = 0L,
+    createdByCharacterId: CharacterId = CharacterId(0L),
     updatedAt: Instant = Instant.EPOCH,
-    updatedByCharacterId: CharacterId = 0L
+    updatedByCharacterId: CharacterId = CharacterId(0L)
 ): MapSystemSignature =
   MapSystemSignature(
     mapId = mapId,

@@ -1,5 +1,6 @@
 package org.updraft0.controltower.server.auth
 
+import org.updraft0.controltower.constant.CharacterId
 import org.updraft0.controltower.db.model
 import zio.*
 import zio.test.*
@@ -12,8 +13,8 @@ object MapPolicySpec extends ZIOSpecDefault:
   private val AllianceId     = 6000L
   private val CorporationId1 = 300L
   private val CorporationId2 = 400L
-  private val CharacterId1   = 10L
-  private val CharacterId2   = 11L
+  private val CharacterId1   = CharacterId(10L)
+  private val CharacterId2   = CharacterId(11L)
   private val MapId1         = 1L
   private val MapId2         = 2L
   private val MapId3         = 3L

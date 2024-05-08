@@ -32,10 +32,11 @@ private[server] def desktopLogger = Runtime.removeDefaultLoggers >>> consoleLogg
 
 object Log:
 
-  val SessionId    = LogAnnotation[UUID]("sessionId", (_, r) => r, _.toString)
-  val SystemId     = LogAnnotation[Long]("systemId", (_, r) => r, _.toString)
-  val SystemIds    = LogAnnotation[Seq[Long]]("systemIds", (l, r) => l ++ r, _.toString)
-  val CharacterId  = LogAnnotation[Long]("characterId", (_, r) => r, _.toString)
+  val SessionId = LogAnnotation[UUID]("sessionId", (_, r) => r, _.toString)
+  val SystemId  = LogAnnotation[Long]("systemId", (_, r) => r, _.toString)
+  val SystemIds = LogAnnotation[Seq[Long]]("systemIds", (l, r) => l ++ r, _.toString)
+  val CharacterId =
+    LogAnnotation[Long]("characterId", (_, r) => r, _.toString) // TODO https://github.com/zio/zio/issues/6829 ?
   val MapId        = LogAnnotation[Long]("mapId", (_, r) => r, _.toString)
   val MapOperation = LogAnnotation[String]("mapOperation", (_, r) => r, identity)
   val UserId       = LogAnnotation[Long]("userId", (_, r) => r, _.toString)

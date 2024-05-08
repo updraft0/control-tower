@@ -1,8 +1,9 @@
 package org.updraft0.controltower.server.endpoints
 
+import org.updraft0.controltower.constant.CharacterId
+import org.updraft0.controltower.db.model
 import org.updraft0.controltower.protocol
 import org.updraft0.controltower.protocol.Endpoints
-import org.updraft0.controltower.db.model
 import org.updraft0.controltower.server.Server.EndpointEnv
 import org.updraft0.controltower.server.auth.*
 import org.updraft0.controltower.server.db.AuthQueries
@@ -67,7 +68,7 @@ def allUserEndpoints: List[ZServerEndpoint[EndpointEnv, Any]] =
 private def toUserInfo(
     user: model.AuthUser,
     characters: List[model.AuthCharacter],
-    mapsPerCharacter: Map[Long, List[(model.MapModel, model.MapRole)]]
+    mapsPerCharacter: Map[CharacterId, List[(model.MapModel, model.MapRole)]]
 ): protocol.UserInfo =
   protocol.UserInfo(
     userId = user.id,
@@ -83,7 +84,7 @@ private def toUserInfo(
     maps = toUserCharacterMaps(mapsPerCharacter)
   )
 
-private def toUserCharacterMaps(mapsPerCharacter: Map[Long, List[(model.MapModel, model.MapRole)]]) =
+private def toUserCharacterMaps(mapsPerCharacter: Map[CharacterId, List[(model.MapModel, model.MapRole)]]) =
   mapsPerCharacter
     .flatMap((characterId, mapModels) =>
       mapModels.map((map, role) => protocol.UserCharacterMap(characterId, map.id, map.name, toProtocol(role)))

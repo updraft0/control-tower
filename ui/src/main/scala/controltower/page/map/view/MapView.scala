@@ -68,7 +68,7 @@ private class MapView(
   private def binderStopped: Unit =
     org.scalajs.dom.console.debug("stopped map view controller")
     controller.clear()
-    mapTop.set(None)
+    mapTop.set(None) // FIXME - does this trigger the exception?
     // do not clear the caches of static data?
 
   private def renderTop(using Owner) =
@@ -87,7 +87,7 @@ private class MapView(
     // TODO: move this into the controller?
     val connectingSystem = HVar(MapNewConnectionState.Stopped)
 
-    val navTopView = NavTopView(page.name, page.characterId, time, mapCtx.mapRole, ws.isConnected)
+    val navTopView = NavTopView(page.name, mapCtx.characterId, time, mapCtx.mapRole, ws.isConnected)
     val systemInfoView =
       SolarSystemInfoView(
         static,
@@ -186,7 +186,7 @@ object MapView:
     yield new MapView(counter, map, ct, rds, ws(map), time)
 
   private def ws(map: Page.Map)(using ct: ControlTowerBackend) =
-    val path = s"/api/map/${map.name}/${map.characterId.toString}/ws"
+    val path = s"/api/map/${map.name}/${map.character}/ws" // TODO this should use the sttp definition
 
     ct.wsUrlOpt
       .map(base => WebSocket.url(uri"$base$path".toString, base.scheme.getOrElse("ws")))

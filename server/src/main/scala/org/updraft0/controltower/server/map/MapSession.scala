@@ -1,5 +1,6 @@
 package org.updraft0.controltower.server.map
 
+import org.updraft0.controltower.constant.CharacterId
 import org.updraft0.controltower.db.{model, query}
 import org.updraft0.controltower.protocol
 import org.updraft0.controltower.protocol.jsoncodec.given
@@ -24,7 +25,7 @@ given CanEqual[ChannelEvent.UserEvent, ChannelEvent.UserEvent] = CanEqual.derive
 // TODO: check permissions!
 
 enum MapSessionMessage:
-  case RoleChanged(characterId: Long, role: Option[model.MapRole])
+  case RoleChanged(characterId: CharacterId, role: Option[model.MapRole])
 
 /** Loosely, a map "session" is an open WebSocket for a single (character, map)
   *
@@ -45,6 +46,7 @@ object MapSession:
 
   private case class Context(
       mapId: MapId,
+      characterId: CharacterId,
       sessionId: MapSessionId,
       userId: Long,
       mapRole: Ref[model.MapRole],
@@ -56,7 +58,7 @@ object MapSession:
 
   def apply(
       mapId: MapId,
-      characterId: Long,
+      characterId: CharacterId,
       userId: Long,
       initialRole: model.MapRole,
       sessionMessages: Dequeue[MapSessionMessage]
@@ -70,7 +72,7 @@ object MapSession:
         resQ    <- mapE.subscribe(mapId)
         ourQ    <- Queue.bounded[protocol.MapMessage](OurQueueSize)
         mapRole <- Ref.make(initialRole)
-        ctx = Context(mapId, sid, userId, mapRole, mapQ, resQ, ourQ, sessionMessages)
+        ctx = Context(mapId, characterId, sid, userId, mapRole, mapQ, resQ, ourQ, sessionMessages)
         // close the scope (and the subscription) if the websocket is closed
         _ <- ZIO
           .serviceWithZIO[Scope.Closeable](scope =>
@@ -113,7 +115,7 @@ object MapSession:
       yield ()
     )
 
-  private def inContext[R](mapId: MapId, characterId: Long, userId: Long)(
+  private def inContext[R](mapId: MapId, characterId: CharacterId, userId: Long)(
       f: ZIO[R & Scope.Closeable & MapSessionId, Throwable, Any]
   ): ZIO[R, Throwable, Any] =
     for
@@ -145,7 +147,7 @@ object MapSession:
       // TODO: not sure if it's right to propagate this or not
       (query.transaction(MapQueries.getMap(ctx.mapId)) <&> ctx.mapRole.get).flatMap {
         case (Some(map: model.MapModel), role) =>
-          ctx.ourQ.offer(protocol.MapMessage.MapMeta(toMapInfo(map), toProtocolRole(role)))
+          ctx.ourQ.offer(protocol.MapMessage.MapMeta(ctx.characterId, toMapInfo(map), toProtocolRole(role)))
         case _ => ZIO.logError("BUG: map not set")
       }
     // connection

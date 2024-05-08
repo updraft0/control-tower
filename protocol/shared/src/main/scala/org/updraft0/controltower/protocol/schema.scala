@@ -10,11 +10,13 @@ import sttp.tapir.*
 import sttp.tapir.SchemaType.SInteger
 
 object schema:
-  given longMapSchema[V: Schema]: Schema[Map[Long, V]] = Schema.schemaForMap[Long, V](_.toString)
+  given longMapSchema[V: Schema]: Schema[Map[Long, V]]             = Schema.schemaForMap[Long, V](_.toString)
+  given characterMapSchema[V: Schema]: Schema[Map[CharacterId, V]] = Schema.schemaForMap[CharacterId, V](_.toString)
 
   // opaque
-  given Schema[SigId]    = Schema.string
-  given Schema[SystemId] = Schema(SInteger()).format("int64")
+  given Schema[CharacterId] = Schema(SInteger()).format("int64")
+  given Schema[SigId]       = Schema.string
+  given Schema[SystemId]    = Schema(SInteger()).format("int64")
 
   // auth
 
@@ -79,8 +81,9 @@ object schema:
 
 object jsoncodec:
   // opaque
-  given JsonCodec[SigId]    = JsonCodec.string.asInstanceOf[JsonCodec[SigId]]
-  given JsonCodec[SystemId] = JsonCodec.long.asInstanceOf[JsonCodec[SystemId]]
+  given JsonCodec[CharacterId] = JsonCodec.long.asInstanceOf[JsonCodec[CharacterId]]
+  given JsonCodec[SigId]       = JsonCodec.string.asInstanceOf[JsonCodec[SigId]]
+  given JsonCodec[SystemId]    = JsonCodec.long.asInstanceOf[JsonCodec[SystemId]]
 
   // auth
 

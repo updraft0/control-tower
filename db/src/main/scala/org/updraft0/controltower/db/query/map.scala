@@ -1,7 +1,7 @@
 package org.updraft0.controltower.db.query
 
 import io.getquill.*
-import org.updraft0.controltower.constant.{SystemId as _, CharacterId as _, *}
+import org.updraft0.controltower.constant.{SystemId as _, *}
 import org.updraft0.controltower.db.model.*
 import zio.ZIO
 
@@ -9,6 +9,7 @@ import scala.collection.immutable.BitSet
 import java.time.Instant
 
 object map:
+  import auth.given
   import schema.*
   import ctx.{*, given}
   import zio.json.*
@@ -143,7 +144,7 @@ object map:
       systemId: Long,
       name: Option[String],
       updatedAt: Instant,
-      updatedByCharacterId: Long
+      updatedByCharacterId: CharacterId
   ) =
     ctx.run(quote {
       mapSystem
@@ -161,7 +162,7 @@ object map:
       isPinned: Option[Boolean],
       intelStance: Option[IntelStance],
       updatedAt: Instant,
-      updatedByCharacterId: Long
+      updatedByCharacterId: CharacterId
   ): DbOperation[Long] =
     ctx.run(quote {
       mapSystem

@@ -1,5 +1,6 @@
 package org.updraft0.controltower.server.db
 
+import org.updraft0.controltower.constant.CharacterId
 import org.updraft0.controltower.server
 import org.updraft0.controltower.db.model
 import org.updraft0.controltower.db.query
@@ -99,7 +100,7 @@ object MapQueriesSpec extends ZIOSpecDefault:
       chainNamingStrategy = model.ChainNamingStrategy.Manual,
       description = None,
       stance = model.IntelStance.Unknown,
-      updatedByCharacterId = 1L,
+      updatedByCharacterId = CharacterId(1L),
       updatedAt = Instant.EPOCH
     )
 
@@ -111,9 +112,9 @@ object MapQueriesSpec extends ZIOSpecDefault:
       toSystemId = toSystem,
       isDeleted = false,
       createdAt = Instant.EPOCH,
-      createdByCharacterId = 1L,
+      createdByCharacterId = CharacterId(1L),
       updatedAt = Instant.EPOCH,
-      updatedByCharacterId = 1L
+      updatedByCharacterId = CharacterId(1L)
     )
 
   private def connectionsById(got: List[model.MapWormholeConnection]): Map[(Long, Long), model.MapWormholeConnection] =

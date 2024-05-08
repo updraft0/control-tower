@@ -1,5 +1,6 @@
 package org.updraft0.controltower.server.map
 
+import org.updraft0.controltower.constant.CharacterId
 import org.updraft0.controltower.db.model.{MapSystemSignature, MapWormholeConnection, displayType}
 import org.updraft0.controltower.db.{model, query}
 import org.updraft0.controltower.server.db.{
@@ -114,7 +115,7 @@ object MapState:
       connectionRanks.map(whr => whr.connectionId -> whr).toMap
     )
 
-case class MapSessionId(characterId: Long, sessionId: UUID) derives CanEqual
+case class MapSessionId(characterId: CharacterId, sessionId: UUID) derives CanEqual
 case class Identified[T](sessionId: Option[MapSessionId], value: T)
 
 case class NewMapSystemSignature(

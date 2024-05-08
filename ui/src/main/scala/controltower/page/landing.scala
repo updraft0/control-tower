@@ -62,8 +62,8 @@ object LandingPage:
           cls := "character-maps",
           tr(
             td(cls := "character", rowSpan := maps.length + 1, renderCharacter(char)),
-            td(cls := "map-link", mapLink(map))
-          ) :: xs.map(map => tr(td(cls := "map-link", mapLink(map)))) :::
+            td(cls := "map-link", mapLink(char, map))
+          ) :: xs.map(map => tr(td(cls := "map-link", mapLink(char, map)))) :::
             List(tr(td(cls := "map-link", newMapLink(char))))
         )
 
@@ -109,8 +109,8 @@ object LandingPage:
       }
     )
 
-  private def mapLink(map: UserCharacterMap) =
-    val page = Page.Map(map.characterId, map.mapName)
+  private def mapLink(char: UserCharacter, map: UserCharacterMap) =
+    val page = Page.Map(map.mapName, char.name)
     a(
       Routes.navigateTo(page),
       i(cls := "ti", cls := "ti-map"),

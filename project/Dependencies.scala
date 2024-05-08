@@ -15,7 +15,7 @@ object Dependencies {
     val laminar            = "17.0.0-RC1"
     val laminext           = "0.17.0-RC1"
     val `native-converter` = "0.9.0"
-    val quill              = "4.8.3"
+    val quill              = "4.8.4"
     val `scala-java-time`  = "2.5.0"
     val `sjs-dom`          = "2.8.0+45-53f9a1a2-SNAPSHOT" // FIXME wait for 2.9.0 release
     val snakeyaml          = "2.7"

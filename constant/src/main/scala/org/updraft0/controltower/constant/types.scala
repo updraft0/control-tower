@@ -2,6 +2,8 @@ package org.updraft0.controltower.constant
 
 import scala.language.implicitConversions
 
+// TODO: move to typeclass encoding
+
 // CharacterId
 opaque type CharacterId = Long
 
@@ -15,6 +17,8 @@ object CharacterId:
     override def compare(x: CharacterId, y: CharacterId): Int = x.compare(y)
 
   given CanEqual[CharacterId, CharacterId] = CanEqual.derived
+
+  extension (inline v: CharacterId) inline def value: Long = v
 
 // SigId
 

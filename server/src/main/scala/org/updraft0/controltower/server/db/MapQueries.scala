@@ -2,6 +2,7 @@ package org.updraft0.controltower.server.db
 
 import io.getquill.*
 import io.getquill.extras.*
+import org.updraft0.controltower.constant.CharacterId
 import org.updraft0.controltower.db.model
 import org.updraft0.controltower.db.model.MapDisplayType
 import org.updraft0.controltower.db.query.*
@@ -38,10 +39,14 @@ case class MapSystemWithAll(
   */
 object MapQueries:
   import ctx.{*, given}
+  import auth.given
   import map.given
   import map.schema.*
   import zio.json.*
   import zio.json.ast.Json
+
+  given JsonDecoder[CharacterId] = JsonDecoder.long.map(CharacterId.apply)
+  given JsonEncoder[CharacterId] = JsonEncoder.long.contramap(_.asInstanceOf[Long])
 
   // json decoders for json_array_agg usage (some logic duplicated between the MappedEntity and the codec here)
   private given JsonDecoder[model.SignatureGroup]     = JsonDecoder.int.map(model.SignatureGroup.fromOrdinal)
@@ -62,9 +67,9 @@ object MapQueries:
         structureType        <- m("structureType").as[Option[String]]
         location             <- m("location").as[Option[String]]
         createdAt            <- m("createdAt").as[Long].map(Instant.ofEpochMilli)
-        createdByCharacterId <- m("createdByCharacterId").as[Long]
+        createdByCharacterId <- m("createdByCharacterId").as[CharacterId]
         updatedAt            <- m("updatedAt").as[Long].map(Instant.ofEpochMilli)
-        updatedByCharacterId <- m("updatedByCharacterId").as[Long]
+        updatedByCharacterId <- m("updatedByCharacterId").as[CharacterId]
       yield model.MapSystemStructure(
         mapId,
         systemId,
@@ -89,9 +94,9 @@ object MapQueries:
         note                 <- m("note").as[String]
         isDeleted            <- m("isDeleted").as[Int].map(_ == 1)
         createdAt            <- m("createdAt").as[Long].map(Instant.ofEpochMilli)
-        createdByCharacterId <- m("createdByCharacterId").as[Long]
+        createdByCharacterId <- m("createdByCharacterId").as[CharacterId]
         updatedAt            <- m("updatedAt").as[Long].map(Instant.ofEpochMilli)
-        updatedByCharacterId <- m("updatedByCharacterId").as[Long]
+        updatedByCharacterId <- m("updatedByCharacterId").as[CharacterId]
       yield model.MapSystemNote(
         id,
         mapId,
@@ -121,9 +126,9 @@ object MapQueries:
         wormholeK162Type     <- m("wormholeK162Type").as[Option[model.WormholeK162Type]]
         wormholeConnectionId <- m("wormholeConnectionId").as[Option[Long]]
         createdAt            <- m("createdAt").as[Long].map(Instant.ofEpochMilli)
-        createdByCharacterId <- m("createdByCharacterId").as[Long]
+        createdByCharacterId <- m("createdByCharacterId").as[CharacterId]
         updatedAt            <- m("updatedAt").as[Long].map(Instant.ofEpochMilli)
-        updatedByCharacterId <- m("updatedByCharacterId").as[Long]
+        updatedByCharacterId <- m("updatedByCharacterId").as[CharacterId]
       yield model.MapSystemSignature(
         mapId,
         systemId,
@@ -153,9 +158,9 @@ object MapQueries:
         toSystemId           <- m("toSystemId").as[Long]
         isDeleted            <- m("isDeleted").as[Int].map(_ == 1)
         createdAt            <- m("createdAt").as[Long].map(Instant.ofEpochMilli)
-        createdByCharacterId <- m("createdByCharacterId").as[Long]
+        createdByCharacterId <- m("createdByCharacterId").as[CharacterId]
         updatedAt            <- m("updatedAt").as[Long].map(Instant.ofEpochMilli)
-        updatedByCharacterId <- m("updatedByCharacterId").as[Long]
+        updatedByCharacterId <- m("updatedByCharacterId").as[CharacterId]
       yield model.MapWormholeConnection(
         id,
         mapId,

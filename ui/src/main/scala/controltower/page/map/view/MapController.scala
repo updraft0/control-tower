@@ -5,6 +5,7 @@ import com.raquo.laminar.api.L.*
 import controltower.db.ReferenceDataStore
 import controltower.page.map.{Coord, MapAction, VarPositionController}
 import controltower.ui.{HVar, writeChangesTo}
+import org.updraft0.controltower.constant.CharacterId
 import org.updraft0.controltower.protocol.*
 
 import java.time.{Duration, Instant}
@@ -31,7 +32,7 @@ class MapController(rds: ReferenceDataStore, val clock: Signal[Instant])(using O
   val requestBus  = EventBus[MapRequest]()
   val responseBus = EventBus[MapMessage]()
 
-  val mapMeta = Var[Option[(MapInfo, MapRole)]](None)
+  val mapMeta = Var[Option[MapMessage.MapMeta]](None)
 
   val allSystems     = HVar[Map[Long, MapSystemSnapshot]](Map.empty)
   val allConnections = HVar[Map[Long, MapWormholeConnectionWithSigs]](Map.empty)
@@ -42,9 +43,10 @@ class MapController(rds: ReferenceDataStore, val clock: Signal[Instant])(using O
   val lastError = Var[Option[String]](None)
 
   // derived data
-  val mapRole: Signal[MapRole] = mapMeta.signal.map(_.map(_._2).getOrElse(MapRole.Viewer))
+  val mapRole: Signal[MapRole]         = mapMeta.signal.map(_.map(_.role).getOrElse(MapRole.Viewer))
+  val characterId: Signal[CharacterId] = mapMeta.signal.map(_.map(_.characterId).getOrElse(CharacterId(0L)))
   val mapSettings: Signal[MapSettings] =
-    mapMeta.signal.map(_.map(_._1.settings).getOrElse(MapController.DefaultMapSettings))
+    mapMeta.signal.map(_.map(_.info.settings).getOrElse(MapController.DefaultMapSettings))
 
   val selectedSystem: Signal[Option[MapSystemSnapshot]] =
     selectedSystemId.signal
@@ -85,10 +87,11 @@ class MapController(rds: ReferenceDataStore, val clock: Signal[Instant])(using O
   def context: MapViewContext =
     val self = this
     new MapViewContext:
-      override def actions    = self.actionsBus
-      override def mapRole    = self.mapRole
-      override def staticData = SystemStaticData(cacheSolarSystem.view, cacheReference.get)
-      override def now        = self.clock
+      override def actions     = self.actionsBus
+      override def characterId = self.characterId
+      override def mapRole     = self.mapRole
+      override def staticData  = SystemStaticData(cacheSolarSystem.view, cacheReference.get)
+      override def now         = self.clock
 
   def clear(): Unit =
     Var.set(
@@ -174,8 +177,8 @@ class MapController(rds: ReferenceDataStore, val clock: Signal[Instant])(using O
             conns.removedAll(whcs.map(_.id))
           )
         )
-      case MapMessage.Error(text)         => lastError.set(Some(text))
-      case MapMessage.MapMeta(info, role) => mapMeta.set(Some(info -> role))
+      case MapMessage.Error(text)   => lastError.set(Some(text))
+      case meta: MapMessage.MapMeta => mapMeta.set(Some(meta))
       case MapMessage.MapSnapshot(systems, connections) =>
         inline def doUpdate() =
           Var.set(

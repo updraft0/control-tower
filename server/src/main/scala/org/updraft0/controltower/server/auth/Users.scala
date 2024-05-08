@@ -1,5 +1,6 @@
 package org.updraft0.controltower.server.auth
 
+import org.updraft0.controltower.constant.CharacterId
 import org.updraft0.controltower.db.model.{AuthCharacter, AuthUser, UserCharacter, UserSession}
 import org.updraft0.controltower.db.model
 import org.updraft0.controltower.db.query.auth
@@ -26,7 +27,7 @@ object Users:
     Esi.initialTokenAndUserData(authCode).mapError(_.asThrowable).flatMap { (jwt, tokenMeta) =>
       query.transaction(
         (AuthQueries.getUserCharactersBySessionId(sessionId) <*>
-          AuthQueries.getUserByCharacterId(tokenMeta.characterId))
+          AuthQueries.getUserByCharacterId(CharacterId(tokenMeta.characterId)))
           .flatMap {
             case (None, None)                     => newUser(jwt, tokenMeta, sessionId)
             case (None, Some((user, char)))       => newSession(jwt, tokenMeta, user, char, sessionId)
@@ -36,7 +37,7 @@ object Users:
       )
     }
 
-  def logoutCharacterFromUser(sessionId: UUID, characterId: Long): ZIO[Env, Throwable, Boolean] =
+  def logoutCharacterFromUser(sessionId: UUID, characterId: CharacterId): ZIO[Env, Throwable, Boolean] =
     AuthQueries
       .getUserCharactersBySessionId(sessionId)
       .flatMap:
@@ -46,7 +47,7 @@ object Users:
 
   private def newUser(jwt: JwtAuthResponse, tokenMeta: EsiTokenMeta, sessionId: UUID): ZIO[Env, Throwable, Unit] =
     for
-      char   <- getUserCharacterFromEsi(tokenMeta.characterId, tokenMeta.characterOwnerHash)
+      char   <- getUserCharacterFromEsi(CharacterId(tokenMeta.characterId), tokenMeta.characterOwnerHash)
       userId <- auth.insertUser(displayName = char.name)
       _      <- auth.insertUserCharacter(UserCharacter(userId, char.id))
       _      <- auth.upsertCharacter(char)
@@ -77,7 +78,7 @@ object Users:
       session: UserSession
   ): ZIO[Env, Throwable, Unit] =
     for
-      char  <- getUserCharacterFromEsi(tokenMeta.characterId, tokenMeta.characterOwnerHash)
+      char  <- getUserCharacterFromEsi(CharacterId(tokenMeta.characterId), tokenMeta.characterOwnerHash)
       _     <- auth.insertUserCharacter(UserCharacter(user.id, char.id))
       _     <- auth.upsertCharacter(char)
       token <- encryptJwtResponse(tokenMeta, jwt)
@@ -91,7 +92,7 @@ object Users:
       char: AuthCharacter
   ): ZIO[Env, Throwable, Unit] =
     for
-      char  <- getUserCharacterFromEsi(tokenMeta.characterId, tokenMeta.characterOwnerHash)
+      char  <- getUserCharacterFromEsi(CharacterId(tokenMeta.characterId), tokenMeta.characterOwnerHash)
       _     <- auth.upsertCharacter(char)
       token <- encryptJwtResponse(tokenMeta, jwt)
       _     <- auth.upsertAuthToken(token)
@@ -112,7 +113,7 @@ object Users:
       userAgent = None  // FIXME implement this
     )
 
-  private def getUserCharacterFromEsi(characterId: Long, ownerHash: String) =
+  private def getUserCharacterFromEsi(characterId: CharacterId, ownerHash: String) =
     (EsiClient.withZIO(_.getCharacter(characterId)) <&> EsiClient.withZIO(
       _.getCharacterAffiliations(List(characterId))
     ))
@@ -137,7 +138,7 @@ object Users:
       encRefresh <- ZIO.serviceWith[TokenCrypto](_.encrypt(nonce.toBytes, Base64.raw(jwt.refreshToken).toBytes))
       now        <- ZIO.clockWith(_.instant)
     yield model.CharacterAuthToken(
-      characterId = tokenMeta.characterId,
+      characterId = CharacterId(tokenMeta.characterId),
       nonce = nonce.stringValue,
       token = Base64(encAccess).stringValue,
       refreshToken = Base64(encRefresh).stringValue,

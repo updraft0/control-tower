@@ -1,13 +1,13 @@
 package org.updraft0.controltower.server.auth
 
+import org.updraft0.controltower.constant.CharacterId
 import org.updraft0.controltower.db.model
 import org.updraft0.controltower.server.db.{AuthQueries, MapQueries}
 import zio.*
 
 object MapPolicy:
-  type CharacterId = Long
-  type MapId       = Long
-  type Env         = javax.sql.DataSource
+  type MapId = Long
+  type Env   = javax.sql.DataSource
 
   def getMapsForCharacters(
       characterIds: List[CharacterId]

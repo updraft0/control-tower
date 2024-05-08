@@ -1,5 +1,7 @@
 package org.updraft0.controltower.protocol
 
+import org.updraft0.controltower.constant.CharacterId
+
 import sttp.model.StatusCode
 import sttp.tapir.json.zio.*
 import sttp.tapir.{json as _, *}
@@ -18,6 +20,9 @@ object Endpoints:
 
   // region Reference
   private val reference = endpoint.in("api" / "reference").errorOut(statusCode.and(stringBody))
+
+  // opaque
+  given Codec[String, CharacterId, CodecFormat.TextPlain] = Codec.long.map(CharacterId.apply)(_.asInstanceOf[Long])
 
   val getSolarSystem =
     reference.get
@@ -74,7 +79,7 @@ object Endpoints:
     .description("Return basic user information including their characters and maps")
 
   val logoutUserCharacter = user
-    .in("character" / path[Long]("characterId"))
+    .in("character" / path[CharacterId]("characterId"))
     .delete
     .description("Logs a character out from all user's sessions")
 
@@ -94,9 +99,10 @@ object Endpoints:
 
   // TODO: delete map
 
+  // note: this is currently implemented outside of sttp using zio-http directly
   def mapWebSocket[S](using c: sttp.capabilities.Streams[S]) =
     map
-      .in(path[String].name("mapName") / path[Long].name("characterId") / "ws")
+      .in(path[String].name("mapName") / path[String].name("character") / "ws")
       .out(webSocketBody[MapRequest, CodecFormat.Json, MapMessage, CodecFormat.Json](c))
       .description("Open a WebSocket for map updates")
 

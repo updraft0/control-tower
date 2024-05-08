@@ -3,6 +3,7 @@ package controltower.backend
 import com.raquo.airstream.core.{EventStream, Observable}
 import com.raquo.airstream.ownership.Owner
 import org.scalajs.dom.RequestCredentials
+import org.updraft0.controltower.constant.CharacterId
 import org.updraft0.controltower.protocol.*
 import sttp.capabilities.WebSockets
 import sttp.client3.{FetchBackend, FetchOptions, SttpBackend, UriContext}
@@ -30,7 +31,7 @@ class ControlTowerBackend(
   val getReferenceAll: () => Future[Reference]                = () => callNormalThrows(Endpoints.getAllReference)(())
 
   val getUserInfo: () => Future[Either[String, UserInfo]] = () => callSecure(Endpoints.getUserInfo)(())
-  val logoutUserCharacter: Long => Future[Either[String, Unit]] = (id: Long) =>
+  val logoutUserCharacter: CharacterId => Future[Either[String, Unit]] = (id: CharacterId) =>
     callSecure(Endpoints.logoutUserCharacter)(id)
 
   val createMap: NewMap => Future[Either[String, MapInfo]] = newMap => callSecure(Endpoints.createMap)(newMap)
@@ -38,13 +39,13 @@ class ControlTowerBackend(
 
   def mapWebsocket(
       mapName: String,
-      characterId: Long
+      character: String
   )(using owner: Owner): Future[Either[String, Observable[MapRequest] => EventStream[MapMessage]]] =
     given WebSocketToPipe[AirstreamStreams & WebSockets] = new WebSocketToAirstream[AirstreamStreams & WebSockets]
     SttpClientInterpreter()
       .toSecureClientThrowDecodeFailures(Endpoints.mapWebSocket(using AirstreamStreams), wsUrlOpt, fetchBackend)
       .apply(dummyCookie)
-      .apply((mapName, characterId))
+      .apply((mapName, character))
 
   val loginUrl = backendUrlOpt.map(u => uri"$u/api/auth/login").getOrElse(uri"api/auth/login") // FIXME hardcoded url
 

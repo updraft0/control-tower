@@ -11,10 +11,10 @@ import scala.util.{Failure, Success, Try}
 
 object Routes:
   private val landingRoute = Route.static(Page.Landing, root)
-  private val mapRoute = Route[Page.Map, (String, Long)](
-    encode = m => (m.name, m.characterId),
-    decode = (name, characterId) => Page.Map(characterId, name),
-    pattern = root / "map" / segment[String] / "char" / segment[Long] / endOfSegments
+  private val mapRoute = Route[Page.Map, (String, String)](
+    encode = m => (m.name, m.character),
+    decode = (name, character) => Page.Map(name, character),
+    pattern = root / "map" / segment[String] / "char" / segment[String] / endOfSegments
   )
 
   given ControlTowerBackend = new ControlTowerBackend()

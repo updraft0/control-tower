@@ -1,5 +1,6 @@
 package org.updraft0.controltower.server.endpoints
 
+import org.updraft0.controltower.constant.CharacterId
 import org.updraft0.controltower.db.{model, query as dbquery}
 import org.updraft0.controltower.protocol
 import org.updraft0.controltower.protocol.{SessionCookie as _, *}
@@ -43,16 +44,20 @@ def mapWebSocket: zio.http.HttpApp[EndpointEnv] =
       )
 
   Routes(
-    Method.GET / "api" / "map" / string("mapName") / long("characterId") / "ws" ->
-      handler { (mapName: String, characterId: Long, req: Request) =>
+    Method.GET / "api" / "map" / string("mapName") / string("character") / "ws" ->
+      handler { (mapName: String, character: String, req: Request) =>
         ZIO.scoped:
           for
-            user        <- validCookie(req)
+            user         <- validCookie(req)
+            characterOpt <- lookupCharacter(character)
+            character <- characterOpt
+              .map(ZIO.succeed)
+              .getOrElse(ZIO.fail(Response.text("No character found").status(Status.NotFound)))
             sessionMsgs <- ZIO.serviceWithZIO[MapSessionManager](_.messages)
-            mapTup <- checkUserCanAccessMap(user, characterId, mapName)
+            mapTup <- checkUserCanAccessMap(user, character.id, mapName)
               .mapError(Response.text(_).status(Status.Unauthorized))
             (mapId, mapRole) = mapTup
-            resp <- MapSession(mapId, characterId, user.userId, mapRole, sessionMsgs).toResponse
+            resp <- MapSession(mapId, character.id, user.userId, mapRole, sessionMsgs).toResponse
           yield resp
       }
   ).toHttpApp
@@ -63,9 +68,15 @@ def allMapEndpoints
     createMap.widen[EndpointEnv]
   )
 
+private def lookupCharacter(character: String) =
+  AuthQueries
+    .getCharacterByName(character)
+    .tapError(ex => ZIO.logErrorCause("failed to get character by name", Cause.fail(ex)))
+    .orElseFail(zio.http.Response.text("Database error").status(zio.http.Status.InternalServerError))
+
 private def checkUserCanAccessMap(
     user: LoggedInUser,
-    characterId: Long,
+    characterId: CharacterId,
     mapName: String
 ): ZIO[javax.sql.DataSource, String, (model.MapId, model.MapRole)] =
   dbquery
