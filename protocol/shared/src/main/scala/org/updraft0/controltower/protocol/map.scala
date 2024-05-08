@@ -36,7 +36,7 @@ case class MapSystem(
     stance: IntelStance,
     display: Option[SystemDisplayData],
     updatedAt: Instant,
-    updatedByCharacterId: Long
+    updatedByCharacterId: CharacterId
 )
 
 case class Corporation(id: Long, name: String)
@@ -47,18 +47,18 @@ case class MapSystemStructure(
     owner: Option[Corporation],
     location: Option[String],
     createdAt: Instant,
-    createdByCharacterId: Long,
+    createdByCharacterId: CharacterId,
     updatedAt: Instant,
-    updatedByCharacterId: Long
+    updatedByCharacterId: CharacterId
 )
 
 case class MapSystemNote(
     id: Long,
     note: String,
     createdAt: Instant,
-    createdByCharacterId: Long,
+    createdByCharacterId: CharacterId,
     updatedAt: Instant,
-    updatedByCharacterId: Long
+    updatedByCharacterId: CharacterId
 )
 
 case class MapWormholeConnection(
@@ -66,9 +66,9 @@ case class MapWormholeConnection(
     fromSystemId: Long,
     toSystemId: Long,
     createdAt: Instant,
-    createdByCharacterId: Long,
+    createdByCharacterId: CharacterId,
     updatedAt: Instant,
-    updatedByCharacterId: Long
+    updatedByCharacterId: CharacterId
 )
 
 case class MapWormholeConnectionRank(fromSystemIdx: Int, fromSystemCount: Int, toSystemIdx: Int, toSystemCount: Int)
