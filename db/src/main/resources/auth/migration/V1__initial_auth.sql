@@ -62,10 +62,12 @@ CREATE TABLE auth.user_session
 -- map_policy
 CREATE TABLE auth.map_policy
 (
-    map_id             INTEGER PRIMARY KEY,
+    map_id             INTEGER NOT NULL,
 
     created_by_user_id INTEGER NOT NULL REFERENCES user (id) DEFERRABLE INITIALLY DEFERRED,
-    created_at         INTEGER NOT NULL ON CONFLICT REPLACE DEFAULT (unixepoch() * 1000)
+    created_at         INTEGER NOT NULL ON CONFLICT REPLACE DEFAULT (unixepoch() * 1000),
+
+    UNIQUE (map_id)
 ) STRICT;
 
 -- map_policy_member

@@ -3,13 +3,15 @@
 -- map
 CREATE TABLE map.map
 (
-    id              INTEGER PRIMARY KEY,
-    name            TEXT    NOT NULL,
-    created_at      INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
-    creator_user_id INTEGER NOT NULL,
-    display_type    INTEGER NOT NULL DEFAULT 0,
+    id                 INTEGER PRIMARY KEY,
+    name               TEXT    NOT NULL,
+    created_at         INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
+    creator_user_id    INTEGER NOT NULL,
+    display_type       INTEGER NOT NULL DEFAULT 0,
+    deleted_at         INTEGER,
+    deleted_by_user_id INTEGER,
 
-    UNIQUE (name, creator_user_id),
+    UNIQUE (name COLLATE NOCASE),
     CHECK (name <> '')
 ) STRICT;
 

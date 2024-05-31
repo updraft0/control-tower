@@ -12,6 +12,18 @@ given CanEqual[LogLevel, LogLevel] = CanEqual.derived
 private[server] def desktopLogFormat = {
   import LogFormat.*
 
+  val fileLine = make { (builder, trace, _, _, _, _, _, _, _) =>
+    trace match {
+      case Trace(location, file, line) =>
+        builder.appendText(location)
+        builder.appendText(" ")
+        builder.appendText(file)
+        builder.appendText(":")
+        builder.appendNumeric(line)
+      case _ => ()
+    }
+  }
+
   timestamp(DateTimeFormatter.ISO_LOCAL_TIME).fixed(18).color(LogColor.BLUE) |-|
     level.fixed(10).color(LogColor.YELLOW) |-|
     fiberId.fixed(15).color(LogColor.WHITE) |-|
@@ -22,12 +34,13 @@ private[server] def desktopLogFormat = {
       case _                                 => LogColor.WHITE
     } +
     text(" | ") +
+    fileLine.color(LogColor.BLUE) +
     allAnnotations.color(LogColor.BLUE) +
     (space + label("cause", cause).highlight).filter(LogFilter.causeNonEmpty)
 }
 
 private[server] def desktopLogger = Runtime.removeDefaultLoggers >>> consoleLogger(
-  ConsoleLoggerConfig(desktopLogFormat, LogFilter.logLevel(LogLevel.Debug))
+  ConsoleLoggerConfig(desktopLogFormat, LogFilter.LogLevelByNameConfig(LogLevel.Debug /* FIXME add config */ ))
 ) >+> Slf4jBridge.initialize
 
 object Log:

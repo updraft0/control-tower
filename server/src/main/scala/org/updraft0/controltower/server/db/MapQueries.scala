@@ -200,6 +200,15 @@ object MapQueries:
         .returning(_.id)
     })
 
+  def updateMap(mapId: MapId, name: String, displayType: MapDisplayType): Result[Long] =
+    run(
+      quote(
+        mapModel
+          .filter(_.id == lift(mapId))
+          .update(_.name -> lift(name), _.displayType -> lift(displayType))
+      )
+    )
+
   def getMapNamesByIds(ids: List[MapId]): Result[Map[MapId, String]] =
     run(quote {
       mapModel
@@ -447,3 +456,13 @@ object MapQueries:
         yield allRanks
       )
     )
+
+  // deletes
+  def deleteMap(mapId: MapId, userId: Long): Result[Unit] =
+    run(
+      quote(
+        mapModel
+          .filter(_.id == lift(mapId))
+          .update(_.deletedAt -> Some(unixepoch), _.deletedByUserId -> Some(lift(userId)))
+      )
+    ).unit

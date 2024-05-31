@@ -51,12 +51,13 @@ object schema:
   given Schema[UserInfo]         = Schema.derived
 
   // map
-  given Schema[MapInfo]          = Schema.derived
-  given Schema[MapPolicyMember]  = Schema.derived
-  given Schema[MapSettings]      = Schema.derived
-  given Schema[NewMap]           = Schema.derived
-  given Schema[PolicyMemberType] = Schema.derived
-  given Schema[MapDisplayType]   = Schema.derived
+  given Schema[MapInfo]                = Schema.derived
+  given Schema[MapInfoWithPermissions] = Schema.derived
+  given Schema[MapPolicyMember]        = Schema.derived
+  given Schema[MapSettings]            = Schema.derived
+  given Schema[NewMap]                 = Schema.derived
+  given Schema[PolicyMemberType]       = Schema.derived
+  given Schema[MapDisplayType]         = Schema.derived
 
   given Schema[IntelStance]                   = Schema.derived
   given Schema[MapRequest]                    = Schema.derived
@@ -118,12 +119,13 @@ object jsoncodec:
   given JsonCodec[UserInfo]         = JsonCodec.derived
 
   // map
-  given JsonCodec[MapInfo]          = JsonCodec.derived
-  given JsonCodec[MapPolicyMember]  = JsonCodec.derived
-  given JsonCodec[MapSettings]      = JsonCodec.derived
-  given JsonCodec[NewMap]           = JsonCodec.derived
-  given JsonCodec[PolicyMemberType] = JsonCodec.string.transform(PolicyMemberType.valueOf, _.toString)
-  given JsonCodec[MapDisplayType]   = JsonCodec.string.transform(MapDisplayType.valueOf, _.toString)
+  given JsonCodec[MapInfo]                = JsonCodec.derived
+  given JsonCodec[MapInfoWithPermissions] = JsonCodec.derived
+  given JsonCodec[MapPolicyMember]        = JsonCodec.derived
+  given JsonCodec[MapSettings]            = JsonCodec.derived
+  given JsonCodec[NewMap]                 = JsonCodec.derived
+  given JsonCodec[PolicyMemberType]       = JsonCodec.string.transform(PolicyMemberType.valueOf, _.toString)
+  given JsonCodec[MapDisplayType]         = JsonCodec.string.transform(MapDisplayType.valueOf, _.toString)
 
   given JsonCodec[IntelStance]                   = JsonCodec.string.transform(IntelStance.valueOf, _.toString)
   given JsonCodec[MapRequest]                    = JsonCodec.derived

@@ -1,0 +1,47 @@
+#edit-map-dialog {
+    user-select: none;
+    min-width: 20em;
+    width: fit-content;
+
+    & div.dialog-header {
+        display: inline-flex;
+        flex-wrap: nowrap;
+        flex-direction: row;
+        border-bottom: 1px dotted $gray-light;
+        width: 100%;
+        margin-bottom: 1em;
+
+        & h2 {
+            font-size: 1.2em;
+            margin-right: auto;
+        }
+
+        & button {
+            font-size: 0.9em;
+            height: 1.2em;
+            width: 1.2em;
+        }
+    }
+
+    & div.error {
+        background-color: $red-dark;
+    }
+
+    & table button {
+        padding-left: 0.2em;
+        padding-right: 0.2em;
+    }
+
+    & button.add-row {
+        background-color: $green;
+    }
+
+    & button.remove-row {
+        background-color: $red;
+    }
+
+    & button.update {
+        background-color: $orange-dark;
+    }
+
+}

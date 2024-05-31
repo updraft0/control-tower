@@ -3,6 +3,8 @@ import build._
 import org.scalajs.linker.interface.ModuleSplitStyle
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
+//Global / conflictManager := ConflictManager.strict
+
 
 lazy val constant =
   crossProject(JSPlatform, JVMPlatform)
@@ -73,6 +75,10 @@ lazy val server = project
     Seq(
       libraryDependencies ++= jwt ++ tapir ++ `tapir-zio-json` ++ `tapir-server`,
       libraryDependencies ++= zio ++ `zio-config` ++ `zio-test`,
+
+      // dependency overrides
+      dependencyOverrides += "com.softwaremill.magnolia1_3" %% "magnolia" % "1.3.7" % Runtime,
+
       // runtime
       Universal / javaOptions ++= Seq(
         "-J-ea",

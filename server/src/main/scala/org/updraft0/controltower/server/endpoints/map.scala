@@ -11,8 +11,13 @@ import org.updraft0.controltower.server.map.{MapSessionManager, MapSession}
 import sttp.capabilities.zio.ZioStreams
 import sttp.tapir.ztapir.*
 import zio.{Config as _, *}
+import java.time.Instant
 
-case class ValidationError(msg: String) extends RuntimeException(msg)
+case class ValidationError(msg: String)    extends RuntimeException(msg)
+case class NoRolesToDeleteMap(mapId: Long) extends RuntimeException("Insufficient roles to delete map")
+case class NoRolesToGetMap(mapId: Long)    extends RuntimeException("Insufficient roles to get map")
+case class NoRolesToUpdateMap(mapId: Long) extends RuntimeException("Insufficient roles to update map")
+case class MapNotFound(mapId: Long)        extends RuntimeException("Map was not found")
 
 def createMap = Endpoints.createMap
   .zServerSecurityLogic(validateSession)
@@ -26,6 +31,76 @@ def createMap = Endpoints.createMap
           yield toMapInfo(map) // cannot determine map role here because we have no character id associated
         )
         .tapErrorCause(ZIO.logWarningCause("failed while creating map", _))
+        .mapError(toUserError)
+  )
+
+def getMap = Endpoints.getMap
+  .zServerSecurityLogic(validateSession)
+  .serverLogic(user =>
+    userMapId =>
+      dbquery
+        .transaction(
+          for
+            allMaps <- MapPolicy.allowedMapIdsForUser(user.userId)
+            withAdmin = allMaps.find((_, id, role) => id == userMapId && role == model.MapRole.Admin)
+            _ <- ZIO.fail(NoRolesToGetMap(userMapId)).when(withAdmin.isEmpty)
+            mapId = withAdmin.head._2
+            mapModelOpt    <- MapQueries.getMap(mapId)
+            _              <- ZIO.fail(MapNotFound(mapId)).when(mapModelOpt.isEmpty)
+            memberPolicies <- AuthQueries.getMapPolicyMembers(mapId)
+          yield MapInfoWithPermissions(toMapInfo(mapModelOpt.get), memberPolicies.map(toProtoPolicyMember).toArray)
+        )
+        .tapErrorCause(ZIO.logWarningCause("failed while getting map", _))
+        .mapError(toUserError)
+  )
+
+def updateMap = Endpoints.updateMap
+  .zServerSecurityLogic(validateSession)
+  .serverLogic(user =>
+    (userMapId, mapUpdate) =>
+      dbquery
+        .transaction(
+          for
+            allMaps <- MapPolicy.allowedMapIdsForUser(user.userId)
+            withAdmin = allMaps.find((_, id, role) => id == userMapId && role == model.MapRole.Admin)
+            _ <- ZIO.fail(NoRolesToUpdateMap(userMapId)).when(withAdmin.isEmpty)
+            mapId = withAdmin.head._2
+            _ <- MapQueries.updateMap(mapId, mapUpdate.map.name, toModelMapDisplayType(mapUpdate.map.displayType))
+            updatedAt            <- ZIO.clockWith(_.instant)
+            currentPolicyMembers <- AuthQueries.getMapPolicyMembers(mapId)
+            _ <- updatePolicyMembers(
+              mapId,
+              user.userId,
+              currentPolicyMembers,
+              mapUpdate.policyMembers.map(toModelPolicyMember(mapId, _)).toList,
+              updatedAt
+            )
+            mapModelOpt    <- MapQueries.getMap(mapId)
+            _              <- ZIO.fail(MapNotFound(mapId)).when(mapModelOpt.isEmpty)
+            memberPolicies <- AuthQueries.getMapPolicyMembers(mapId)
+          yield MapInfoWithPermissions(toMapInfo(mapModelOpt.get), memberPolicies.map(toProtoPolicyMember).toArray)
+        )
+        .tapErrorCause(ZIO.logWarningCause("failed while updating map", _))
+        .mapError(toUserError)
+  )
+
+def deleteMap = Endpoints.deleteMap
+  .zServerSecurityLogic(validateSession)
+  .serverLogic(user =>
+    userMapId =>
+      dbquery
+        .transaction(
+          for
+            allMaps <- MapPolicy.allowedMapIdsForUser(user.userId)
+            withAdmin = allMaps.find((_, id, role) => id == userMapId && role == model.MapRole.Admin)
+            _ <- ZIO.fail(NoRolesToDeleteMap(userMapId)).when(withAdmin.isEmpty)
+            mapId = withAdmin.head._2
+            _ <- AuthQueries.deleteMapPolicyMembers(mapId)
+            _ <- AuthQueries.deleteMapPolicy(mapId)
+            _ <- MapQueries.deleteMap(mapId, user.userId)
+          yield ()
+        )
+        .tapErrorCause(ZIO.logWarningCause("failed while deleting map", _))
         .mapError(toUserError)
   )
 
@@ -65,13 +140,16 @@ def mapWebSocket: zio.http.HttpApp[EndpointEnv] =
 def allMapEndpoints
     : List[ZServerEndpoint[EndpointEnv, sttp.capabilities.zio.ZioStreams & sttp.capabilities.WebSockets]] =
   List(
-    createMap.widen[EndpointEnv]
+    createMap.widen[EndpointEnv],
+    deleteMap.widen[EndpointEnv],
+    getMap.widen[EndpointEnv],
+    updateMap.widen[EndpointEnv]
   )
 
 private def lookupCharacter(character: String) =
   AuthQueries
     .getCharacterByName(character)
-    .tapError(ex => ZIO.logErrorCause("failed to get character by name", Cause.fail(ex)))
+    .tapErrorCause(ZIO.logWarningCause("failed while getting character by name", _))
     .orElseFail(zio.http.Response.text("Database error").status(zio.http.Status.InternalServerError))
 
 private def checkUserCanAccessMap(
@@ -98,6 +176,27 @@ private def checkNewMapCharacterMatches(userId: Long, newMap: NewMap) =
     _                <- ZIO.when(mapAlreadyExists)(ZIO.fail(ValidationError("Map name not unique")))
   yield ()
 
+private def updatePolicyMembers(
+    mapId: model.MapId,
+    userId: model.UserId,
+    prev: List[model.MapPolicyMember],
+    next: List[model.MapPolicyMember],
+    updatedAt: Instant
+) =
+  val prevMap = prev.map(mpm => (mpm.memberId, mpm.memberType) -> mpm).toMap
+  val nextMap =
+    next.map(mpm => (mpm.memberId, mpm.memberType) -> mpm.copy(updatedAt = updatedAt, updatedByUserId = userId)).toMap
+  val toCreate = nextMap.keySet -- prevMap.keySet
+  val toDelete = prevMap.keySet -- nextMap.keySet
+  val toUpdate = prevMap.keySet & nextMap.keySet
+  for
+    _ <- AuthQueries.deleteMapPolicyMembersByMemberIds(mapId, toDelete.toList)
+    _ <- AuthQueries.createMapPolicyMembers(
+      toCreate.map(k => nextMap(k).copy(createdAt = updatedAt, createdByUserId = userId)).toList
+    )
+    _ <- AuthQueries.updateMapPolicyMembers(mapId, toUpdate.map(k => nextMap(k)).toList)
+  yield ()
+
 private def insertNewMap(userId: model.UserId, newMap: NewMap) =
   for
     map <- MapQueries
@@ -105,13 +204,15 @@ private def insertNewMap(userId: model.UserId, newMap: NewMap) =
       .flatMap(MapQueries.getMap)
       .map(_.head)
     _ <- AuthQueries.createMapPolicy(map.id, userId)
-    _ <- AuthQueries.createMapPolicyMembers(newMap.policyMembers.map(pm => toModelPolicyMember(map, userId, pm)).toList)
+    _ <- AuthQueries.createMapPolicyMembers(
+      newMap.policyMembers.map(pm => toModelPolicyMemberForCreate(map, userId, pm)).toList
+    )
   yield map
 
 def toMapInfo(map: model.MapModel): MapInfo = /* FIXME store settings */
   MapInfo(map.id, map.name, toMapDisplayType(map.displayType), MapSettings(12.hours), map.createdAt)
 
-def toModelPolicyMember(map: model.MapModel, userId: model.UserId, m: MapPolicyMember): model.MapPolicyMember =
+def toModelPolicyMemberForCreate(map: model.MapModel, userId: model.UserId, m: MapPolicyMember): model.MapPolicyMember =
   model.MapPolicyMember(
     mapId = map.id,
     memberId = m.memberId,
@@ -124,10 +225,40 @@ def toModelPolicyMember(map: model.MapModel, userId: model.UserId, m: MapPolicyM
     updatedAt = map.createdAt
   )
 
+def toModelPolicyMember(mapId: model.MapId, m: MapPolicyMember): model.MapPolicyMember =
+  model.MapPolicyMember(
+    mapId = mapId,
+    memberId = m.memberId,
+    memberType = toMemberType(m.memberType),
+    isDeny = m.isDeny,
+    role = toMapRole(m.role),
+    createdByUserId = m.createdBy.getOrElse(-1),
+    createdAt = m.createdAt.getOrElse(Instant.EPOCH),
+    updatedByUserId = m.updatedBy.getOrElse(-1),
+    updatedAt = m.updatedAt.getOrElse(Instant.EPOCH)
+  )
+
+def toProtoPolicyMember(value: model.MapPolicyMember): MapPolicyMember =
+  MapPolicyMember(
+    memberId = value.memberId,
+    memberType = toProtoMemberType(value.memberType),
+    isDeny = value.isDeny,
+    role = toProtocolRole(value.role),
+    createdBy = Some(value.createdByUserId),
+    createdAt = Some(value.createdAt),
+    updatedBy = Some(value.updatedByUserId),
+    updatedAt = Some(value.updatedAt)
+  )
+
 def toMemberType(m: PolicyMemberType): model.PolicyMemberType = m match
   case PolicyMemberType.Corporation => model.PolicyMemberType.Corporation
   case PolicyMemberType.Alliance    => model.PolicyMemberType.Alliance
   case PolicyMemberType.Character   => model.PolicyMemberType.Character
+
+def toProtoMemberType(m: model.PolicyMemberType) = m match
+  case model.PolicyMemberType.Corporation => PolicyMemberType.Corporation
+  case model.PolicyMemberType.Alliance    => PolicyMemberType.Alliance
+  case model.PolicyMemberType.Character   => PolicyMemberType.Character
 
 def toMapDisplayType(dt: model.MapDisplayType): MapDisplayType = dt match
   case model.MapDisplayType.Manual => MapDisplayType.Manual
@@ -146,5 +277,6 @@ def toProtocolRole(m: model.MapRole): MapRole = m match
   case model.MapRole.Viewer => MapRole.Viewer
 
 def toUserError(t: Throwable) = t match
-  case ValidationError(msg) => msg
-  case ex                   => "Unknown error occurred"
+  case ValidationError(msg)      => msg
+  case NoRolesToDeleteMap(mapId) => s"Insufficient roles to delete map with id ${mapId}"
+  case ex                        => "Unknown error occurred"

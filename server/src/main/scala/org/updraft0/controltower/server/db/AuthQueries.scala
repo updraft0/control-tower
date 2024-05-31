@@ -116,6 +116,14 @@ object AuthQueries:
         .union(userAllianceRoles(characterIds))
     }).map(_.groupBy(_._1).view.mapValues(_.map(_._2)).toMap)
 
+  def getMapPolicy(mapId: model.MapId): Result[Option[model.MapPolicy]] =
+    run(quote(mapPolicy.filter(_.mapId == lift(mapId)))).map(_.headOption)
+
+  def getMapPolicyMembers(mapId: model.MapId): Result[List[model.MapPolicyMember]] =
+    run(quote(mapPolicyMember.filter(_.mapId == lift(mapId))))
+
+  // creates
+
   def createMapPolicy(mapId: model.MapId, userId: model.UserId): Result[Unit] =
     run(quote {
       mapPolicy.insert(_.mapId -> lift(mapId), _.createdByUserId -> lift(userId))
@@ -125,3 +133,38 @@ object AuthQueries:
     run(quote {
       liftQuery(policyMembers).foreach(pm => mapPolicyMember.insertValue(pm))
     }).map(_.size)
+
+  // updates
+  def updateMapPolicyMembers(mapId: model.MapId, policyMembers: List[model.MapPolicyMember]): Result[Long] =
+    run(
+      quote(
+        liftQuery(policyMembers).foreach(mpm =>
+          mapPolicyMember
+            .filter(m => m.mapId == lift(mapId) && m.memberId == mpm.memberId && m.memberType == mpm.memberType)
+            .update(
+              _.isDeny          -> mpm.isDeny,
+              _.role            -> mpm.role,
+              _.updatedAt       -> mpm.updatedAt,
+              _.updatedByUserId -> mpm.updatedByUserId
+            )
+        )
+      )
+    ).map(_.sum)
+
+  // deletes
+  def deleteMapPolicyMembers(mapId: model.MapId): Result[Long] =
+    run(quote {
+      mapPolicyMember.filter(_.mapId == lift(mapId)).delete
+    })
+
+  def deleteMapPolicyMembersByMemberIds(mapId: model.MapId, ids: List[(Long, model.PolicyMemberType)]): Result[Long] =
+    run(
+      quote(
+        liftQuery(ids).foreach((id, mt) =>
+          mapPolicyMember.filter(mpm => mpm.mapId == lift(mapId) && mpm.memberId == id && mpm.memberType == mt).delete
+        )
+      )
+    ).map(_.sum)
+
+  def deleteMapPolicy(mapId: model.MapId): Result[Long] =
+    run(quote(mapPolicy.filter(_.mapId == lift(mapId)).delete))

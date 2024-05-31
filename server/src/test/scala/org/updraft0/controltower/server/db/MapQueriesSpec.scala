@@ -11,7 +11,7 @@ import zio.test.*
 import java.time.Instant
 
 object MapQueriesSpec extends ZIOSpecDefault:
-  private val DefaultMap = model.MapModel(42L, "test", model.MapDisplayType.Manual, Instant.EPOCH, 1L)
+  private val DefaultMap = model.MapModel(42L, "test", model.MapDisplayType.Manual, Instant.EPOCH, 1L, None, None)
 
   override def spec = suite("MapQueries::map_wormhole_connection")(
     test("can compute ranks of incoming wormholes"):

@@ -34,7 +34,12 @@ class ControlTowerBackend(
   val logoutUserCharacter: CharacterId => Future[Either[String, Unit]] = (id: CharacterId) =>
     callSecure(Endpoints.logoutUserCharacter)(id)
 
-  val createMap: NewMap => Future[Either[String, MapInfo]] = newMap => callSecure(Endpoints.createMap)(newMap)
+  val createMap: NewMap => Future[Either[String, MapInfo]]           = newMap => callSecure(Endpoints.createMap)(newMap)
+  val deleteMap: Long => Future[Either[String, Unit]]                = (id) => callSecure(Endpoints.deleteMap)(id)
+  val getMap: Long => Future[Either[String, MapInfoWithPermissions]] = (id) => callSecure(Endpoints.getMap)(id)
+  val updateMap: (Long, MapInfoWithPermissions) => Future[Either[String, MapInfoWithPermissions]] = (id, mapInfo) =>
+    callSecure(Endpoints.updateMap)(id -> mapInfo)
+
   // endregion
 
   def mapWebsocket(

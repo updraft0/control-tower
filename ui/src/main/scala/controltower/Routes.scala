@@ -10,7 +10,8 @@ import java.time.Clock
 import scala.util.{Failure, Success, Try}
 
 object Routes:
-  private val landingRoute = Route.static(Page.Landing, root)
+  private val landingRoute   = Route.static(Page.Landing, root)
+  private val mapEditorRoute = Route.static(Page.MapEditor, root / "maps")
   private val mapRoute = Route[Page.Map, (String, String)](
     encode = m => (m.name, m.character),
     decode = (name, character) => Page.Map(name, character),
@@ -21,7 +22,7 @@ object Routes:
   given Clock               = Clock.systemUTC()
 
   val router = new Router[Page](
-    routes = List(mapRoute, landingRoute),
+    routes = List(mapRoute, mapEditorRoute, landingRoute),
     getPageTitle = _.pageTitle,
     serializePage = _.toJson,
     deserializePage = _.fromJson[Page] match
@@ -35,6 +36,7 @@ object Routes:
   private val splitter =
     SplitRender[Page, HtmlElement](router.currentPageSignal)
       .collectStatic(Page.Landing)(page.LandingPage.renderPage)
+      .collectStatic(Page.MapEditor)(page.MapEditorPage.renderPage)
       .collect[Page.Map](page.MapPage.renderPage)
 
   val view: Signal[HtmlElement] = splitter.signal

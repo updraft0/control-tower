@@ -39,7 +39,15 @@ extension (sd: SystemDisplayData)
     case _: SystemDisplayData.Manual => MapDisplayType.Manual
 
 // note: using the name `Map` conflicts with prelude
-case class MapModel(id: MapId, name: String, displayType: MapDisplayType, createdAt: Instant, creatorUserId: UserId)
+case class MapModel(
+    id: MapId,
+    name: String,
+    displayType: MapDisplayType,
+    createdAt: Instant,
+    creatorUserId: UserId,
+    deletedAt: Option[Instant],
+    deletedByUserId: Option[UserId]
+)
 
 case class MapSystem(
     mapId: MapId,

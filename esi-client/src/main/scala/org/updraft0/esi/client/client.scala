@@ -1,5 +1,8 @@
 package org.updraft0.esi.client
 
+import sttp.capabilities.WebSockets
+import sttp.capabilities.zio.ZioStreams
+import sttp.client3.SttpBackend
 import sttp.client3.httpclient.zio.{HttpClientZioBackend, SttpClient}
 import sttp.model.Uri
 import sttp.tapir.Endpoint
@@ -37,12 +40,12 @@ object EsiClient:
   case class Config(base: Uri, loginBase: Uri, clientId: String, clientSecret: zio.Config.Secret)
 
   def layer: ZLayer[Config, Throwable, EsiClient] =
-    HttpClientZioBackend.layer() >>> ZLayer(apply)
+    ZLayer.scoped(HttpClientZioBackend.scoped().flatMap(apply))
 
-  def apply: ZIO[Config & SttpClient, Throwable, EsiClient] =
-    for
-      config <- ZIO.service[Config]
-      sttp   <- ZIO.service[SttpClient]
+  def apply(sttp: SttpClient): ZIO[Config, Throwable, EsiClient] =
+    for config <- ZIO.service[Config]
+      // FIXME wait until improvements land in generic aliases in layers after ZIO 2.1.1
+      //      sttp   <- ZIO.service[SttpClient]
     yield new EsiClient(config, zioLoggingBackend(sttp), SttpClientInterpreter())
 
   inline def withZIO[R, E, A](inline f: EsiClient => ZIO[R, E, A]): ZIO[R & EsiClient, E, A] =

@@ -48,11 +48,11 @@ object SdeClient:
       override def sdeZip: Task[ZStream[Any, Throwable, Byte]] =
         ZIO.suspend(interp.toClientThrowErrors(sdeZipEndpoint, Some(base), sttp).apply(()))
 
-  def apply: ZIO[Config & SttpClient, Throwable, SdeClient] =
-    for
-      config <- ZIO.service[Config]
-      sttp   <- ZIO.service[SttpClient]
-    yield apply(config.base, zioLoggingBackend(sttp), SttpClientInterpreter())
-
   def layer: ZLayer[Config, Throwable, SdeClient] =
-    HttpClientZioBackend.layer() >>> ZLayer(apply)
+    ZLayer.scoped(HttpClientZioBackend.scoped().flatMap(apply))
+
+  def apply(sttp: SttpClient): ZIO[Config, Throwable, SdeClient] =
+    for config <- ZIO.service[Config]
+      // FIXME
+//      sttp   <- ZIO.service[SttpClient]
+    yield apply(config.base, zioLoggingBackend(sttp), SttpClientInterpreter())

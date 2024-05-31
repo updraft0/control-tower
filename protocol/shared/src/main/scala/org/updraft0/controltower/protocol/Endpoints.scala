@@ -97,7 +97,26 @@ object Endpoints:
       .out(jsonBody[MapInfo])
       .description("Create a new map")
 
-  // TODO: delete map
+  val getMap =
+    map.get
+      .in(path[Long]("mapId"))
+      .get
+      .out(jsonBody[MapInfoWithPermissions])
+      .description("Get map information with permissions")
+
+  val updateMap =
+    map
+      .in(path[Long]("mapId"))
+      .in(jsonBody[MapInfoWithPermissions])
+      .put
+      .out(jsonBody[MapInfoWithPermissions])
+      .description("Update map roles")
+
+  val deleteMap =
+    map
+      .in(path[Long]("mapId"))
+      .delete
+      .description("Delete a map")
 
   // note: this is currently implemented outside of sttp using zio-http directly
   def mapWebSocket[S](using c: sttp.capabilities.Streams[S]) =

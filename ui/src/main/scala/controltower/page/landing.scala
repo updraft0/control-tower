@@ -4,6 +4,7 @@ import com.raquo.laminar.api.L.*
 import controltower.*
 import controltower.backend.{ControlTowerBackend, ESI}
 import controltower.component.*
+import controltower.dialog.EditMapView
 import controltower.ui.*
 import org.scalajs.dom
 import org.updraft0.controltower.protocol.*
@@ -105,7 +106,11 @@ object LandingPage:
       tpe("button"),
       "New map",
       onClick.preventDefault --> { _ =>
-        Modal.show((closeMe, owner) => NewMapDialogView(char, closeMe)(using ct, owner), clickCloses = false)
+        Modal.show(
+          (closeMe, _) => EditMapView(char, closeMe, None)(using ct),
+          clickCloses = false,
+          idAttr := "edit-map-dialog"
+        )
       }
     )
 
@@ -116,105 +121,4 @@ object LandingPage:
       i(cls := "ti", cls := "ti-map"),
       " ",
       map.mapName
-    )
-
-object NewMapDialogView:
-
-  def apply(char: UserCharacter, closeMe: Observer[Unit])(using ct: ControlTowerBackend, owner: Owner): HtmlElement =
-    val nameVar     = Var("")
-    val defaultPerm = MapPolicyMember(0L, PolicyMemberType.Character, isDeny = false, MapRole.Viewer)
-
-    val validationError = Var(Option.empty[String])
-    val permissionsVar  = FakeVectorVar[MapPolicyMember]() // TODO use something else!
-    permissionsVar.append(MapPolicyMember(char.characterId, PolicyMemberType.Character, isDeny = false, MapRole.Admin))
-
-    div(
-      cls("modal-content"),
-      cls("new-map-dialog"),
-      button(
-        "×",
-        autoFocus := true,
-        cls       := "close",
-        onClick.mapToUnit --> closeMe
-      ),
-      h2("New Map"),
-      div(
-        display <-- validationError.signal.map(ve => Option.when(ve.isDefined)("").getOrElse("none")),
-        child.text <-- validationError.signal.map(_.getOrElse(""))
-      ),
-      div(
-        label("Map name"),
-        input(placeholder := "New Map", onInput.mapToValue --> nameVar)
-      ),
-      table(
-        children <-- permissionsVar.split(renderPolicyMember),
-        tr(
-          td(
-            button(
-              typ("button"),
-              "➕ permission",
-              onClick.mapToUnit --> (() => permissionsVar.append(defaultPerm))
-            )
-          )
-        ),
-        button(
-          typ("button"),
-          "Create",
-          onClick.preventDefault --> Observer(_ =>
-            val name  = nameVar.now()
-            val perms = permissionsVar.now().filterNot(_._2.memberId == 0).map(_._2)
-
-            val newMap = NewMap(name, perms.toArray, MapDisplayType.Manual)
-            ct.createMap(newMap).onComplete {
-              case Failure(ex)          => dom.console.error("failed to call newMap", ex) // FIXME this isn't called??
-              case Success(Left(error)) => validationError.set(Some(error))
-              case Success(Right(mapInfo)) => closeMe.onNext(())
-            }
-          )
-        )
-      )
-    )
-
-  private def renderPolicyMember(policyVar: FakeVar[MapPolicyMember]) =
-    // TODO add validation, autocomplete search for characters etc., removing a row
-    tr(
-      td(
-        input(
-          controlled(
-            value <-- policyVar.signal.map(_.memberId.toString),
-            onInput.mapToValue --> policyVar.onUpdateZoom[String]((m, s) => m.copy(memberId = s.toLong))
-          )
-        )
-      ),
-      td(
-        // TODO refactor out the select to be generic
-        select(
-          controlled(
-            value <-- policyVar.signal.map(_.memberType.toString),
-            onChange.mapToValue --> policyVar.onUpdateZoom[String]((m, s) =>
-              m.copy(memberType = PolicyMemberType.valueOf(s))
-            )
-          ),
-          PolicyMemberType.values.map(pmt => option(value := pmt.toString, pmt.toString))
-        )
-      ),
-      td(
-        select(
-          controlled(
-            value <-- policyVar.signal.map(_.role.toString),
-            onChange.mapToValue --> policyVar.onUpdateZoom[String]((m, s) => m.copy(role = MapRole.valueOf(s)))
-          ),
-          MapRole.values.map(mr => option(value := mr.toString, mr.toString))
-        )
-      ),
-      td(
-        select(
-          controlled(
-            value <-- policyVar.signal.map(v => if v.isDeny then "deny" else "allow"),
-            onChange.mapToValue --> policyVar.onUpdateZoom[String]((m, s) => m.copy(isDeny = !(s == "allow")))
-          ),
-          option(value := "allow", "allow"),
-          option(value := "deny", "deny")
-        )
-      )
     )

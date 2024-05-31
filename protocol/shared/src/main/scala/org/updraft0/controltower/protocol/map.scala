@@ -15,7 +15,7 @@ case class MapPolicyMember(
     createdAt: Option[Instant] = None,
     updatedBy: Option[Long] = None,
     updatedAt: Option[Instant] = None
-)
+) derives CanEqual
 
 case class MapSettings(
     staleScanThreshold: Duration
@@ -24,6 +24,8 @@ case class MapSettings(
 case class NewMap(name: String, policyMembers: Array[MapPolicyMember], displayType: MapDisplayType)
 
 case class MapInfo(id: Long, name: String, displayType: MapDisplayType, settings: MapSettings, createdAt: Instant)
+
+case class MapInfoWithPermissions(map: MapInfo, policyMembers: Array[MapPolicyMember])
 
 // region WebSocket protocol
 
