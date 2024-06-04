@@ -19,7 +19,7 @@ def updateReferenceData =
 
 /** Load while checking if up to date
   */
-private[server] def checkSdeAndReload(): RIO[DataSource & SdeClient, (Int, Chunk[Long])] =
+private[server] def checkSdeAndReload(): RIO[SdeConfig & DataSource & SdeClient, (Int, Chunk[Long])] =
   (query.transaction(query.sde.getLatestVersion) <&> ZIO.serviceWithZIO[SdeClient](_.latestChecksum)).flatMap:
     case (None, checksum) => ZIO.logInfo("SDE not loaded, loading") *> loadSde(checksum)
     case (Some(version), checksum) if version.meta.checksum == checksum =>
@@ -28,8 +28,9 @@ private[server] def checkSdeAndReload(): RIO[DataSource & SdeClient, (Int, Chunk
       ZIO.logInfo(s"SDE checksum changed from ${version.meta.checksum} to ${checksum}, updating") *> loadSde(checksum)
 
 // TODO: add query.transaction() here
-private[server] def loadSde(checksum: String): RIO[DataSource & SdeClient, (Int, Chunk[Long])] =
+private[server] def loadSde(checksum: String): RIO[SdeConfig & DataSource & SdeClient, (Int, Chunk[Long])] =
   for
+    parallel <- ZIO.serviceWith[SdeConfig](_.parallel)
     _        <- query.transaction(deleteAllSde()).flatMap(c => ZIO.logDebug(s"deleted ${c} records"))
     _        <- query.sde.vacuumSde
     stream   <- ZIO.serviceWithZIO[SdeClient](_.sdeZip)
@@ -38,7 +39,7 @@ private[server] def loadSde(checksum: String): RIO[DataSource & SdeClient, (Int,
     savedBytes <- stream.run(fileSink)
     meta = SdeLoadMeta(savedBytes, checksum)
     _      <- ZIO.logDebug(s"SDE zip downloaded with $meta")
-    loaded <- query.transaction(sdeloader.intoDb(groupEntries(readSdeZip(tempFile)), meta))
+    loaded <- query.transaction(sdeloader.intoDb(groupEntries(readSdeZip(tempFile, parallel)), meta))
     _      <- ZIO.attemptBlockingIO(Files.delete(tempFile))
     _      <- ZIO.logDebug("SDE load complete")
   yield loaded

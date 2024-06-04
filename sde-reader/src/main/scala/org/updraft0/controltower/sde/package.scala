@@ -8,7 +8,7 @@ import java.nio.file.Path
 package object sde:
   /** Read the SDE export from `sde.zip` and parse its entries
     */
-  def read(sdePath: Path, parallel: Int = 4): ZStream[Any, parser.Error, ExportedData] =
+  def read(sdePath: Path, parallel: Int): ZStream[Any, parser.Error, ExportedData] =
     zip
       .readEntries(sdePath)
       .mapError(parser.Error.Zip(_))

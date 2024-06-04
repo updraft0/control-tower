@@ -48,6 +48,7 @@ object Server extends ZIOAppDefault:
         ZLayer
           .service[Config]
           .project(c => SdeClient.Config(c.sde.base)),
+        ZLayer.service[Config].project(c => c.sde),
         SdeClient.layer,
         MapReactive.layer,
         DefaultJvmMetrics.live.unit,

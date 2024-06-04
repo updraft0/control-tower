@@ -43,7 +43,7 @@ case class AuthConfig(
 case class HttpConfig(protocol: String, host: String, listenHost: String, port: Int, uiPort: Int)
 
 case class EsiConfig(base: Uri)
-case class SdeConfig(base: Uri)
+case class SdeConfig(base: Uri, parallel: Int)
 
 /** Top-level ControlTower configuration (read from a HOCON file `application.conf`)
   */
