@@ -3,7 +3,7 @@ package controltower.ui
 import com.raquo.laminar.api.L.*
 
 import scala.reflect.ClassTag
-import scala.collection.{SeqView, mutable}
+import scala.collection.mutable
 import scala.util.Random
 
 type RenderT[A] = (StrictSignal[A], Observer[Option[A]]) => Element
@@ -24,12 +24,12 @@ final class ArrayRenderedVar[A: ClassTag] private (render: RenderT[A])(using Can
     items.foreach(append)
 
   private inline def removeOrUpdateFor(k: Long, v: Var[A]) =
-    val obs = v.writer
     Observer[Option[A]]:
         case None       => removeAt(k)
-        case Some(next) => obs.onNext(next)
+        case Some(next) => updateAt(k, next)
 
-  def items: Signal[Seq[A]] = internalVar.signal.map(_.view.map(_._2.now()).toSeq)
+  // TODO: not very nice
+  def itemsNow: Seq[A] = internalVar.now().toSeq.map(_._2).map(_.now())
 
   def append(item: A): Unit =
     val k  = Random.nextLong
@@ -69,8 +69,9 @@ final class ArrayRenderedVar[A: ClassTag] private (render: RenderT[A])(using Can
 
   private def doUpdate(arr: mutable.ArraySeq[(Long, Var[A], Element)], idx: Int, next: A) =
     val (k, v, prevEl) = arr(idx)
+    org.scalajs.dom.console.log(s"Updating: ${next}")
     v.set(next)
-    // note - do not reset the array again?
+    // note - do not need to do anything with the element - it is not getting replaced
     arr
 
   def clear(): Unit =

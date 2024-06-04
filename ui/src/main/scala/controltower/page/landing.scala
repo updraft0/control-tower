@@ -5,13 +5,11 @@ import controltower.*
 import controltower.backend.{ControlTowerBackend, ESI}
 import controltower.component.*
 import controltower.dialog.EditMapView
-import controltower.ui.*
 import org.scalajs.dom
 import org.updraft0.controltower.protocol.*
 import sttp.model.Uri
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.util.{Failure, Success}
 
 object LandingPage:
   val LoginWithEveImageUrlLarge = "https://web.ccpgamescdn.com/eveonlineassets/developers/eve-sso-login-black-large.png"
@@ -31,7 +29,8 @@ object LandingPage:
       child <-- userInfo.signal.map(
         _.map(renderCharacterMapSelection).getOrElse(emptyNode)
       ),
-      renderLogin(ct.loginUrl)
+      renderLogin(ct.loginUrl),
+      a(Routes.navigateTo(Page.MapEditor), "Map Editor")
     )
 
   private def renderCharacterMapSelection(userInfo: UserInfo)(using ControlTowerBackend) =

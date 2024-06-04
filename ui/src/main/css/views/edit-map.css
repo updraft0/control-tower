@@ -1,7 +1,11 @@
 #edit-map-dialog {
     user-select: none;
     min-width: 20em;
+    max-height: 70vh;
     width: fit-content;
+    padding-left: 0.7em;
+    padding-right: 0.7em;
+    scrollbar-gutter: auto;
 
     & div.dialog-header {
         display: inline-flex;
@@ -25,6 +29,12 @@
 
     & div.error {
         background-color: $red-dark;
+    }
+
+    & table {
+        /* TODO this does not work */
+        max-height: 80%;
+        overflow-y: scroll;
     }
 
     & table button {

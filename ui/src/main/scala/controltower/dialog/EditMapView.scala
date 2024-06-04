@@ -38,7 +38,6 @@ object EditMapView:
         h2(existing.map(m => s"Edit '${m.map.name}'").getOrElse("New Map")),
         button(
           tpe := "button",
-          cls := "close-dialog",
           cls := "ti",
           cls := "ti-x",
           cls := "close",
@@ -89,11 +88,8 @@ object EditMapView:
             typ("button"),
             cls := "update",
             existing.map(_ => "Update").getOrElse("Create"),
-            onClick.preventDefault.mapToUnit
-              .compose(_.withCurrentValueOf(name, permissionsAll.items)) --> Observer[
-              (String, Seq[MapPolicyMember])
-            ]: (name, permsUnfiltered) =>
-              val perms = permsUnfiltered.filterNot(_.memberId == 0).toArray
+            onClick.preventDefault.mapToUnit.compose(_.withCurrentValueOf(name)) --> Observer[String]: name =>
+              val perms = permissionsAll.itemsNow.filterNot(_.memberId == 0).toArray
 
               existing match
                 case None =>
@@ -162,7 +158,7 @@ object EditMapView:
           typ := "checkbox",
           controlled(
             checked <-- policyMember.map(!_.isDeny),
-            onInput.mapToChecked --> (v => update.onNext(Some(policyMember.now().copy(isDeny = v))))
+            onInput.mapToChecked --> (v => update.onNext(Some(policyMember.now().copy(isDeny = !v))))
           )
         )
       ),

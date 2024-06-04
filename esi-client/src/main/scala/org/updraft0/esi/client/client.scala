@@ -1,8 +1,5 @@
 package org.updraft0.esi.client
 
-import sttp.capabilities.WebSockets
-import sttp.capabilities.zio.ZioStreams
-import sttp.client3.SttpBackend
 import sttp.client3.httpclient.zio.{HttpClientZioBackend, SttpClient}
 import sttp.model.Uri
 import sttp.tapir.Endpoint
