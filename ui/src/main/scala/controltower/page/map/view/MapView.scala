@@ -14,6 +14,7 @@ import java.time.Instant
 import scala.annotation.unused
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.concurrent.duration.*
 import scala.language.implicitConversions
 
 // TODO: duplication
@@ -48,8 +49,10 @@ private class MapView(
   private def handleIncoming(msg: WebSocketEvent[MapMessage]): Unit =
     msg match
       case WebSocketEvent.Received(msg) => controller.responseBus.writer.onNext(msg)
-      case WebSocketEvent.Error(ex)     => org.scalajs.dom.console.error(s"Unhandled error in MapControllerView: ${ex}")
-      case _                            => // no-op
+      case WebSocketEvent.Error(ex) =>
+        if (io.laminext.websocket.WebSocketError.eq(ex)) () // no-op
+        else org.scalajs.dom.console.error(s"Unhandled error in MapControllerView: $ex")
+      case _ => // no-op
   private def binderStarted(owner: Owner): Unit =
     controller = new MapController(rds, time)(using owner)
 
@@ -63,7 +66,7 @@ private class MapView(
     }
 
     // get the initial map snapshot
-    controller.requestBus.emit(MapRequest.GetSnapshot)
+    ws.connected.foreach(_ => controller.requestBus.emit(MapRequest.GetSnapshot))(using owner)
 
   private def binderStopped: Unit =
     org.scalajs.dom.console.debug("stopped map view controller")
@@ -193,7 +196,14 @@ object MapView:
       .getOrElse(WebSocket.path(path))
       .receiveText(_.fromJson[MapMessage].left.map(new RuntimeException(_)))
       .sendText[MapRequest](_.toJson)
-      .build()
+      .build(
+        autoReconnect = true,
+        bufferWhenDisconnected = false,
+        reconnectDelay = 2.seconds,
+        reconnectDelayOffline = 20.seconds,
+        reconnectRetries = Int.MaxValue,
+        managed = true
+      )
 
 enum MapNewConnectionState derives CanEqual:
   case Start(fromSystemId: Long, initial: Coord) extends MapNewConnectionState
