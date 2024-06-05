@@ -151,7 +151,10 @@ object MapSession:
       // TODO: not sure if it's right to propagate this or not
       (query.transaction(MapQueries.getMap(ctx.mapId)) <&> ctx.mapRole.get).flatMap {
         case (Some(map: model.MapModel), role) =>
-          ctx.ourQ.offer(protocol.MapMessage.MapMeta(ctx.characterId, toMapInfo(map), toProtocolRole(role)))
+          ctx.ourQ.offer(
+            protocol.MapMessage
+              .MapMeta(ctx.characterId, toMapInfo(map), toProtocolRole(role), protocol.UserPreferences.Default)
+          )
         case _ => ZIO.logError("BUG: map not set")
       }
     // connection

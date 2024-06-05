@@ -49,6 +49,7 @@ object schema:
   given Schema[UserCharacter]    = Schema.derived
   given Schema[UserCharacterMap] = Schema.derived
   given Schema[UserInfo]         = Schema.derived
+  given Schema[UserPreferences]  = Schema.derived
 
   // map
   given Schema[MapInfo]                = Schema.derived
@@ -117,6 +118,7 @@ object jsoncodec:
   given JsonCodec[UserCharacter]    = JsonCodec.derived
   given JsonCodec[UserCharacterMap] = JsonCodec.derived
   given JsonCodec[UserInfo]         = JsonCodec.derived
+  given JsonCodec[UserPreferences]  = JsonCodec.derived
 
   // map
   given JsonCodec[MapInfo]                = JsonCodec.derived

@@ -288,7 +288,7 @@ enum MapMessage:
   case ConnectionsRemoved(connections: Array[MapWormholeConnection])
   case Error(message: String)
   case MapSnapshot(systems: Map[Long, MapSystemSnapshot], connections: Map[Long, MapWormholeConnectionWithSigs])
-  case MapMeta(characterId: CharacterId, info: MapInfo, role: MapRole)
+  case MapMeta(characterId: CharacterId, info: MapInfo, role: MapRole, preferences: UserPreferences)
   case SystemSnapshot(systemId: Long, system: MapSystemSnapshot, connections: Map[Long, MapWormholeConnectionWithSigs])
   case SystemDisplayUpdate(systemId: Long, name: Option[String], displayData: SystemDisplayData)
   case SystemRemoved(systemId: Long)

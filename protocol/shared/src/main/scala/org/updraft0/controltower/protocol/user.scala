@@ -9,3 +9,11 @@ case class UserCharacter(name: String, characterId: CharacterId, corporationId: 
 case class UserCharacterMap(characterId: CharacterId, mapId: Long, mapName: String, mapRole: MapRole)
 
 case class UserInfo(userId: Long, displayName: String, characters: List[UserCharacter], maps: List[UserCharacterMap])
+
+/** All user-configurable global UI preferences
+  */
+case class UserPreferences(clickResetsSelection: Boolean)
+
+object UserPreferences:
+  // TODO: make configurable
+  val Default = UserPreferences(clickResetsSelection = false)

@@ -43,7 +43,9 @@ class MapController(rds: ReferenceDataStore, val clock: Signal[Instant])(using O
   val lastError = Var[Option[String]](None)
 
   // derived data
-  val mapRole: Signal[MapRole]         = mapMeta.signal.map(_.map(_.role).getOrElse(MapRole.Viewer))
+  val mapRole: Signal[MapRole] = mapMeta.signal.map(_.map(_.role).getOrElse(MapRole.Viewer))
+  val userPreferences: Signal[UserPreferences] =
+    mapMeta.signal.map(_.map(_.preferences).getOrElse(UserPreferences.Default))
   val characterId: Signal[CharacterId] = mapMeta.signal.map(_.map(_.characterId).getOrElse(CharacterId(0L)))
   val mapSettings: Signal[MapSettings] =
     mapMeta.signal.map(_.map(_.info.settings).getOrElse(MapController.DefaultMapSettings))
@@ -87,11 +89,12 @@ class MapController(rds: ReferenceDataStore, val clock: Signal[Instant])(using O
   def context: MapViewContext =
     val self = this
     new MapViewContext:
-      override def actions     = self.actionsBus
-      override def characterId = self.characterId
-      override def mapRole     = self.mapRole
-      override def staticData  = SystemStaticData(cacheSolarSystem.view, cacheReference.get)
-      override def now         = self.clock
+      override def actions         = self.actionsBus
+      override def characterId     = self.characterId
+      override def mapRole         = self.mapRole
+      override def staticData      = SystemStaticData(cacheSolarSystem.view, cacheReference.get)
+      override def now             = self.clock
+      override def userPreferences = self.userPreferences
 
   def clear(): Unit =
     Var.set(

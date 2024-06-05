@@ -148,9 +148,9 @@ private class MapView(
         cls    := "grid",
         cls    := "g-20px",
         inContext(self =>
-          onClick.stopPropagation --> (ev =>
+          onClick.stopPropagation.compose(_.withCurrentValueOf(mapCtx.userPreferences)) --> ((ev, prefs) =>
             // note: this click handler cleans up any selection
-            if (ev.currentTarget == self.ref)
+            if (prefs.clickResetsSelection && ev.currentTarget == self.ref)
               Var.set(controller.selectedSystemId -> None, controller.selectedConnectionId -> None)
           )
         ),
