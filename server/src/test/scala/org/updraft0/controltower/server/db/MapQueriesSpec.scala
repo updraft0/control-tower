@@ -89,7 +89,7 @@ object MapQueriesSpec extends ZIOSpecDefault:
               containsAll(ranks600, connRanksExpected) && ranks600.size == 1
           )
         )
-  ).provideSomeLayerShared(server.desktopLogger).provideLayer(TempDb.empty)
+  ).provideLayer(TempDb.empty)
 
   private def system(id: model.SystemId, name: Option[String]): model.MapSystem =
     model.MapSystem(
