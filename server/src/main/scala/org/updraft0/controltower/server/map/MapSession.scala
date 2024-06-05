@@ -44,6 +44,10 @@ object MapSession:
     */
   private val OurQueueSize = 16
 
+  /** Proxies etc. close websocket connections if there are no messages
+    */
+  private val PingInterval = 1.minute
+
   private case class Context(
       mapId: MapId,
       characterId: CharacterId,
@@ -110,6 +114,8 @@ object MapSession:
               ZIO.logInfo(s"character no longer has any roles") *> ZIO.interrupt
           )(identity)
           .forkScoped
+        // ping out every ping interval to keep connection open
+        _ <- chan.send(ChannelEvent.Read(WebSocketFrame.Ping)).schedule(Schedule.fixed(PingInterval)).forkDaemon
         _ <- recv.join
         _ <- send.join
       yield ()
