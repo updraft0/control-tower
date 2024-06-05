@@ -1,12 +1,9 @@
 package org.updraft0.controltower.server
 
-import com.typesafe.config.ConfigFactory
 import org.updraft0.controltower.db.Config as DbConfig
 import sttp.model.Uri
 import zio.config.*
 import zio.config.magnolia.*
-import zio.config.typesafe.*
-import zio.config.typesafe.TypesafeConfigProvider.fromTypesafeConfig
 import zio.{ZIO, ZLayer}
 
 import java.math.BigInteger
@@ -60,12 +57,6 @@ object Config:
   private given DeriveConfig[DbConfig] = DeriveConfig[java.nio.file.Path].map(DbConfig.apply)
 
   def layer: ZLayer[Any, Throwable, Config] =
-    ZLayer(
-      ZIO
-        .attemptBlocking(ConfigFactory.load.resolve().getConfig("control-tower"))
-        .flatMap(c =>
-          fromTypesafeConfig(c, enableCommaSeparatedValueAsList = false).load(deriveConfig[Config].mapKey(toKebabCase))
-        )
-    )
+    ZLayer(ZIO.configProviderWith(cp => cp.nested("control-tower").load(deriveConfig[Config].mapKey(toKebabCase))))
 
   private[server] def dbConfigLayer: ZLayer[Config, Nothing, DbConfig] = ZLayer(ZIO.serviceWith[Config](_.db))

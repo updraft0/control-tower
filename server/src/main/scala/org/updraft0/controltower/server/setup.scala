@@ -1,47 +1,23 @@
 package org.updraft0.controltower.server
 
 import zio.{LogAnnotation as _, *}
+import zio.config.typesafe.TypesafeConfigProvider
 import zio.logging.*
 import zio.logging.slf4j.bridge.Slf4jBridge
 
-import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 given CanEqual[LogLevel, LogLevel] = CanEqual.derived
 
-private[server] def desktopLogFormat = {
-  import LogFormat.*
+private[server] def configProvider = TypesafeConfigProvider.fromResourcePath()
 
-  val fileLine = make { (builder, trace, _, _, _, _, _, _, _) =>
-    trace match {
-      case Trace(location, file, line) =>
-        builder.appendText(location)
-        builder.appendText(" ")
-        builder.appendText(file)
-        builder.appendText(":")
-        builder.appendNumeric(line)
-      case _ => ()
-    }
-  }
+private def consoleOrJsonLogger = ZLayer
+  .fromZIO(ZIO.configProviderWith(_.nested("logger").load(Config.string("type").withDefault(""))))
+  .flatMap(e => if (e.get == "json") consoleJsonLogger() else consoleLogger())
 
-  timestamp(DateTimeFormatter.ISO_LOCAL_TIME).fixed(18).color(LogColor.BLUE) |-|
-    level.fixed(10).color(LogColor.YELLOW) |-|
-    fiberId.fixed(15).color(LogColor.WHITE) |-|
-    text(" | ") +
-    line.highlight {
-      case LogLevel.Error | LogLevel.Warning => LogColor.RED
-      case LogLevel.Debug                    => LogColor.CYAN
-      case _                                 => LogColor.WHITE
-    } +
-    text(" | ") +
-    fileLine.color(LogColor.BLUE) +
-    allAnnotations.color(LogColor.BLUE) +
-    (space + label("cause", cause).highlight).filter(LogFilter.causeNonEmpty)
-}
-
-private[server] def desktopLogger = Runtime.removeDefaultLoggers >>> consoleLogger(
-  ConsoleLoggerConfig(desktopLogFormat, LogFilter.LogLevelByNameConfig(LogLevel.Debug /* FIXME add config */ ))
-) >+> Slf4jBridge.initialize
+private[server] def desktopLogger = Runtime.removeDefaultLoggers >>> Runtime.setConfigProvider(
+  configProvider
+) >>> consoleOrJsonLogger >+> Slf4jBridge.init()
 
 object Log:
 

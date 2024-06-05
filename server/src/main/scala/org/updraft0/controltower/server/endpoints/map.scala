@@ -75,8 +75,9 @@ def updateMap = Endpoints.updateMap
               mapUpdate.policyMembers.map(toModelPolicyMember(mapId, _)).toList,
               updatedAt
             )
-            mapModelOpt    <- MapQueries.getMap(mapId)
-            _              <- ZIO.fail(MapNotFound(mapId)).when(mapModelOpt.isEmpty)
+            mapModelOpt <- MapQueries.getMap(mapId)
+            _           <- ZIO.fail(MapNotFound(mapId)).when(mapModelOpt.isEmpty)
+            // TODO notify the sessions about updated roles (if any)
             memberPolicies <- AuthQueries.getMapPolicyMembers(mapId)
           yield MapInfoWithPermissions(toMapInfo(mapModelOpt.get), memberPolicies.map(toProtoPolicyMember).toArray)
         )

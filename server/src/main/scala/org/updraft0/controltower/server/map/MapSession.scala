@@ -22,8 +22,6 @@ import java.util.UUID
 given CanEqual[WebSocketChannelEvent, WebSocketChannelEvent]   = CanEqual.derived
 given CanEqual[ChannelEvent.UserEvent, ChannelEvent.UserEvent] = CanEqual.derived
 
-// TODO: check permissions!
-
 enum MapSessionMessage:
   case RoleChanged(characterId: CharacterId, role: Option[model.MapRole])
 
