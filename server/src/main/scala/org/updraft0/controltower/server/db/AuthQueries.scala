@@ -2,7 +2,7 @@ package org.updraft0.controltower.server.db
 
 import io.getquill.*
 import io.getquill.extras.*
-import org.updraft0.controltower.constant.CharacterId
+import org.updraft0.controltower.constant.*
 import org.updraft0.controltower.db.model
 import org.updraft0.controltower.db.query.*
 import zio.*
@@ -32,13 +32,13 @@ object AuthQueries:
     run(quote(character.filter(_.name == lift(name)))).map(_.headOption)
 
   def getUserCharacterByIdAndCharId(
-      userId: Long,
+      userId: UserId,
       characterId: CharacterId
   ): Result[Option[(model.AuthUser, model.AuthCharacter)]] =
     getUserCharactersById(userId).map(_.flatMap((u, chars) => chars.find(_.id == characterId).map(c => (u -> c))))
 
   def getUserCharactersById(
-      userId: Long
+      userId: UserId
   ): Result[Option[(model.AuthUser, List[model.AuthCharacter])]] =
     run(quote {
       for
@@ -96,7 +96,7 @@ object AuthQueries:
       for
         char <- character.filter(c => liftQuery(cids).contains(c.id))
         roles <- mapPolicyMember
-          .join(_.memberId == char.corporationId)
+          .join(m => infix"${m.memberId} = ${char.corporationId}".asCondition) // see comment above
           .filter(_.memberType == lift(model.PolicyMemberType.Corporation))
       yield char.id -> roles
     }
@@ -105,7 +105,7 @@ object AuthQueries:
       for
         char <- character.filter(c => liftQuery(cids).contains(c.id))
         roles <- mapPolicyMember
-          .join(_.memberId === char.allianceId)
+          .join(m => infix"${m.memberId} = ${char.allianceId}".asCondition) // see comment above
           .filter(_.memberType == lift(model.PolicyMemberType.Alliance))
       yield char.id -> roles
     }
@@ -124,7 +124,7 @@ object AuthQueries:
 
   // creates
 
-  def createMapPolicy(mapId: model.MapId, userId: model.UserId): Result[Unit] =
+  def createMapPolicy(mapId: model.MapId, userId: UserId): Result[Unit] =
     run(quote {
       mapPolicy.insert(_.mapId -> lift(mapId), _.createdByUserId -> lift(userId))
     }).unit

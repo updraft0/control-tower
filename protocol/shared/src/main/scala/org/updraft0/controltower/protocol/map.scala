@@ -11,9 +11,9 @@ case class MapPolicyMember(
     memberType: PolicyMemberType,
     isDeny: Boolean,
     role: MapRole,
-    createdBy: Option[Long] = None,
+    createdBy: Option[UserId] = None,
     createdAt: Option[Instant] = None,
-    updatedBy: Option[Long] = None,
+    updatedBy: Option[UserId] = None,
     updatedAt: Option[Instant] = None
 ) derives CanEqual
 
@@ -41,7 +41,7 @@ case class MapSystem(
     updatedByCharacterId: CharacterId
 )
 
-case class Corporation(id: Long, name: String)
+case class Corporation(id: CorporationId, name: String)
 
 case class MapSystemStructure(
     name: String,

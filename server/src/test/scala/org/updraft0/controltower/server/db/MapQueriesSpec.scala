@@ -1,6 +1,6 @@
 package org.updraft0.controltower.server.db
 
-import org.updraft0.controltower.constant.CharacterId
+import org.updraft0.controltower.constant.*
 import org.updraft0.controltower.server
 import org.updraft0.controltower.db.model
 import org.updraft0.controltower.db.query
@@ -11,7 +11,8 @@ import zio.test.*
 import java.time.Instant
 
 object MapQueriesSpec extends ZIOSpecDefault:
-  private val DefaultMap = model.MapModel(42L, "test", model.MapDisplayType.Manual, Instant.EPOCH, 1L, None, None)
+  private val DefaultMap =
+    model.MapModel(42L, "test", model.MapDisplayType.Manual, Instant.EPOCH, UserId(1), None, None)
 
   override def spec = suite("MapQueries::map_wormhole_connection")(
     test("can compute ranks of incoming wormholes"):

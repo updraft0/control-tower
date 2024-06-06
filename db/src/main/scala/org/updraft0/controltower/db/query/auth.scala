@@ -1,7 +1,7 @@
 package org.updraft0.controltower.db.query
 
 import io.getquill.*
-import org.updraft0.controltower.constant.CharacterId
+import org.updraft0.controltower.constant.*
 import org.updraft0.controltower.db.model.*
 import zio.ZIO
 
@@ -11,6 +11,15 @@ object auth:
 
   given MappedEncoding[Long, CharacterId] = MappedEncoding(CharacterId.apply)
   given MappedEncoding[CharacterId, Long] = MappedEncoding(identity)
+
+  given MappedEncoding[Long, CorporationId] = MappedEncoding(CorporationId.apply)
+  given MappedEncoding[CorporationId, Long] = MappedEncoding(identity)
+
+  given MappedEncoding[Long, AllianceId] = MappedEncoding(AllianceId.apply)
+  given MappedEncoding[AllianceId, Long] = MappedEncoding(identity)
+
+  given MappedEncoding[Long, UserId] = MappedEncoding(UserId.apply)
+  given MappedEncoding[UserId, Long] = MappedEncoding(identity)
 
   // TODO: not sure about location of these
   given MappedEncoding[String, MapRole] = MappedEncoding {
@@ -72,10 +81,12 @@ object auth:
         )
     )
 
-  def insertUser(displayName: String): DbOperation[Long] =
-    ctx.run(quote { schema.user.insertValue(AuthUser(0L, lift(displayName), None)).returningGenerated(_.id) })
+  def insertUser(displayName: String): DbOperation[UserId] =
+    ctx.run(
+      quote(schema.user.insertValue(AuthUser(lift(UserId.Invalid), lift(displayName), None)).returningGenerated(_.id))
+    )
 
-  def removeCharacterFromUser(userId: Long, characterId: CharacterId): DbOperation[Long] =
+  def removeCharacterFromUser(userId: UserId, characterId: CharacterId): DbOperation[Long] =
     ctx.run(
       quote(schema.userCharacter.filter(uc => uc.userId == lift(userId) && uc.characterId == lift(characterId)).delete)
     )

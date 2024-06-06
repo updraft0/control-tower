@@ -1,5 +1,6 @@
 package org.updraft0.controltower.server.auth
 
+import org.updraft0.controltower.constant.*
 import org.updraft0.controltower.protocol
 import org.updraft0.controltower.server.{Config, BytesSecret}
 import zio.*
@@ -80,7 +81,7 @@ extension (s: SecretKeySpec)
     mac.init(s)
     mac.doFinal(data)
 
-case class LoggedInUser(userId: Long, sessionId: UUID)
+case class LoggedInUser(userId: UserId, sessionId: UUID)
 case class UserSession(ref: FiberRef[Option[LoggedInUser]])
 
 object UserSession:

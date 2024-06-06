@@ -2,7 +2,7 @@ package org.updraft0.controltower.server.db
 
 import io.getquill.*
 import io.getquill.extras.*
-import org.updraft0.controltower.constant.CharacterId
+import org.updraft0.controltower.constant.*
 import org.updraft0.controltower.db.model
 import org.updraft0.controltower.db.model.MapDisplayType
 import org.updraft0.controltower.db.query.*
@@ -46,7 +46,16 @@ object MapQueries:
   import zio.json.ast.Json
 
   given JsonDecoder[CharacterId] = JsonDecoder.long.map(CharacterId.apply)
-  given JsonEncoder[CharacterId] = JsonEncoder.long.contramap(_.asInstanceOf[Long])
+  given JsonEncoder[CharacterId] = JsonEncoder.long.contramap(_.value)
+
+  given JsonDecoder[CorporationId] = JsonDecoder.long.map(CorporationId.apply)
+  given JsonEncoder[CorporationId] = JsonEncoder.long.contramap(_.value)
+
+  given JsonDecoder[AllianceId] = JsonDecoder.long.map(AllianceId.apply)
+  given JsonEncoder[AllianceId] = JsonEncoder.long.contramap(_.value)
+
+  given JsonDecoder[SystemId] = JsonDecoder.long.map(SystemId.apply)
+  given JsonEncoder[SystemId] = JsonEncoder.long.contramap(_.value)
 
   // json decoders for json_array_agg usage (some logic duplicated between the MappedEntity and the codec here)
   private given JsonDecoder[model.SignatureGroup]     = JsonDecoder.int.map(model.SignatureGroup.fromOrdinal)
@@ -63,7 +72,7 @@ object MapQueries:
         systemId             <- m("systemId").as[model.SystemId]
         name                 <- m("name").as[String]
         isDeleted            <- m("isDeleted").as[Int].map(_ == 1)
-        ownerCorporationId   <- m("ownerCorporationId").as[Option[model.CorporationId]]
+        ownerCorporationId   <- m("ownerCorporationId").as[Option[CorporationId]]
         structureType        <- m("structureType").as[Option[String]]
         location             <- m("location").as[Option[String]]
         createdAt            <- m("createdAt").as[Long].map(Instant.ofEpochMilli)
@@ -154,8 +163,8 @@ object MapQueries:
       for
         id                   <- m("id").as[Long]
         mapId                <- m("mapId").as[MapId]
-        fromSystemId         <- m("fromSystemId").as[Long]
-        toSystemId           <- m("toSystemId").as[Long]
+        fromSystemId         <- m("fromSystemId").as[SystemId]
+        toSystemId           <- m("toSystemId").as[SystemId]
         isDeleted            <- m("isDeleted").as[Int].map(_ == 1)
         createdAt            <- m("createdAt").as[Long].map(Instant.ofEpochMilli)
         createdByCharacterId <- m("createdByCharacterId").as[CharacterId]
@@ -173,7 +182,7 @@ object MapQueries:
         updatedByCharacterId
       )
 
-  type MapId = Long
+  type MapId = Long // TODO move to opaque
 
   def getMap(id: MapId): Result[Option[model.MapModel]] =
     run(quote {
@@ -185,7 +194,7 @@ object MapQueries:
       mapModel.filter(m => liftQuery(mapIds).contains(m.id))
     })
 
-  def getMapByCreatorUserAndName(userId: Long, name: String): Result[Option[model.MapModel]] =
+  def getMapByCreatorUserAndName(userId: UserId, name: String): Result[Option[model.MapModel]] =
     run(quote {
       mapModel
         .filter(_.name == lift(name))
@@ -193,7 +202,7 @@ object MapQueries:
     })
       .map(_.headOption)
 
-  def createMap(userId: Long, name: String, displayType: MapDisplayType): Result[MapId] =
+  def createMap(userId: UserId, name: String, displayType: MapDisplayType): Result[MapId] =
     run(quote {
       mapModel
         .insert(_.creatorUserId -> lift(userId), _.name -> lift(name), _.displayType -> lift(displayType))
@@ -458,7 +467,7 @@ object MapQueries:
     )
 
   // deletes
-  def deleteMap(mapId: MapId, userId: Long): Result[Unit] =
+  def deleteMap(mapId: MapId, userId: UserId): Result[Unit] =
     run(
       quote(
         mapModel

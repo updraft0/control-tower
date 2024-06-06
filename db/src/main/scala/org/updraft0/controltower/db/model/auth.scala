@@ -1,13 +1,9 @@
 package org.updraft0.controltower.db.model
 
-import org.updraft0.controltower.constant.CharacterId
+import org.updraft0.controltower.constant.*
 
 import java.time.Instant
 import java.util.UUID
-
-type AllianceId    = Long
-type CorporationId = Long
-type UserId        = Long
 
 case class AuthCharacter(
     ownerHash: String,

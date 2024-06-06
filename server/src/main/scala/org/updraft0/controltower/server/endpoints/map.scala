@@ -1,6 +1,6 @@
 package org.updraft0.controltower.server.endpoints
 
-import org.updraft0.controltower.constant.CharacterId
+import org.updraft0.controltower.constant.*
 import org.updraft0.controltower.db.{model, query as dbquery}
 import org.updraft0.controltower.protocol
 import org.updraft0.controltower.protocol.{SessionCookie as _, *}
@@ -170,7 +170,7 @@ private def checkUserCanAccessMap(
     .tapErrorCause(ZIO.logWarningCause("failed while checking user access", _))
     .mapError(toUserError)
 
-private def checkNewMapCharacterMatches(userId: Long, newMap: NewMap) =
+private def checkNewMapCharacterMatches(userId: UserId, newMap: NewMap) =
   for
     // note: we stopped checking whether a character matches because there is no need to link a character to a map (except through policy)
     mapAlreadyExists <- MapQueries.getMapByCreatorUserAndName(userId, newMap.name).map(_.isDefined)
@@ -179,7 +179,7 @@ private def checkNewMapCharacterMatches(userId: Long, newMap: NewMap) =
 
 private def updatePolicyMembers(
     mapId: model.MapId,
-    userId: model.UserId,
+    userId: UserId,
     prev: List[model.MapPolicyMember],
     next: List[model.MapPolicyMember],
     updatedAt: Instant
@@ -198,7 +198,7 @@ private def updatePolicyMembers(
     _ <- AuthQueries.updateMapPolicyMembers(mapId, toUpdate.map(k => nextMap(k)).toList)
   yield ()
 
-private def insertNewMap(userId: model.UserId, newMap: NewMap) =
+private def insertNewMap(userId: UserId, newMap: NewMap) =
   for
     map <- MapQueries
       .createMap(userId, newMap.name, toModelMapDisplayType(newMap.displayType))
@@ -213,7 +213,7 @@ private def insertNewMap(userId: model.UserId, newMap: NewMap) =
 def toMapInfo(map: model.MapModel): MapInfo = /* FIXME store settings */
   MapInfo(map.id, map.name, toMapDisplayType(map.displayType), MapSettings(12.hours), map.createdAt)
 
-def toModelPolicyMemberForCreate(map: model.MapModel, userId: model.UserId, m: MapPolicyMember): model.MapPolicyMember =
+def toModelPolicyMemberForCreate(map: model.MapModel, userId: UserId, m: MapPolicyMember): model.MapPolicyMember =
   model.MapPolicyMember(
     mapId = map.id,
     memberId = m.memberId,
@@ -233,9 +233,9 @@ def toModelPolicyMember(mapId: model.MapId, m: MapPolicyMember): model.MapPolicy
     memberType = toMemberType(m.memberType),
     isDeny = m.isDeny,
     role = toMapRole(m.role),
-    createdByUserId = m.createdBy.getOrElse(-1),
+    createdByUserId = m.createdBy.getOrElse(UserId.Invalid),
     createdAt = m.createdAt.getOrElse(Instant.EPOCH),
-    updatedByUserId = m.updatedBy.getOrElse(-1),
+    updatedByUserId = m.updatedBy.getOrElse(UserId.Invalid),
     updatedAt = m.updatedAt.getOrElse(Instant.EPOCH)
   )
 

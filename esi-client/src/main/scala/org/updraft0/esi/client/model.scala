@@ -1,5 +1,7 @@
 package org.updraft0.esi.client
 
+import org.updraft0.controltower.constant.*
+
 import java.time.Instant
 
 case class CharacterRoles(roles: List[String])

@@ -1,12 +1,12 @@
 package org.updraft0.controltower.server.auth
 
-import org.updraft0.controltower.constant.CharacterId
+import org.updraft0.controltower.constant.*
 import org.updraft0.controltower.db.model
 import org.updraft0.controltower.server.db.{AuthQueries, MapQueries}
 import zio.*
 
 object MapPolicy:
-  type MapId = Long
+  type MapId = Long // TODO move to opaque
   type Env   = javax.sql.DataSource
 
   def getMapsForCharacters(
@@ -30,7 +30,7 @@ object MapPolicy:
 
   /** Fetch the allowed map ids that a user can access
     */
-  def allowedMapIdsForUser(userId: Long): RIO[Env, List[(CharacterId, MapId, model.MapRole)]] =
+  def allowedMapIdsForUser(userId: UserId): RIO[Env, List[(CharacterId, MapId, model.MapRole)]] =
     AuthQueries.getUserCharactersById(userId).flatMap {
       case None => ZIO.succeed(List.empty[(CharacterId, MapId, model.MapRole)])
       case Some((_, chars)) =>

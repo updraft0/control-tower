@@ -31,7 +31,7 @@ lazy val `esi-client` = project
       libraryDependencies ++= jsoniter ++ tapir ++ `tapir-client` ++ `tapir-jsoniter`,
       libraryDependencies ++= zio ++ `zio-test`
     )
-  )
+  ).dependsOn(constant.jvm)
 
 lazy val `mini-reactive` = project
   .in(file("mini-reactive"))
@@ -75,9 +75,6 @@ lazy val server = project
     Seq(
       libraryDependencies ++= jwt ++ tapir ++ `tapir-zio-json` ++ `tapir-server`,
       libraryDependencies ++= zio ++ `zio-config` ++ `zio-test`,
-
-      // dependency overrides
-      dependencyOverrides += "com.softwaremill.magnolia1_3" %% "magnolia" % "1.3.7" % Runtime,
 
       // runtime
       Universal / javaOptions ++= Seq(

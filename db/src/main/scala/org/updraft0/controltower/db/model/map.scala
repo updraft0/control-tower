@@ -1,12 +1,12 @@
 package org.updraft0.controltower.db.model
 
-import org.updraft0.controltower.constant.CharacterId
+import org.updraft0.controltower.constant.*
 
 import java.time.Instant
 import scala.CanEqual
 
-type MapId    = Long
-type SystemId = Long
+type MapId    = Long // TODO opaque
+type SystemId = Long // TODO move to constant
 
 enum ChainNamingStrategy extends Enum[ChainNamingStrategy] derives CanEqual:
   case Manual
@@ -104,7 +104,7 @@ case class MapWormholeConnection(
 case class MapSystemSignature(
     mapId: MapId,
     systemId: SystemId,
-    signatureId: String,
+    signatureId: String, // TODO move to opaque type SigId
     isDeleted: Boolean,
     signatureGroup: SignatureGroup,
     signatureTypeName: Option[String],

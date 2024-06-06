@@ -14,9 +14,12 @@ object schema:
   given characterMapSchema[V: Schema]: Schema[Map[CharacterId, V]] = Schema.schemaForMap[CharacterId, V](_.toString)
 
   // opaque
-  given Schema[CharacterId] = Schema(SInteger()).format("int64")
-  given Schema[SigId]       = Schema.string
-  given Schema[SystemId]    = Schema(SInteger()).format("int64")
+  given Schema[CharacterId]   = Schema(SInteger()).format("int64")
+  given Schema[CorporationId] = Schema(SInteger()).format("int64")
+  given Schema[AllianceId]    = Schema(SInteger()).format("int64")
+  given Schema[SigId]         = Schema.string
+  given Schema[SystemId]      = Schema(SInteger()).format("int64")
+  given Schema[UserId]        = Schema(SInteger()).format("int64")
 
   // auth
 
@@ -83,9 +86,12 @@ object schema:
 
 object jsoncodec:
   // opaque
-  given JsonCodec[CharacterId] = JsonCodec.long.asInstanceOf[JsonCodec[CharacterId]]
-  given JsonCodec[SigId]       = JsonCodec.string.asInstanceOf[JsonCodec[SigId]]
-  given JsonCodec[SystemId]    = JsonCodec.long.asInstanceOf[JsonCodec[SystemId]]
+  given JsonCodec[CharacterId]   = JsonCodec.long.asInstanceOf[JsonCodec[CharacterId]]
+  given JsonCodec[CorporationId] = JsonCodec.long.asInstanceOf[JsonCodec[CorporationId]]
+  given JsonCodec[AllianceId]    = JsonCodec.long.asInstanceOf[JsonCodec[AllianceId]]
+  given JsonCodec[SigId]         = JsonCodec.string.asInstanceOf[JsonCodec[SigId]]
+  given JsonCodec[SystemId]      = JsonCodec.long.asInstanceOf[JsonCodec[SystemId]]
+  given JsonCodec[UserId]        = JsonCodec.long.asInstanceOf[JsonCodec[UserId]]
 
   // auth
 

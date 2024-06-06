@@ -1,6 +1,6 @@
 package org.updraft0.controltower.server.auth
 
-import org.updraft0.controltower.constant.CharacterId
+import org.updraft0.controltower.constant.*
 import org.updraft0.controltower.db.model
 import zio.*
 import zio.test.*
@@ -131,8 +131,8 @@ private def mapPolicy(
     memberType = memberType,
     isDeny = isDeny,
     role = role,
-    createdByUserId = 0L,
+    createdByUserId = UserId.Invalid,
     createdAt = Instant.EPOCH,
-    updatedByUserId = 0L,
+    updatedByUserId = UserId.Invalid,
     updatedAt = Instant.EPOCH
   )

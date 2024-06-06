@@ -1,5 +1,7 @@
 package org.updraft0.esi.client
 
+import org.updraft0.controltower.constant.*
+
 import sttp.client3.httpclient.zio.{HttpClientZioBackend, SttpClient}
 import sttp.model.Uri
 import sttp.tapir.Endpoint
@@ -9,8 +11,7 @@ import zio.{Task, ZIO, ZLayer}
 
 /** Thin HTTP client over the ESI endpoints
   */
-class EsiClient(config: EsiClient.Config, sttp: SttpClient, interp: SttpClientInterpreter):
-
+final class EsiClient(config: EsiClient.Config, sttp: SttpClient, interp: SttpClientInterpreter):
   private val postJwtBase =
     interp
       .toSecureClientThrowDecodeFailures(Endpoints.postJwt, Some(config.loginBase), sttp)
@@ -24,6 +25,12 @@ class EsiClient(config: EsiClient.Config, sttp: SttpClient, interp: SttpClientIn
 
   val getCharacterRoles: JwtString => CharacterId => Task[CharacterRoles] = jwtClient(Endpoints.getCharacterRoles)
 
+  val getCharacterLocation: JwtString => CharacterId => Task[CharacterLocationResponse] =
+    jwtClient(Endpoints.getCharacterLocation)
+
+  val getCharacterFleet: JwtString => CharacterId => Task[Either[FleetError, CharacterFleetResponse]] =
+    jwtClientDecodeErrors(Endpoints.getCharacterFleet)
+
   val getCharacter: CharacterId => Task[Character] =
     interp.toClientThrowErrors(Endpoints.getCharacter, Some(config.base), sttp)
 
@@ -32,6 +39,9 @@ class EsiClient(config: EsiClient.Config, sttp: SttpClient, interp: SttpClientIn
 
   private def jwtClient[A, I, E, O](e: Endpoint[A, I, E, O, Any]) =
     interp.toSecureClientThrowErrors[Task, A, I, E, O, Any](e, Some(config.base), sttp)
+
+  private def jwtClientDecodeErrors[A, I, E, O](e: Endpoint[A, I, E, O, Any]) =
+    interp.toSecureClientThrowDecodeFailures[Task, A, I, E, O, Any](e, Some(config.base), sttp)
 
 object EsiClient:
   case class Config(base: Uri, loginBase: Uri, clientId: String, clientSecret: zio.Config.Secret)

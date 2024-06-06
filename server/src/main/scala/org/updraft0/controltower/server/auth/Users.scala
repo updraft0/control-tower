@@ -1,6 +1,6 @@
 package org.updraft0.controltower.server.auth
 
-import org.updraft0.controltower.constant.CharacterId
+import org.updraft0.controltower.constant.*
 import org.updraft0.controltower.db.model.{AuthCharacter, AuthUser, UserCharacter, UserSession}
 import org.updraft0.controltower.db.model
 import org.updraft0.controltower.db.query.auth
@@ -16,7 +16,7 @@ import java.util.UUID
 
 /** In-memory representation of auth for a character
   */
-case class CharacterAuth(userId: Long, characterId: Long, token: String, refreshToken: Base64, expiry: Instant)
+case class CharacterAuth(userId: UserId, characterId: CharacterId, token: String, refreshToken: Base64, expiry: Instant)
 
 object Users:
   type Env = Config & javax.sql.DataSource & EsiClient & SecureRandom & TokenCrypto
@@ -98,7 +98,7 @@ object Users:
       _     <- auth.upsertAuthToken(token)
     yield ()
 
-  private def newUserSession(userId: Long, sessionId: UUID) =
+  private def newUserSession(userId: UserId, sessionId: UUID) =
     for
       conf      <- ZIO.service[Config]
       createdAt <- ZIO.clockWith(_.instant)
