@@ -21,6 +21,18 @@ object schema:
   given Schema[CharacterAffiliation]      = Schema.derived
   given Schema[CharacterFleetResponse]    = Schema.derived
   given Schema[CharacterLocationResponse] = Schema.derived
+  given Schema[CharacterOnlineResponse]   = Schema.derived
+  given Schema[CharacterShipResponse]     = Schema.derived
+
+  // error
+  given Schema[EsiError.BadRequest]          = Schema.derived
+  given Schema[EsiError.Unauthorized]        = Schema.derived
+  given Schema[EsiError.Timeout]             = Schema.derived
+  given Schema[EsiError.ServiceUnavailable]  = Schema.derived
+  given Schema[EsiError.RateLimited]         = Schema.derived
+  given Schema[EsiError.InternalServerError] = Schema.derived
+  given Schema[EsiError.NotFound]            = Schema.derived
+  given Schema[EsiError.Forbidden]           = Schema.derived
 
 object jsoncodec:
   // debug print codecs
@@ -58,6 +70,15 @@ object jsoncodec:
   given JsonValueCodec[JwtAuthResponse]   = JsonCodecMaker.make(config)
   given JsonValueCodec[AuthErrorResponse] = JsonCodecMaker.make(config)
 
+  given JsonValueCodec[EsiError.BadRequest]          = JsonCodecMaker.make(config)
+  given JsonValueCodec[EsiError.Timeout]             = JsonCodecMaker.make(config)
+  given JsonValueCodec[EsiError.ServiceUnavailable]  = JsonCodecMaker.make(config)
+  given JsonValueCodec[EsiError.InternalServerError] = JsonCodecMaker.make(config)
+  given JsonValueCodec[EsiError.RateLimited]         = JsonCodecMaker.make(config)
+  given JsonValueCodec[EsiError.Unauthorized]        = JsonCodecMaker.make(config)
+  given JsonValueCodec[EsiError.NotFound]            = JsonCodecMaker.make(config)
+  given JsonValueCodec[EsiError.Forbidden]           = JsonCodecMaker.make(config)
+
   // character
   given JsonValueCodec[CharacterRoles]         = JsonCodecMaker.make(config)
   given JsonValueCodec[Character]              = JsonCodecMaker.make(config)
@@ -67,3 +88,5 @@ object jsoncodec:
   given JsonValueCodec[List[CharacterAffiliation]] = JsonCodecMaker.make(config)
   given JsonValueCodec[CharacterFleetResponse]     = JsonCodecMaker.make(config)
   given JsonValueCodec[CharacterLocationResponse]  = JsonCodecMaker.make(config)
+  given JsonValueCodec[CharacterOnlineResponse]    = JsonCodecMaker.make(config)
+  given JsonValueCodec[CharacterShipResponse]      = JsonCodecMaker.make(config)

@@ -21,7 +21,7 @@ object UsersSpec extends ZIOSpecDefault:
 
   def spec = suite("JWT auth token")(
     test("can be encrypted and decrypted"):
-        val meta = EsiTokenMeta(1234, "Name1", "abcdef", Instant.EPOCH)
+        val meta = EsiTokenMeta(CharacterId(1234), "Name1", "abcdef", Instant.EPOCH)
         val jwt  = JwtAuthResponse(JwtString(SampleTokenValue), 1L, "?", SampleRefresh)
 
         for

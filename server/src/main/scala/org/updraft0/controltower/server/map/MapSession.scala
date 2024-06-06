@@ -1,6 +1,6 @@
 package org.updraft0.controltower.server.map
 
-import org.updraft0.controltower.constant.CharacterId
+import org.updraft0.controltower.constant.*
 import org.updraft0.controltower.db.{model, query}
 import org.updraft0.controltower.protocol
 import org.updraft0.controltower.protocol.jsoncodec.given
@@ -50,7 +50,7 @@ object MapSession:
       mapId: MapId,
       characterId: CharacterId,
       sessionId: MapSessionId,
-      userId: Long,
+      userId: UserId,
       mapRole: Ref[model.MapRole],
       mapQ: Enqueue[Identified[MapRequest]],
       resQ: Dequeue[Identified[MapResponse]],
@@ -61,7 +61,7 @@ object MapSession:
   def apply(
       mapId: MapId,
       characterId: CharacterId,
-      userId: Long,
+      userId: UserId,
       initialRole: model.MapRole,
       sessionMessages: Dequeue[MapSessionMessage]
   ) = Handler.webSocket: chan =>
@@ -119,7 +119,7 @@ object MapSession:
       yield ()
     )
 
-  private def inContext[R](mapId: MapId, characterId: CharacterId, userId: Long)(
+  private def inContext[R](mapId: MapId, characterId: CharacterId, userId: UserId)(
       f: ZIO[R & Scope.Closeable & MapSessionId, Throwable, Any]
   ): ZIO[R, Throwable, Any] =
     for

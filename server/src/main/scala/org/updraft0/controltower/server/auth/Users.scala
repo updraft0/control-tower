@@ -7,7 +7,7 @@ import org.updraft0.controltower.db.query.auth
 import org.updraft0.controltower.db.query
 import org.updraft0.controltower.server.Config
 import org.updraft0.controltower.server.db.AuthQueries
-import org.updraft0.esi.client.{EsiClient, JwtAuthResponse}
+import org.updraft0.esi.client.{EsiClient, JwtAuthResponse, JwtString}
 import zio.*
 
 import java.security.SecureRandom
@@ -47,7 +47,10 @@ object Users:
 
   private def newUser(jwt: JwtAuthResponse, tokenMeta: EsiTokenMeta, sessionId: UUID): ZIO[Env, Throwable, Unit] =
     for
-      char   <- getUserCharacterFromEsi(CharacterId(tokenMeta.characterId), tokenMeta.characterOwnerHash)
+      now <- ZIO.clockWith(_.instant)
+      char <- getUserCharacterFromEsi(tokenMeta.characterId, tokenMeta.characterOwnerHash, jwt.accessToken, now)
+        .logError(s"Failed to get character info for ${tokenMeta.characterId}")
+        .absorbWith(err => EsiError.ClientError(err).asThrowable)
       userId <- auth.insertUser(displayName = char.name)
       _      <- auth.insertUserCharacter(UserCharacter(userId, char.id))
       _      <- auth.upsertCharacter(char)
@@ -78,7 +81,10 @@ object Users:
       session: UserSession
   ): ZIO[Env, Throwable, Unit] =
     for
-      char  <- getUserCharacterFromEsi(CharacterId(tokenMeta.characterId), tokenMeta.characterOwnerHash)
+      now <- ZIO.clockWith(_.instant)
+      char <- getUserCharacterFromEsi(tokenMeta.characterId, tokenMeta.characterOwnerHash, jwt.accessToken, now)
+        .logError(s"Failed to get character info for ${tokenMeta.characterId}")
+        .absorbWith(err => EsiError.ClientError(err).asThrowable)
       _     <- auth.insertUserCharacter(UserCharacter(user.id, char.id))
       _     <- auth.upsertCharacter(char)
       token <- encryptJwtResponse(tokenMeta, jwt)
@@ -92,7 +98,10 @@ object Users:
       char: AuthCharacter
   ): ZIO[Env, Throwable, Unit] =
     for
-      char  <- getUserCharacterFromEsi(CharacterId(tokenMeta.characterId), tokenMeta.characterOwnerHash)
+      now <- ZIO.clockWith(_.instant)
+      char <- getUserCharacterFromEsi(tokenMeta.characterId, tokenMeta.characterOwnerHash, jwt.accessToken, now)
+        .logError(s"Failed to get character info for ${tokenMeta.characterId}")
+        .absorbWith(err => EsiError.ClientError(err).asThrowable)
       _     <- auth.upsertCharacter(char)
       token <- encryptJwtResponse(tokenMeta, jwt)
       _     <- auth.upsertAuthToken(token)
@@ -113,23 +122,24 @@ object Users:
       userAgent = None  // FIXME implement this
     )
 
-  private def getUserCharacterFromEsi(characterId: CharacterId, ownerHash: String) =
-    (EsiClient.withZIO(_.getCharacter(characterId)) <&> EsiClient.withZIO(
-      _.getCharacterAffiliations(List(characterId))
-    ))
-      .map: (apiChar, apiAffiliations) =>
-        assert(apiAffiliations.length == 1, "expecting len(affiliations) == 1")
-        AuthCharacter(
-          ownerHash = ownerHash,
-          id = characterId,
-          name = apiChar.name,
-          corporationId = apiAffiliations.head.corporationId,
-          allianceId = apiAffiliations.head.allianceId,
-          bornAt = apiChar.birthday,
-          addedAt = None,
-          updatedAt = None,
-          lastOnlineAt = None // FIXME implement this
-        )
+  private def getUserCharacterFromEsi(characterId: CharacterId, ownerHash: String, jwt: JwtString, now: Instant) =
+    (EsiClient.withZIO(_.getCharacter(characterId)) <&>
+      EsiClient.withZIO(_.getCharacterAffiliations(List(characterId))) <&>
+      EsiClient.withZIO(_.getCharacterOnline(jwt)(characterId)))
+      .map:
+        case (apiChar, apiAffiliations, online) =>
+          assert(apiAffiliations.length == 1, "expecting len(affiliations) == 1")
+          AuthCharacter(
+            ownerHash = ownerHash,
+            id = characterId,
+            name = apiChar.name,
+            corporationId = apiAffiliations.head.corporationId,
+            allianceId = apiAffiliations.head.allianceId,
+            bornAt = apiChar.birthday,
+            addedAt = Some(now),
+            updatedAt = Some(now),
+            lastOnlineAt = online.lastLogin
+          )
 
   private[auth] def encryptJwtResponse(tokenMeta: EsiTokenMeta, jwt: JwtAuthResponse) =
     for

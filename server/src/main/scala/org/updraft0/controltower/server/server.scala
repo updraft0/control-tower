@@ -1,13 +1,15 @@
 package org.updraft0.controltower.server
 
-import org.updraft0.controltower.server.auth.{SessionCrypto, UserSession, TokenCrypto}
+import org.updraft0.controltower.server.auth.{SessionCrypto, TokenCrypto, UserSession}
 import org.updraft0.controltower.server.endpoints.*
 import org.updraft0.controltower.server.map.{MapReactive, MapSessionManager}
 import org.updraft0.controltower.db
+import org.updraft0.controltower.protocol.Endpoints
 import org.updraft0.esi.client.{EsiClient, SdeClient}
 import org.updraft0.minireactive.MiniReactive
 import sttp.client3.UriContext
 import sttp.tapir.server.interceptor.cors.*
+import sttp.tapir.server.interceptor.log.DefaultServerLog
 import sttp.tapir.server.ziohttp.{ZioHttpInterpreter, ZioHttpServerOptions}
 import zio.http.{HttpApp, Server as ZServer}
 import zio.metrics.connectors.prometheus.PrometheusPublisher
@@ -79,6 +81,7 @@ object Server extends ZIOAppDefault:
     ZioHttpInterpreter(
       ZioHttpServerOptions.customiseInterceptors
         .corsInterceptor(CORSInterceptor.default)
+        .serverLog(ZioHttpServerOptions.defaultServerLog.copy(ignoreEndpoints = Set(Endpoints.oauth2Callback)))
         .options
     )
       .toHttp(

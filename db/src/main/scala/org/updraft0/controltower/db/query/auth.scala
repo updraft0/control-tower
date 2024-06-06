@@ -36,7 +36,7 @@ object auth:
   }
   given MappedEncoding[PolicyMemberType, String] = MappedEncoding(_.toString.toLowerCase)
 
-  /** Each table lives in the `map` schema, but Quill has no config annotation/etc. for that
+  /** Each table lives in the `auth` schema, but Quill has no config annotation/etc. for that
     */
   object schema:
     inline def character          = quote(querySchema[AuthCharacter]("auth.character"))

@@ -1,7 +1,8 @@
 package org.updraft0.controltower.server.auth
 
+import org.updraft0.controltower.constant.CharacterId
 import org.updraft0.controltower.server.auth.EsiError.{InvalidJwt, UpstreamAuth, UpstreamError, ValidationError}
-import org.updraft0.esi.client.{AuthErrorResponse, EsiClient, JwtAuthResponse}
+import org.updraft0.esi.client.{AuthErrorResponse, EsiClient, JwtAuthResponse, EsiError => EsiClientError}
 import org.updraft0.controltower.server.{Config, EsiKeys}
 import pdi.jwt.{JwtAlgorithm, JwtOptions, JwtZIOJson}
 import pdi.jwt.algorithms.JwtAsymmetricAlgorithm
@@ -18,15 +19,17 @@ enum EsiError:
   case ValidationError(message: String)
   case UpstreamError(reason: Throwable)
   case UpstreamAuth(value: AuthErrorResponse)
+  case ClientError(reason: EsiClientError) extends EsiError
 
-case class EsiTokenMeta(characterId: Long, characterName: String, characterOwnerHash: String, expiry: Instant)
+case class EsiTokenMeta(characterId: CharacterId, characterName: String, characterOwnerHash: String, expiry: Instant)
 
 extension (e: EsiError)
   def asThrowable: Throwable = e match
-    case InvalidJwt(e)        => e
-    case ValidationError(msg) => new RuntimeException(msg)
-    case UpstreamError(e)     => e
-    case UpstreamAuth(err)    => new RuntimeException(s"Upstream error: ${err.error}")
+    case InvalidJwt(e)           => e
+    case ValidationError(msg)    => new RuntimeException(msg)
+    case UpstreamError(e)        => e
+    case UpstreamAuth(err)       => new RuntimeException(s"Upstream error: ${err.error}")
+    case EsiError.ClientError(e) => new RuntimeException(s"Client error: ${e}")
 
 case class JwtEsiInfo(
     sub: String,
@@ -68,7 +71,7 @@ private def extractAndValidateJwt(r: JwtAuthResponse): ZIO[Config, EsiError, (Jw
       .attempt(esiInfo.sub.stripPrefix(CharacterSubjectPrefix).toLong)
       .mapError(e => EsiError.ValidationError(s"Cannot get character id: ${e}"))
     _ <- ZIO.logDebug("validated jwt") // TODO: add aspects for character id
-  yield (r, EsiTokenMeta(characterId, esiInfo.name, esiInfo.owner, Instant.ofEpochSecond(esiInfo.exp)))
+  yield (r, EsiTokenMeta(CharacterId(characterId), esiInfo.name, esiInfo.owner, Instant.ofEpochSecond(esiInfo.exp)))
 
 private def validateEsiInfo(esiInfo: JwtEsiInfo, loginHost: String): IO[EsiError, Unit] =
   ZIO.fail(EsiError.ValidationError("JWT has wrong audience")).unless(esiInfo.aud._2 == EveOnline) *>
