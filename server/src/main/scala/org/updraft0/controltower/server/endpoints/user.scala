@@ -7,25 +7,28 @@ import org.updraft0.controltower.protocol.Endpoints
 import org.updraft0.controltower.server.Server.EndpointEnv
 import org.updraft0.controltower.server.auth.*
 import org.updraft0.controltower.server.db.AuthQueries
+import org.updraft0.controltower.server.tracking.CharacterAuthTracker
 import sttp.tapir.ztapir.*
 import zio.{Config as _, *}
 
 def validateSession(
     cookie: protocol.SessionCookie
 ): ZIO[SessionCrypto & javax.sql.DataSource & UserSession, String, LoggedInUser] =
-  SessionCookie
-    .unapply(cookie)
-    .map(sc =>
-      AuthQueries
-        .getUserCharactersBySessionId(sc.id)
-        .tapErrorCause(ZIO.logWarningCause("failed query", _))
-        .orElseFail("Failure while trying to find session")
-        .flatMap {
-          case None               => ZIO.fail("Session is not valid")
-          case Some((_, user, _)) => UserSession.setUser(LoggedInUser(user.id, sc.id))
-        }
+  ZIO
+    .fromEither(SessionCookie.from(cookie))
+    .tapError(msg => ZIO.logWarning(s"Invalid session cookie: $msg"))
+    .foldZIO(
+      _ => ZIO.fail("Cookie is not valid"),
+      sc =>
+        AuthQueries
+          .getUserCharactersBySessionId(sc.id)
+          .tapErrorCause(ZIO.logWarningCause("failed query", _))
+          .orElseFail("Failure while trying to find session")
+          .flatMap {
+            case None               => ZIO.fail("Session is not valid")
+            case Some((_, user, _)) => UserSession.setUser(LoggedInUser(user.id, sc.id))
+          }
     )
-    .getOrElse(ZIO.fail("Cookie is not valid"))
 
 def getUserInfo = Endpoints.getUserInfo
   .zServerSecurityLogic(validateSession)
@@ -51,6 +54,7 @@ def logoutUserCharacter = Endpoints.logoutUserCharacter
     characterId =>
       Users
         .logoutCharacterFromUser(user.sessionId, characterId)
+        .zipLeft(ZIO.serviceWithZIO[CharacterAuthTracker](_.logout(characterId)))
         .tapErrorCause(ZIO.logWarningCause("failed query", _))
         .orElseFail("Failure while trying to logout user character")
         .flatMap {

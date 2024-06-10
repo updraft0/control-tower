@@ -26,6 +26,7 @@ enum CharacterLocationState derives CanEqual:
   case Offline // TODO add login/logout times and locations too
   case NoAuth
   case ApiError
+  case RateLimited(tryAt: Instant)
 
 case class LocationUpdate(state: Map[CharacterId, CharacterLocationState])
 
@@ -43,9 +44,10 @@ trait LocationTracker:
   def updates: URIO[Scope, Dequeue[LocationUpdate]]
 
 object LocationTracker:
-  private val InCapacity          = 64
-  private val InternalHubCapacity = 64
-  private val OnlineUpdateSeconds = 60
+  private val InCapacity            = 64
+  private val InternalHubCapacity   = 64
+  private val OnlineUpdateSeconds   = 60
+  private val RateLimitRetrySeconds = 60
 
   case class Config(interval: Duration, maxParallel: Int)
 
@@ -132,7 +134,9 @@ object LocationTracker:
       curr <- state.get
       now  <- ZIO.clockWith(_.instant)
       withAuth = curr.charState.view.filter(_._2.auth.isDefined).values
-      res  <- ZIO.foreachExec(withAuth)(ExecutionStrategy.ParallelN(parallel))(refreshLocation(esi, now, _))
+      res <- ZIO.foreachExec(withAuth)(ExecutionStrategy.ParallelN(parallel))(cs =>
+        refreshLocation(esi, now, cs) @@ Log.CharacterId(cs.charId) @@ Log.BackgroundOperation("locationTracker")
+      )
       next <- state.updateAndGet(ts => ts.copy(charState = res.foldLeft(ts.charState)((m, s) => updateOnRefresh(m, s))))
       locUpdate = LocationUpdate(next.charState.transform((_, s) => s.state))
       _ <- response.offer(locUpdate).when(next.charState.nonEmpty)
@@ -153,6 +157,11 @@ object LocationTracker:
           if now.isBefore(prevAt.plusSeconds(OnlineUpdateSeconds)) =>
         // no-op - with the character offline within the endpoint cache window there is nothing to update
         ZIO.succeed(st)
+      case CharacterState(charId, _, Some(auth), _, _) if auth.expiry.isBefore(now) =>
+        // cannot use a token that is expired (but character auth tracker should give us an update)
+        ZIO
+          .logWarning("Not refreshing character due to expired auth token")
+          .as(st.copy(auth = None, state = CharacterLocationState.NoAuth, updatedAt = now))
       case CharacterState(charId, prevState, Some(auth), prevAt, _) =>
         // refresh with previous state
         doRefresh(esi, now, charId, prevState, auth)
@@ -176,7 +185,7 @@ object LocationTracker:
               case _ => st.copy(state = CharacterLocationState.ApiError, prevState = Some(prevState), updatedAt = now)
             },
             identity
-          ) @@ Log.CharacterId(charId) @@ Log.BackgroundOperation("locationTracker")
+          )
 
   private def doRefresh(
       esi: EsiClient,

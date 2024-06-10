@@ -122,7 +122,7 @@ object Endpoints:
   // note: this is currently implemented outside of sttp using zio-http directly
   def mapWebSocket[S](using c: sttp.capabilities.Streams[S]) =
     map
-      .in(path[String].name("mapName") / path[String].name("character") / "ws")
+      .in("ws" / path[String].name("mapName") / path[String].name("character"))
       .out(webSocketBody[MapRequest, CodecFormat.Json, MapMessage, CodecFormat.Json](c))
       .description("Open a WebSocket for map updates")
 

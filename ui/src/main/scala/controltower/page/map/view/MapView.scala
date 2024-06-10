@@ -193,7 +193,7 @@ object MapView:
     yield new MapView(counter, map, ct, rds, ws(map), time)
 
   private def ws(map: Page.Map)(using ct: ControlTowerBackend) =
-    val path = s"/api/map/${map.name}/${map.character}/ws" // TODO this should use the sttp definition
+    val path = s"/api/map/ws/${map.name}/${map.character}" // TODO this should use the sttp definition
 
     ct.wsUrlOpt
       .map(base => WebSocket.url(uri"$base$path".toString, base.scheme.getOrElse("ws")))

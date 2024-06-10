@@ -9,7 +9,7 @@
 %}
 POST {{api}}/map
 Content-Type: application/json
-Cookie: __Host-CT-Session={{ctsessionid}}
+Cookie: CT-Session={{ctsessionid}}
 
 {
   "name": "{{name}}",
@@ -31,9 +31,9 @@ Cookie: __Host-CT-Session={{ctsessionid}}
 < {%
     request.variables.set("name", "examplemap")
 %}
-WEBSOCKET {{apiws}}/map/{{name}}/{{characterId}}/ws
+WEBSOCKET {{apiws}}/map/ws/{{name}}/{{characterName}}
 Content-Type: application/json
-Cookie: __Host-CT-Session={{ctsessionid}}
+Cookie: CT-Session={{ctsessionid}}
 
 # 1. get map snapshot
 # 2. add jita

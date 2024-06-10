@@ -10,6 +10,8 @@ import org.updraft0.controltower.server.db.{AuthQueries, MapQueries}
 import org.updraft0.controltower.server.map.{MapPermissionTracker, MapSession}
 import sttp.tapir.ztapir.*
 import zio.{Config as _, *}
+
+import java.nio.charset.StandardCharsets
 import java.time.Instant
 
 case class ValidationError(msg: String)     extends RuntimeException(msg)
@@ -120,21 +122,25 @@ def mapWebSocket: zio.http.HttpApp[EndpointEnv] =
       )
 
   Routes(
-    Method.GET / "api" / "map" / string("mapName") / string("character") / "ws" ->
-      handler { (mapName: String, character: String, req: Request) =>
-        ZIO.scoped:
-          for
-            user         <- validCookie(req)
-            characterOpt <- lookupCharacter(character)
-            character <- characterOpt
-              .map(ZIO.succeed)
-              .getOrElse(ZIO.fail(Response.text("No character found").status(Status.NotFound)))
-            mapTup <- checkUserCanAccessMap(user, character.id, mapName)
-              .mapError(Response.text(_).status(Status.Unauthorized))
-            (mapId, mapRole) = mapTup
-            sessionMsgs <- ZIO.serviceWithZIO[MapPermissionTracker](_.subscribeSession(mapId, character.id))
-            resp        <- MapSession(mapId, character.id, user.userId, mapRole, sessionMsgs).toResponse
-          yield resp
+    Method.GET / "api" / "map" / "ws" / trailing ->
+      handler { (trailing: Path, req: Request) =>
+        // FIXME zio-http does not handle spaces in paths well
+        if (trailing.segments.size == 2)
+          val mapName   = java.net.URLDecoder.decode(trailing.segments(0), StandardCharsets.UTF_8)
+          val character = java.net.URLDecoder.decode(trailing.segments(1), StandardCharsets.UTF_8)
+          ZIO.scoped:
+            for
+              _            <- ZIO.logDebug(s"Trying to create map websocket for ${mapName}/${character}")
+              user         <- validCookie(req)
+              characterOpt <- lookupCharacter(character)
+              _            <- ZIO.fail(Response.notFound("No character found")).unless(characterOpt.isDefined)
+              mapTup <- checkUserCanAccessMap(user, characterOpt.get.id, mapName)
+                .mapError(Response.unauthorized)
+              (mapId, mapRole) = mapTup
+              sessionMsgs <- ZIO.serviceWithZIO[MapPermissionTracker](_.subscribeSession(mapId, characterOpt.get.id))
+              resp        <- MapSession(mapId, characterOpt.get.id, user.userId, mapRole, sessionMsgs).toResponse
+            yield resp
+        else ZIO.fail(Response.notFound("Not a map websocket endpoint"))
       }
   ).toHttpApp
 

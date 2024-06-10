@@ -18,14 +18,14 @@ case class SessionCookie(id: UUID, hmac: Array[Byte]):
     protocol.SessionCookie(s"${id.toString}:${Base64.getEncoder.encodeToString(hmac)}")
 
 object SessionCookie:
-  def unapply(proto: protocol.SessionCookie): Option[SessionCookie] =
+  def from(proto: protocol.SessionCookie): Either[String, SessionCookie] =
     proto.value.split(':') match
       case Array(left, right) =>
         (for
-          id   <- Try(UUID.fromString(left))
-          hmac <- Try(Base64.getDecoder.decode(right))
-        yield SessionCookie(id, hmac)).toOption
-      case _ => None
+          id   <- Try(UUID.fromString(left)).toEither
+          hmac <- Try(Base64.getDecoder.decode(right)).toEither
+        yield SessionCookie(id, hmac)).left.map(_.getMessage)
+      case _ => Left("Could not split session cookie")
 
 class SessionCrypto(private val secret: SecretKeySpec, private val callbackSecret: SecretKeySpec):
   def this(key: BytesSecret, callbackKey: BytesSecret) =
@@ -44,13 +44,17 @@ object SessionCrypto:
       )
 
   def validate(cookie: protocol.SessionCookie): URIO[SessionCrypto, Option[SessionCookie]] =
-    ZIO.serviceWith[SessionCrypto] { sc =>
-      cookie match
-        case SessionCookie(sessionCookie) =>
-          val expected = sc.secret.hmac(sessionCookie.id.toString.getBytes)
-          Option.when(expected.sameElements(sessionCookie.hmac))(sessionCookie)
-        case _ => None
-    }
+    ZIO
+      .fromEither(SessionCookie.from(cookie))
+      .tapError(msg => ZIO.logWarning(s"Invalid session cookie format: ${msg}"))
+      .foldZIO(
+        _ => ZIO.none,
+        sessionCookie =>
+          ZIO.serviceWith[SessionCrypto] { sc =>
+            val expected = sc.secret.hmac(sessionCookie.id.toString.getBytes)
+            Option.when(expected.sameElements(sessionCookie.hmac))(sessionCookie)
+          }
+      )
 
   // note: the "callback" methods use the same encoding as the session cookie, but a different secret and the result
   //       is never encoded into a cookie (this is to prevent leaking the session cookie)
@@ -61,14 +65,17 @@ object SessionCrypto:
     }
 
   def validateCallbackCode(code: String): URIO[SessionCrypto, Option[UUID]] =
-    ZIO.serviceWith[SessionCrypto] { sc =>
-      protocol.SessionCookie(code) match {
-        case SessionCookie(callbackCookie) =>
-          val expected = sc.callbackSecret.hmac(callbackCookie.id.toString.getBytes)
-          Option.when(expected.sameElements(callbackCookie.hmac))(callbackCookie.id)
-        case _ => None
-      }
-    }
+    ZIO
+      .fromEither(SessionCookie.from(protocol.SessionCookie(code)))
+      .tapError(msg => ZIO.logWarning(s"Invalid (callback) session cookie format: ${msg}"))
+      .foldZIO(
+        _ => ZIO.none,
+        callbackCookie =>
+          ZIO.serviceWith[SessionCrypto] { sc =>
+            val expected = sc.callbackSecret.hmac(callbackCookie.id.toString.getBytes)
+            Option.when(expected.sameElements(callbackCookie.hmac))(callbackCookie.id)
+          }
+      )
 
 private val HmacSha256 = "HmacSHA256"
 

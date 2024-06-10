@@ -8,7 +8,7 @@
 # Also sets the session cookie if one is not present.
 # @name GetAuthUser
 GET {{api}}/user/info
-Cookie: __Host-CT-Session={{ctsessionid}}
+Cookie: CT-Session={{ctsessionid}}
 
 ###
 
