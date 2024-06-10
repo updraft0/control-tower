@@ -15,7 +15,7 @@ trait CharacterAuthTracker:
 
 object CharacterAuthTracker:
   // Every poll interval, refresh the tokens that need to be refreshed
-  private val PollInterval = 15.seconds
+  private val PollInterval = 20.seconds
 
   private val FailedRefreshInterval = 1.minute
 
@@ -42,13 +42,15 @@ object CharacterAuthTracker:
       state <- Ref.make(Map.empty[CharacterId, CharacterState])
       hub   <- Hub.dropping[Chunk[CharacterAuth]](HubCapacity)
       // load the state of auth from the database
-      all <- Users.loadAll.tap(us => ZIO.logDebug(s"Loaded ${us.size} characters"))
+      all <- Users.loadAll.tap(us => ZIO.logDebug(s"Loaded ${us.size} characters' auth tokens from DB"))
       _   <- state.update(_ => all.map(ca => ca.characterId -> CharacterState.Active(ca)).toMap)
+      // wait for initial refresh
+      _ <- refreshPending(esi, state, hub)
       // start the refresh timer
       _ <- refreshPending(esi, state, hub).repeat(Schedule.fixed(PollInterval)).forkScoped
       // start the snapshot timer
       _ <- sendSnapshot(state, hub)
-        .repeat(Schedule.duration(1.seconds).andThen(Schedule.fixed(SnapshotInterval)))
+        .repeat(Schedule.once.andThen(Schedule.fixed(SnapshotInterval)))
         .forkScoped
     yield new CharacterAuthTracker:
       override def newLogin(auth: CharacterAuth): UIO[Unit] =
@@ -65,7 +67,7 @@ object CharacterAuthTracker:
   ) =
     for
       now <- ZIO.clockWith(_.instant)
-      nowExp = now.plus(PollInterval)
+      nowExp = now.plus(PollInterval.multipliedBy(2))
       curr <- state.get
       nextStates <- ZIO.foreachExec(curr.keys.zip(curr.values))(ExecutionStrategy.ParallelN(EsiParallel))((cId, cSt) =>
         handleRefresh(cId, cSt, nowExp)
