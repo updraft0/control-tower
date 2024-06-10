@@ -7,17 +7,16 @@ import org.updraft0.controltower.protocol.{SessionCookie as _, *}
 import org.updraft0.controltower.server.Server.EndpointEnv
 import org.updraft0.controltower.server.auth.*
 import org.updraft0.controltower.server.db.{AuthQueries, MapQueries}
-import org.updraft0.controltower.server.map.{MapSessionManager, MapSession}
-import sttp.capabilities.zio.ZioStreams
+import org.updraft0.controltower.server.map.{MapPermissionTracker, MapSession}
 import sttp.tapir.ztapir.*
 import zio.{Config as _, *}
 import java.time.Instant
 
-case class ValidationError(msg: String)    extends RuntimeException(msg)
-case class NoRolesToDeleteMap(mapId: Long) extends RuntimeException("Insufficient roles to delete map")
-case class NoRolesToGetMap(mapId: Long)    extends RuntimeException("Insufficient roles to get map")
-case class NoRolesToUpdateMap(mapId: Long) extends RuntimeException("Insufficient roles to update map")
-case class MapNotFound(mapId: Long)        extends RuntimeException("Map was not found")
+case class ValidationError(msg: String)     extends RuntimeException(msg)
+case class NoRolesToDeleteMap(mapId: MapId) extends RuntimeException("Insufficient roles to delete map")
+case class NoRolesToGetMap(mapId: MapId)    extends RuntimeException("Insufficient roles to get map")
+case class NoRolesToUpdateMap(mapId: MapId) extends RuntimeException("Insufficient roles to update map")
+case class MapNotFound(mapId: MapId)        extends RuntimeException("Map was not found")
 
 def createMap = Endpoints.createMap
   .zServerSecurityLogic(validateSession)
@@ -75,9 +74,9 @@ def updateMap = Endpoints.updateMap
               mapUpdate.policyMembers.map(toModelPolicyMember(mapId, _)).toList,
               updatedAt
             )
-            mapModelOpt <- MapQueries.getMap(mapId)
-            _           <- ZIO.fail(MapNotFound(mapId)).when(mapModelOpt.isEmpty)
-            // TODO notify the sessions about updated roles (if any)
+            mapModelOpt    <- MapQueries.getMap(mapId)
+            _              <- ZIO.fail(MapNotFound(mapId)).when(mapModelOpt.isEmpty)
+            _              <- ZIO.serviceWithZIO[MapPermissionTracker](_.reloadPermissions(mapId))
             memberPolicies <- AuthQueries.getMapPolicyMembers(mapId)
           yield MapInfoWithPermissions(toMapInfo(mapModelOpt.get), memberPolicies.map(toProtoPolicyMember).toArray)
         )
@@ -99,6 +98,7 @@ def deleteMap = Endpoints.deleteMap
             _ <- AuthQueries.deleteMapPolicyMembers(mapId)
             _ <- AuthQueries.deleteMapPolicy(mapId)
             _ <- MapQueries.deleteMap(mapId, user.userId)
+          // TODO : notify the permission tracker that the map is gone!
           yield ()
         )
         .tapErrorCause(ZIO.logWarningCause("failed while deleting map", _))
@@ -129,11 +129,11 @@ def mapWebSocket: zio.http.HttpApp[EndpointEnv] =
             character <- characterOpt
               .map(ZIO.succeed)
               .getOrElse(ZIO.fail(Response.text("No character found").status(Status.NotFound)))
-            sessionMsgs <- ZIO.serviceWithZIO[MapSessionManager](_.messages)
             mapTup <- checkUserCanAccessMap(user, character.id, mapName)
               .mapError(Response.text(_).status(Status.Unauthorized))
             (mapId, mapRole) = mapTup
-            resp <- MapSession(mapId, character.id, user.userId, mapRole, sessionMsgs).toResponse
+            sessionMsgs <- ZIO.serviceWithZIO[MapPermissionTracker](_.subscribeSession(mapId, character.id))
+            resp        <- MapSession(mapId, character.id, user.userId, mapRole, sessionMsgs).toResponse
           yield resp
       }
   ).toHttpApp
@@ -157,7 +157,7 @@ private def checkUserCanAccessMap(
     user: LoggedInUser,
     characterId: CharacterId,
     mapName: String
-): ZIO[javax.sql.DataSource, String, (model.MapId, model.MapRole)] =
+): ZIO[javax.sql.DataSource, String, (MapId, model.MapRole)] =
   dbquery
     .transaction {
       for
@@ -178,7 +178,7 @@ private def checkNewMapCharacterMatches(userId: UserId, newMap: NewMap) =
   yield ()
 
 private def updatePolicyMembers(
-    mapId: model.MapId,
+    mapId: MapId,
     userId: UserId,
     prev: List[model.MapPolicyMember],
     next: List[model.MapPolicyMember],
@@ -226,7 +226,7 @@ def toModelPolicyMemberForCreate(map: model.MapModel, userId: UserId, m: MapPoli
     updatedAt = map.createdAt
   )
 
-def toModelPolicyMember(mapId: model.MapId, m: MapPolicyMember): model.MapPolicyMember =
+def toModelPolicyMember(mapId: MapId, m: MapPolicyMember): model.MapPolicyMember =
   model.MapPolicyMember(
     mapId = mapId,
     memberId = m.memberId,

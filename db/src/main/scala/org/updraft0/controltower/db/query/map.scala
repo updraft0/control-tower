@@ -65,12 +65,15 @@ object map:
     inline def mapSystemNote         = quote(querySchema[MapSystemNote]("map.map_system_note"))
     inline def mapSystemDisplay      = quote(querySchema[MapSystemDisplay]("map.map_system_display"))
     inline def mapWormholeConnection = quote(querySchema[MapWormholeConnection]("map.map_wormhole_connection"))
-    inline def mapSystemSignature    = quote(querySchema[MapSystemSignature]("map.map_system_signature"))
-    inline def alliance              = quote(querySchema[Alliance]("map.alliance"))
-    inline def corporation           = quote(querySchema[Corporation]("map.corporation"))
-    inline def systemStaticWormhole  = quote(querySchema[SystemStaticWormhole]("map.ref_system_static_wormhole"))
-    inline def wormhole              = quote(querySchema[Wormhole]("map.ref_wormhole"))
-    inline def signatureInGroup      = quote(querySchema[SignatureInGroup]("map.ref_signature_in_group"))
+    inline def mapWormholeConnectionJump = quote(
+      querySchema[MapWormholeConnectionJump]("map.map_wormhole_connection_jump")
+    )
+    inline def mapSystemSignature   = quote(querySchema[MapSystemSignature]("map.map_system_signature"))
+    inline def alliance             = quote(querySchema[Alliance]("map.alliance"))
+    inline def corporation          = quote(querySchema[Corporation]("map.corporation"))
+    inline def systemStaticWormhole = quote(querySchema[SystemStaticWormhole]("map.ref_system_static_wormhole"))
+    inline def wormhole             = quote(querySchema[Wormhole]("map.ref_wormhole"))
+    inline def signatureInGroup     = quote(querySchema[SignatureInGroup]("map.ref_signature_in_group"))
 
   // queries
   def getWormholesUsingTypeDogma: DbOperation[List[(Long, String, JsonValue[Map[String, Double]])]] =
@@ -85,7 +88,7 @@ object map:
         )
     })
 
-  def getWormholeConnection(mapId: Long, connectionId: Long): DbOperation[Option[MapWormholeConnection]] =
+  def getWormholeConnection(mapId: MapId, connectionId: ConnectionId): DbOperation[Option[MapWormholeConnection]] =
     ctx
       .run(quote { mapWormholeConnection.filter(whc => whc.mapId == lift(mapId) && whc.id == lift(connectionId)) })
       .map(_.headOption)
@@ -98,7 +101,7 @@ object map:
   def getWormholeTypeNames: DbOperation[List[(String, Long)]] =
     ctx.run(quote { sde.schema.itemType.filter(_.groupId == lift(WormholeGroupId)).map(it => it.name -> it.id) })
 
-  def getMapSystem(mapId: Long, systemId: Long) =
+  def getMapSystem(mapId: MapId, systemId: Long) =
     ctx
       .run(quote { mapSystem.filter(ms => ms.mapId == lift(mapId) && ms.systemId == lift(systemId)) })
       .map(_.headOption)
@@ -112,6 +115,9 @@ object map:
           .returningGenerated(_.id)
       })
       .map(newId => value.copy(id = newId))
+
+  def insertMapWormholeConnectionJump(value: MapWormholeConnectionJump): DbOperation[Long] =
+    ctx.run(quote(mapWormholeConnectionJump.insertValue(lift(value))))
 
   // upserts
   def upsertMap(value: MapModel): DbOperation[Long] =
@@ -140,8 +146,8 @@ object map:
     })
 
   def updateMapSystemName(
-      mapId: Long,
-      systemId: Long,
+      mapId: MapId,
+      systemId: SystemId,
       name: Option[String],
       updatedAt: Instant,
       updatedByCharacterId: CharacterId
@@ -157,8 +163,8 @@ object map:
     })
 
   def updateMapAttribute(
-      mapId: Long,
-      systemId: Long,
+      mapId: MapId,
+      systemId: SystemId,
       isPinned: Option[Boolean],
       intelStance: Option[IntelStance],
       updatedAt: Instant,
@@ -274,7 +280,7 @@ object map:
         .delete
     )
 
-  def deleteMapWormholeConnection(id: Long, byCharacterId: CharacterId): DbOperation[Long] =
+  def deleteMapWormholeConnection(id: ConnectionId, byCharacterId: CharacterId): DbOperation[Long] =
     ctx.run(
       mapWormholeConnection
         .filter(_.id == lift(id))
@@ -297,7 +303,7 @@ object map:
   def deleteMapSystemSignature(
       mapId: MapId,
       systemId: SystemId,
-      signatureId: String,
+      signatureId: SigId,
       byCharacterId: CharacterId
   ): DbOperation[Long] =
     ctx.run(

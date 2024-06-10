@@ -1,6 +1,6 @@
 package org.updraft0.controltower.protocol
 
-import org.updraft0.controltower.constant.CharacterId
+import org.updraft0.controltower.constant.{CharacterId, MapId}
 
 import sttp.model.StatusCode
 import sttp.tapir.json.zio.*
@@ -23,6 +23,7 @@ object Endpoints:
 
   // opaque
   given Codec[String, CharacterId, CodecFormat.TextPlain] = Codec.long.map(CharacterId.apply)(_.asInstanceOf[Long])
+  given Codec[String, MapId, CodecFormat.TextPlain]       = Codec.long.map(MapId.apply)(_.asInstanceOf[Long])
 
   val getSolarSystem =
     reference.get
@@ -99,14 +100,14 @@ object Endpoints:
 
   val getMap =
     map.get
-      .in(path[Long]("mapId"))
+      .in(path[MapId]("mapId"))
       .get
       .out(jsonBody[MapInfoWithPermissions])
       .description("Get map information with permissions")
 
   val updateMap =
     map
-      .in(path[Long]("mapId"))
+      .in(path[MapId]("mapId"))
       .in(jsonBody[MapInfoWithPermissions])
       .put
       .out(jsonBody[MapInfoWithPermissions])
@@ -114,7 +115,7 @@ object Endpoints:
 
   val deleteMap =
     map
-      .in(path[Long]("mapId"))
+      .in(path[MapId]("mapId"))
       .delete
       .description("Delete a map")
 

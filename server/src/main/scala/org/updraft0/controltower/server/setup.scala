@@ -28,6 +28,7 @@ object Log:
   val SystemIds = LogAnnotation[Seq[Long]]("systemIds", (l, r) => l ++ r, _.toString)
   val CharacterId =
     LogAnnotation[CharacterId]("characterId", (_, r) => r, _.toString) // TODO https://github.com/zio/zio/issues/6829 ?
-  val MapId        = LogAnnotation[Long]("mapId", (_, r) => r, _.toString)
-  val MapOperation = LogAnnotation[String]("mapOperation", (_, r) => r, identity)
-  val UserId       = LogAnnotation[UserId]("userId", (_, r) => r, _.toString)
+  val MapId               = LogAnnotation[MapId]("mapId", (_, r) => r, _.toString)
+  val MapOperation        = LogAnnotation[String]("mapOperation", (_, r) => r, identity)
+  val BackgroundOperation = LogAnnotation[String]("bgOperation", (_, r) => r, identity)
+  val UserId              = LogAnnotation[UserId]("userId", (_, r) => r, _.toString)

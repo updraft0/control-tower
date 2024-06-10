@@ -4,6 +4,8 @@ import scala.language.implicitConversions
 
 // TODO: move to typeclass encoding
 
+// TODO: TypeId
+
 // CharacterId
 opaque type CharacterId = Long
 
@@ -51,6 +53,40 @@ object AllianceId:
   given CanEqual[AllianceId, AllianceId] = CanEqual.derived
 
   extension (inline v: AllianceId) inline def value: Long = v
+
+// MapId
+opaque type MapId = Long
+
+object MapId:
+  def apply(i: Long): MapId = i
+
+  given Conversion[MapId, Long] with
+    override def apply(s: MapId): Long = s
+
+  given Ordering[MapId] with
+    override def compare(x: MapId, y: MapId): Int = x.compare(y)
+
+  given CanEqual[MapId, MapId] = CanEqual.derived
+
+  extension (inline v: MapId) inline def value: Long = v
+
+// ConnectionId
+opaque type ConnectionId = Long
+
+object ConnectionId:
+  val Invalid: ConnectionId = ConnectionId(-1)
+
+  def apply(i: Long): ConnectionId = i
+
+  given Conversion[ConnectionId, Long] with
+    override def apply(s: ConnectionId): Long = s
+
+  given Ordering[ConnectionId] with
+    override def compare(x: ConnectionId, y: ConnectionId): Int = x.compare(y)
+
+  given CanEqual[ConnectionId, ConnectionId] = CanEqual.derived
+
+  extension (inline v: ConnectionId) inline def value: Long = v
 
 // SigId
 

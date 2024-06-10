@@ -1,7 +1,10 @@
 package org.updraft0.controltower.protocol
 
-import org.updraft0.controltower.constant.*
+import org.updraft0.controltower.constant
+import org.updraft0.controltower.constant.{SystemId => _, *}
 import java.time.{Instant, Duration}
+
+type SystemId = Long // TODO opaque types
 
 enum PolicyMemberType derives CanEqual:
   case Character, Corporation, Alliance
@@ -23,14 +26,14 @@ case class MapSettings(
 
 case class NewMap(name: String, policyMembers: Array[MapPolicyMember], displayType: MapDisplayType)
 
-case class MapInfo(id: Long, name: String, displayType: MapDisplayType, settings: MapSettings, createdAt: Instant)
+case class MapInfo(id: MapId, name: String, displayType: MapDisplayType, settings: MapSettings, createdAt: Instant)
 
 case class MapInfoWithPermissions(map: MapInfo, policyMembers: Array[MapPolicyMember])
 
 // region WebSocket protocol
 
 case class MapSystem(
-    systemId: Long,
+    systemId: SystemId,
     name: Option[String],
     isPinned: Boolean,
     chainNamingStrategy: Option[Int] /* FIXME */,
@@ -64,19 +67,28 @@ case class MapSystemNote(
 )
 
 case class MapWormholeConnection(
-    id: Long,
-    fromSystemId: Long,
-    toSystemId: Long,
+    id: ConnectionId,
+    fromSystemId: SystemId,
+    toSystemId: SystemId,
     createdAt: Instant,
     createdByCharacterId: CharacterId,
     updatedAt: Instant,
     updatedByCharacterId: CharacterId
 )
 
+case class MapWormholeConnectionJump(
+    connectionId: ConnectionId,
+    characterId: CharacterId,
+    shipTypeId: Int,
+    massOverride: Option[Int],
+    createdAt: Instant
+)
+
 case class MapWormholeConnectionRank(fromSystemIdx: Int, fromSystemCount: Int, toSystemIdx: Int, toSystemCount: Int)
 
 case class MapWormholeConnectionWithSigs(
     connection: MapWormholeConnection,
+    jumps: Array[MapWormholeConnectionJump],
     fromSignature: Option[MapSystemSignature.Wormhole],
     toSignature: Option[MapSystemSignature.Wormhole],
     rank: MapWormholeConnectionRank
@@ -118,13 +130,21 @@ extension (sd: SystemDisplayData)
   def displayType: MapDisplayType = sd match
     case _: SystemDisplayData.Manual => MapDisplayType.Manual
 
+case class CharacterLocation(
+    characterId: CharacterId,
+    shipTypeId: Long,
+    structureId: Option[Long],
+    stationId: Option[Int],
+    updatedAt: Instant
+)
+
 enum WormholeConnectionType derives CanEqual:
   case Unknown
   case K162(sub: WormholeK162Type)
   case Known(typeId: Long)
 
 enum MapSystemSignature(
-    val id: String,
+    val id: SigId,
     val createdAt: Instant,
     val createdByCharacterId: CharacterId,
     val updatedAt: Instant,
@@ -132,7 +152,7 @@ enum MapSystemSignature(
     val signatureGroup: SignatureGroup
 ) derives CanEqual:
   case Unknown(
-      override val id: String,
+      override val id: SigId,
       override val createdAt: Instant,
       override val createdByCharacterId: CharacterId,
       override val updatedAt: Instant,
@@ -146,12 +166,12 @@ enum MapSystemSignature(
         SignatureGroup.Unknown
       )
   case Wormhole(
-      override val id: String,
+      override val id: SigId,
       eolAt: Option[Instant],
       connectionType: WormholeConnectionType,
       massStatus: WormholeMassStatus,
       massSize: WormholeMassSize,
-      connectionId: Option[Long],
+      connectionId: Option[ConnectionId],
       override val createdAt: Instant,
       override val createdByCharacterId: CharacterId,
       override val updatedAt: Instant,
@@ -166,7 +186,7 @@ enum MapSystemSignature(
       )
 
   case Site(
-      override val id: String,
+      override val id: SigId,
       group: SignatureGroup,
       name: Option[String],
       override val createdAt: Instant,
@@ -197,7 +217,7 @@ enum NewSystemSignature(val id: SigId, val createdAt: Instant):
       connectionType: WormholeConnectionType,
       massStatus: WormholeMassStatus,
       massSize: WormholeMassSize,
-      connectionId: Option[Long]
+      connectionId: Option[ConnectionId]
   ) extends NewSystemSignature(id, createdAt)
 
   def signatureGroup: SignatureGroup = this match
@@ -234,7 +254,7 @@ enum MapRequest derives CanEqual:
   /** (idempotent) Add/update a system on the map
     */
   case AddSystem(
-      systemId: Long,
+      systemId: SystemId,
       name: Option[NewSystemName],
       isPinned: Boolean,
       displayData: SystemDisplayData,
@@ -247,24 +267,24 @@ enum MapRequest derives CanEqual:
 
   /** (non-idempotent) Add a connection between two systems
     */
-  case AddSystemConnection(fromSystemId: SystemId, toSystemId: SystemId)
+  case AddSystemConnection(fromSystemId: constant.SystemId, toSystemId: constant.SystemId)
 
   /** (idempotent) Update multiple system signatures
     */
-  case UpdateSystemSignatures(systemId: Long, replaceAll: Boolean, scanned: Array[NewSystemSignature])
+  case UpdateSystemSignatures(systemId: SystemId, replaceAll: Boolean, scanned: Array[NewSystemSignature])
 
   /** (idempotent) Remove selected signatures in system
     */
-  case RemoveSystemSignatures(systemId: Long, sigIds: List[SigId])
+  case RemoveSystemSignatures(systemId: SystemId, sigIds: List[SigId])
 
   /** (idempotent) Remove all signatures in system
     */
-  case RemoveAllSystemSignatures(systemId: Long)
+  case RemoveAllSystemSignatures(systemId: SystemId)
 
   /** Change an aspect of a system (or multiple at the same time)
     */
   case UpdateSystem(
-      systemId: Long,
+      systemId: SystemId,
       displayData: Option[SystemDisplayData] = None,
       isPinned: Option[Boolean] = None,
       stance: Option[IntelStance] = None,
@@ -273,24 +293,33 @@ enum MapRequest derives CanEqual:
 
   /** Remove a system from the map (this only deletes display data and clears the pinned status)
     */
-  case RemoveSystem(systemId: Long)
+  case RemoveSystem(systemId: SystemId)
 
   /** Remove a connection from the map
     */
-  case RemoveSystemConnection(connectionId: Long)
+  case RemoveSystemConnection(connectionId: ConnectionId)
 
 // TODO: have a think about connections and when they get cleaned up (delete connection *and* delete signature?)
 // TODO: enforce the level of permissions that a user can have! (and document that)
 // TODO: move to opaque types
 
 enum MapMessage:
+  case CharacterLocations(locations: Map[constant.SystemId, Array[CharacterLocation]])
   case ConnectionSnapshot(connection: MapWormholeConnectionWithSigs)
   case ConnectionsRemoved(connections: Array[MapWormholeConnection])
+  case ConnectionJumped(jump: MapWormholeConnectionJump)
   case Error(message: String)
-  case MapSnapshot(systems: Map[Long, MapSystemSnapshot], connections: Map[Long, MapWormholeConnectionWithSigs])
+  case MapSnapshot(
+      systems: Map[SystemId, MapSystemSnapshot],
+      connections: Map[ConnectionId, MapWormholeConnectionWithSigs]
+  )
   case MapMeta(characterId: CharacterId, info: MapInfo, role: MapRole, preferences: UserPreferences)
-  case SystemSnapshot(systemId: Long, system: MapSystemSnapshot, connections: Map[Long, MapWormholeConnectionWithSigs])
-  case SystemDisplayUpdate(systemId: Long, name: Option[String], displayData: SystemDisplayData)
-  case SystemRemoved(systemId: Long)
+  case SystemSnapshot(
+      systemId: SystemId,
+      system: MapSystemSnapshot,
+      connections: Map[ConnectionId, MapWormholeConnectionWithSigs]
+  )
+  case SystemDisplayUpdate(systemId: SystemId, name: Option[String], displayData: SystemDisplayData)
+  case SystemRemoved(systemId: SystemId)
 
 // endregion

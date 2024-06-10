@@ -5,7 +5,7 @@ import controltower.Constant
 import controltower.component.Modal
 import controltower.page.map.{Coord, MapAction, PositionController, RoleController}
 import controltower.ui.{ViewController, onEnterPress}
-import org.updraft0.controltower.constant.*
+import org.updraft0.controltower.constant.{SystemId => _, *}
 import org.updraft0.controltower.protocol.*
 
 import scala.collection.MapView
@@ -24,14 +24,14 @@ enum SystemScanStatus derives CanEqual:
   case FullyScannedStale
 
 case class SystemStaticData(
-    solarSystemMap: MapView[Long, SolarSystem],
+    solarSystemMap: MapView[SystemId, SolarSystem],
     wormholeTypes: Map[Long, WormholeType],
     signatureByClassAndGroup: Map[WormholeClass, Map[SignatureGroup, List[SignatureClassified]]]
 )
 
 object SystemStaticData:
 
-  def apply(solarSystemMap: MapView[Long, SolarSystem], ref: Reference) =
+  def apply(solarSystemMap: MapView[SystemId, SolarSystem], ref: Reference) =
     new SystemStaticData(
       solarSystemMap,
       wormholeTypes = ref.wormholeTypes.map(wt => wt.typeId -> wt).toMap,
@@ -68,6 +68,7 @@ class SystemView(
     system: Signal[MapSystemSnapshot],
     pos: PositionController,
     selectedSystem: Signal[Option[Long]],
+    characters: Signal[Array[CharacterLocation]],
     connectingState: Var[MapNewConnectionState],
     settings: Signal[MapSettings]
 )(using ctx: MapViewContext)
@@ -75,6 +76,8 @@ class SystemView(
 
   override def view =
     if (!ctx.staticData.solarSystemMap.contains(systemId))
+      org.scalajs.dom.console.error(s"static solar system data does not contain id=$systemId")
+      // TODO improve error view (or back out completely)
       div(
         idAttr := s"system-$systemId",
         cls    := "system-error",
@@ -104,7 +107,7 @@ class SystemView(
 
           val secondLine = div(
             cls := "system-status-line",
-            systemClass(solarSystem, hide = true),
+            systemOnlineChars(characters),
             systemName(solarSystem),
             systemWhStatics(solarSystem, ctx.staticData.wormholeTypes)
           )
@@ -173,6 +176,13 @@ private inline def systemClass(ss: SolarSystem, hide: Boolean = false) =
     cls        := s"system-class-${systemClass.toString.toLowerCase}",
     visibility := Option.when(hide)("hidden").getOrElse(""),
     systemClassString(systemClass)
+  )
+
+private inline def systemOnlineChars(chars: Signal[Array[CharacterLocation]]) =
+  mark(
+    cls := "system-online-chars",
+    visibility <-- chars.map(arr => if (arr.isEmpty) "hidden" else ""),
+    text <-- chars.map(_.length.toString)
   )
 
 private inline def systemName(ss: SolarSystem) =

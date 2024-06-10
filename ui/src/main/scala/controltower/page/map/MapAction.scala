@@ -1,9 +1,7 @@
 package controltower.page.map
 
-import org.updraft0.controltower.protocol.{IntelStance, MapRequest, NewSystemSignature, SigId}
-
-type SystemId     = Long
-type ConnectionId = Long
+import org.updraft0.controltower.constant.*
+import org.updraft0.controltower.protocol.{IntelStance, MapRequest, NewSystemSignature, SystemId}
 
 sealed trait SingleSystemAction:
   val systemId: SystemId

@@ -1,11 +1,11 @@
 package controltower.page.map.view
 
+import org.updraft0.controltower.constant.MagicConstant
 import com.raquo.laminar.api.L.*
 import controltower.page.map.Coord
 
-private val DefaultGridSnapPx = 10
-private val MouseButtonLeft   = 0
-private val MouseButtonRight  = 2
+private val MouseButtonLeft  = 0
+private val MouseButtonRight = 2
 
 case class DragState(isDragging: Boolean, initial: Coord)
 
@@ -26,7 +26,7 @@ private def inDraggable(
     canDrag: Signal[Boolean],
     updatePos: Coord => Unit,
     f: HtmlElement => Unit,
-    gridSnap: Int = DefaultGridSnapPx
+    gridSnap: Int = MagicConstant.GridSnapPx
 ): HtmlElement =
   // FIXME initial position is always Coord.Hidden so we always send a display update first time the element is clicked
   val initialState = DragState(isDragging = false, initial = Coord.Hidden)

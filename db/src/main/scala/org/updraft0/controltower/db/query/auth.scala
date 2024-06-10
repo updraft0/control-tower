@@ -9,6 +9,7 @@ object auth:
   import schema.*
   import ctx.*
 
+  // TODO: move these opaque type mappings somewhere else?
   given MappedEncoding[Long, CharacterId] = MappedEncoding(CharacterId.apply)
   given MappedEncoding[CharacterId, Long] = MappedEncoding(identity)
 
@@ -20,6 +21,15 @@ object auth:
 
   given MappedEncoding[Long, UserId] = MappedEncoding(UserId.apply)
   given MappedEncoding[UserId, Long] = MappedEncoding(identity)
+
+  given MappedEncoding[Long, MapId] = MappedEncoding(MapId.apply)
+  given MappedEncoding[MapId, Long] = MappedEncoding(identity)
+
+  given MappedEncoding[Long, ConnectionId] = MappedEncoding(ConnectionId.apply)
+  given MappedEncoding[ConnectionId, Long] = MappedEncoding(identity)
+
+  given MappedEncoding[String, SigId] = MappedEncoding(SigId.apply)
+  given MappedEncoding[SigId, String] = MappedEncoding(identity)
 
   // TODO: not sure about location of these
   given MappedEncoding[String, MapRole] = MappedEncoding {
@@ -50,6 +60,12 @@ object auth:
   private inline def insert[T](inline entity: Quoted[EntityQuery[T]], inline value: T): Insert[T] =
     quote(entity.insertValue(value))
 
+  def getAllAuthTokens(): DbOperation[List[(UserCharacter, CharacterAuthToken)]] =
+    ctx.run(schema.userCharacter.join(characterAuthToken).on((uc, cat) => uc.characterId == cat.characterId))
+
+  def getUserForCharacter(characterId: CharacterId): DbOperation[Option[UserCharacter]] =
+    ctx.run(schema.userCharacter.filter(_.characterId == lift(characterId))).map(_.headOption)
+
   def upsertCharacter(char: AuthCharacter): DbOperation[Long] =
     ctx.run(
       schema.character
@@ -58,6 +74,7 @@ object auth:
           (t, e) => t.ownerHash -> e.ownerHash,
           (t, e) => t.corporationId -> e.corporationId,
           (t, e) => t.allianceId -> e.allianceId,
+          (t, e) => t.lastOnlineAt -> e.lastOnlineAt,
           (t, _) => t.updatedAt -> Some(unixepoch)
         )
     )

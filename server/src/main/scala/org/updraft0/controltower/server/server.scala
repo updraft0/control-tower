@@ -1,10 +1,11 @@
 package org.updraft0.controltower.server
 
-import org.updraft0.controltower.server.auth.{SessionCrypto, TokenCrypto, UserSession}
-import org.updraft0.controltower.server.endpoints.*
-import org.updraft0.controltower.server.map.{MapReactive, MapSessionManager}
 import org.updraft0.controltower.db
 import org.updraft0.controltower.protocol.Endpoints
+import org.updraft0.controltower.server.auth.{SessionCrypto, TokenCrypto, UserSession}
+import org.updraft0.controltower.server.endpoints.*
+import org.updraft0.controltower.server.map.{MapPermissionTracker, MapReactive}
+import org.updraft0.controltower.server.tracking.*
 import org.updraft0.esi.client.{EsiClient, SdeClient}
 import org.updraft0.minireactive.MiniReactive
 import sttp.client3.UriContext
@@ -23,7 +24,7 @@ import java.security.SecureRandom
   */
 object Server extends ZIOAppDefault:
   type EndpointEnv = Config & javax.sql.DataSource & SessionCrypto & EsiClient & SdeClient & UserSession &
-    MapReactive.Service & TokenCrypto & SecureRandom & MapSessionManager
+    MapReactive.Service & TokenCrypto & SecureRandom & MapPermissionTracker & CharacterAuthTracker & LocationTracker
 
   override val bootstrap = Runtime.enableRuntimeMetrics >>> desktopLogger
 
@@ -52,11 +53,17 @@ object Server extends ZIOAppDefault:
           .project(c => SdeClient.Config(c.sde.base)),
         ZLayer.service[Config].project(c => c.sde),
         SdeClient.layer,
+        ZLayer
+          .service[Config]
+          .project(c => LocationTracker.Config(c.location.interval, c.location.parallel)),
+        CharacterAuthTracker.layer,
+        LocationTracker.layer,
         MapReactive.layer,
         DefaultJvmMetrics.live.unit,
         TokenCrypto.layer,
         ZLayer(ZIO.attempt(new SecureRandom())),
-        MapSessionManager.layer
+        MapPermissionTracker.layer,
+        ZLayer.scoped(CharacterAffiliationTracker.apply())
       )
 
   private def httpConfigLayer: ZLayer[Config, Throwable, ZServer] =

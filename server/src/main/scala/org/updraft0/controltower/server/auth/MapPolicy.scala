@@ -6,8 +6,7 @@ import org.updraft0.controltower.server.db.{AuthQueries, MapQueries}
 import zio.*
 
 object MapPolicy:
-  type MapId = Long // TODO move to opaque
-  type Env   = javax.sql.DataSource
+  type Env = javax.sql.DataSource
 
   def getMapsForCharacters(
       characterIds: List[CharacterId]
@@ -27,6 +26,21 @@ object MapPolicy:
       characterIds: List[CharacterId]
   ): ZIO[Env, Throwable, Map[CharacterId, List[(MapId, model.MapRole)]]] =
     AuthQueries.getMapPoliciesForCharacter(characterIds).map(resolveCharacterMapPolicies)
+
+  def characterIdsForMap(mapId: MapId): ZIO[Env, Throwable, Map[CharacterId, model.MapRole]] =
+    AuthQueries
+      .getMapAllowedCharactersRaw(mapId)
+      .map(xs =>
+        xs.groupBy(_._2)
+          .map((_, xs) =>
+            xs.sortBy((mt, _, isDeny, _) => policyRank(isDeny, mt))
+              .headOption
+              .filter(!_._3)
+              .map((_, charId, _, role) => CharacterId(charId) -> role)
+          )
+          .flatten
+          .toMap
+      )
 
   /** Fetch the allowed map ids that a user can access
     */

@@ -8,6 +8,7 @@ import controltower.db.ReferenceDataStore
 import controltower.page.map.*
 import controltower.ui.*
 import io.laminext.websocket.*
+import org.updraft0.controltower.constant
 import org.updraft0.controltower.protocol.*
 
 import java.time.Instant
@@ -108,15 +109,18 @@ private class MapView(
 
     val systemNodesTransformer = CollectionCommandTransformer[MapSystemSnapshot, SystemView, Element, Long](
       _.system.systemId,
-      mssV =>
+      mssV => {
+        val systemId = mssV.now().system.systemId
         SystemView(
-          mssV.now().system.systemId,
+          systemId,
           mssV.signal,
           controller.pos,
           controller.selectedSystemId.signal,
+          controller.allLocations.signal.map(_.getOrElse(constant.SystemId(systemId), Array.empty[CharacterLocation])),
           connectingSystem.current,
           controller.mapSettings
-        ),
+        )
+      },
       (view, _) => view.view
     )
 

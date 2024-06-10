@@ -13,7 +13,7 @@ import javax.sql.DataSource
 import scala.annotation.nowarn
 
 case class MapWormholeConnectionRank(
-    connectionId: Long,
+    connectionId: ConnectionId,
     fromSystemIdx: Int,
     fromSystemCount: Int,
     toSystemIdx: Int,
@@ -22,6 +22,7 @@ case class MapWormholeConnectionRank(
 
 case class MapWormholeConnectionWithSigs(
     connection: model.MapWormholeConnection,
+    jumps: Array[model.MapWormholeConnectionJump],
     fromSignature: Option[model.MapSystemSignature],
     toSignature: Option[model.MapSystemSignature]
 )
@@ -45,6 +46,7 @@ object MapQueries:
   import zio.json.*
   import zio.json.ast.Json
 
+  // opaque types
   given JsonDecoder[CharacterId] = JsonDecoder.long.map(CharacterId.apply)
   given JsonEncoder[CharacterId] = JsonEncoder.long.contramap(_.value)
 
@@ -56,6 +58,15 @@ object MapQueries:
 
   given JsonDecoder[SystemId] = JsonDecoder.long.map(SystemId.apply)
   given JsonEncoder[SystemId] = JsonEncoder.long.contramap(_.value)
+
+  given JsonDecoder[SigId] = JsonDecoder.string.map(SigId.apply)
+  given JsonEncoder[SigId] = JsonEncoder.string.contramap(_.convert)
+
+  given JsonDecoder[MapId] = JsonDecoder.long.map(MapId.apply)
+  given JsonEncoder[MapId] = JsonEncoder.long.contramap(_.value)
+
+  given JsonDecoder[ConnectionId] = JsonDecoder.long.map(ConnectionId.apply)
+  given JsonEncoder[ConnectionId] = JsonEncoder.long.contramap(_.value)
 
   // json decoders for json_array_agg usage (some logic duplicated between the MappedEntity and the codec here)
   private given JsonDecoder[model.SignatureGroup]     = JsonDecoder.int.map(model.SignatureGroup.fromOrdinal)
@@ -98,7 +109,7 @@ object MapQueries:
     .mapOrFail: m =>
       for
         id                   <- m("id").as[Long]
-        mapId                <- m("mapId").as[Long]
+        mapId                <- m("mapId").as[MapId]
         systemId             <- m("systemId").as[model.SystemId]
         note                 <- m("note").as[String]
         isDeleted            <- m("isDeleted").as[Int].map(_ == 1)
@@ -123,7 +134,7 @@ object MapQueries:
       for
         mapId                <- m("mapId").as[MapId]
         systemId             <- m("systemId").as[model.SystemId]
-        signatureId          <- m("signatureId").as[String]
+        signatureId          <- m("signatureId").as[SigId]
         isDeleted            <- m("isDeleted").as[Int].map(_ == 1)
         signatureGroup       <- m("signatureGroup").as[model.SignatureGroup]
         signatureTypeName    <- m("signatureTypeName").as[Option[String]]
@@ -133,7 +144,7 @@ object MapQueries:
         wormholeMassSize     <- m("wormholeMassSize").as[Option[model.WormholeMassSize]]
         wormholeMassStatus   <- m("wormholeMassStatus").as[Option[model.WormholeMassStatus]]
         wormholeK162Type     <- m("wormholeK162Type").as[Option[model.WormholeK162Type]]
-        wormholeConnectionId <- m("wormholeConnectionId").as[Option[Long]]
+        wormholeConnectionId <- m("wormholeConnectionId").as[Option[ConnectionId]]
         createdAt            <- m("createdAt").as[Long].map(Instant.ofEpochMilli)
         createdByCharacterId <- m("createdByCharacterId").as[CharacterId]
         updatedAt            <- m("updatedAt").as[Long].map(Instant.ofEpochMilli)
@@ -161,7 +172,7 @@ object MapQueries:
     .map[String, Json]
     .mapOrFail: m =>
       for
-        id                   <- m("id").as[Long]
+        id                   <- m("id").as[ConnectionId]
         mapId                <- m("mapId").as[MapId]
         fromSystemId         <- m("fromSystemId").as[SystemId]
         toSystemId           <- m("toSystemId").as[SystemId]
@@ -182,7 +193,16 @@ object MapQueries:
         updatedByCharacterId
       )
 
-  type MapId = Long // TODO move to opaque
+  private given JsonDecoder[model.MapWormholeConnectionJump] = JsonDecoder
+    .map[String, Json]
+    .mapOrFail: m =>
+      for
+        connectionId <- m("connectionId").as[ConnectionId]
+        characterId  <- m("characterId").as[CharacterId]
+        shipTypeId   <- m("shipTypeId").as[Int]
+        massOverride <- m("massOverride").as[Option[Int]]
+        createdAt    <- m("createdAt").as[Long].map(Instant.ofEpochMilli)
+      yield model.MapWormholeConnectionJump(connectionId, characterId, shipTypeId, massOverride, createdAt)
 
   def getMap(id: MapId): Result[Option[model.MapModel]] =
     run(quote {
@@ -365,33 +385,63 @@ object MapQueries:
       )
     )
 
-  private inline def connectionsWithSigs(inline whc: model.MapWormholeConnection) =
-    for
+  private inline def connectionsWithSigs(inline whcQ: EntityQuery[model.MapWormholeConnection]) =
+    (for
+      whc <- whcQ
       fromSig <- mapSystemSignature.leftJoin(mss =>
         mss.mapId == whc.mapId && mss.systemId == whc.fromSystemId && mss.wormholeConnectionId.contains(whc.id)
       )
       toSig <- mapSystemSignature.leftJoin(mss =>
         mss.mapId == whc.mapId && mss.systemId == whc.toSystemId && mss.wormholeConnectionId.contains(whc.id)
       )
-    yield MapWormholeConnectionWithSigs(
-      connection = whc,
-      fromSignature = fromSig,
-      toSignature = toSig
-    )
+      jumps <- mapWormholeConnectionJump.leftJoin(_.connectionId == whc.id)
+    yield (whc, fromSig, toSig, jumps))
+      .groupByMap((whc, _, _, _) => whc.id)((whc, fromSig, toSig, whcj) =>
+        (
+          whc,
+          fromSig,
+          toSig,
+          jsonGroupArrayFilterNullDistinct[model.MapWormholeConnectionJump](
+            jsonObject5(
+              "connectionId",
+              whcj.map(_.connectionId),
+              "characterId",
+              whcj.map(_.characterId),
+              "shipTypeId",
+              whcj.map(_.shipTypeId),
+              "massOverride",
+              whcj.map(_.massOverride),
+              "createdAt",
+              whcj.map(_.createdAt)
+            ),
+            whcj.map(_.connectionId)
+          )
+        )
+      )
 
   def getWormholeConnectionsWithSigs(
       mapId: MapId,
-      connectionIdOpt: Option[Long],
+      connectionIdOpt: Option[ConnectionId],
       includeDeleted: Boolean = false
   ): Result[List[MapWormholeConnectionWithSigs]] =
     run(
-      autoQuote(
-        mapWormholeConnection
-          .filter(whc =>
-            whc.mapId == lift(mapId) && (lift(includeDeleted) || !whc.isDeleted) && lift(connectionIdOpt)
-              .forall(_ == whc.id)
-          )
-          .flatMap(connectionsWithSigs(_))
+      quote(
+        connectionsWithSigs(
+          mapWormholeConnection
+            .filter(whc =>
+              whc.mapId == lift(mapId) && (lift(includeDeleted) || !whc.isDeleted) && lift(connectionIdOpt)
+                .forall(_ == whc.id)
+            )
+        )
+      )
+    ).map(
+      _.map((whc, fromSig, toSig, jumps) =>
+        MapWormholeConnectionWithSigs(
+          connection = whc,
+          fromSignature = fromSig,
+          toSignature = toSig,
+          jumps = jumps.value
+        )
       )
     )
 
@@ -400,13 +450,23 @@ object MapQueries:
       systemId: Long
   ): Result[List[MapWormholeConnectionWithSigs]] =
     run(
-      autoQuote(
-        mapWormholeConnection
-          .filter(whc =>
-            whc.mapId == lift(mapId) && !whc.isDeleted &&
-              (whc.fromSystemId == lift(systemId) || whc.toSystemId == lift(systemId))
-          )
-          .flatMap(connectionsWithSigs(_))
+      quote(
+        connectionsWithSigs(
+          mapWormholeConnection
+            .filter(whc =>
+              whc.mapId == lift(mapId) && !whc.isDeleted &&
+                (whc.fromSystemId == lift(systemId) || whc.toSystemId == lift(systemId))
+            )
+        )
+      )
+    ).map(
+      _.map((whc, fromSig, toSig, jumps) =>
+        MapWormholeConnectionWithSigs(
+          connection = whc,
+          fromSignature = fromSig,
+          toSignature = toSig,
+          jumps = jumps.value
+        )
       )
     )
 
@@ -428,14 +488,17 @@ object MapQueries:
 
   def getWormholeConnectionRanksAll(mapId: MapId): Result[List[MapWormholeConnectionRank]] =
     run(
-      autoQuote(
+      quote(
         mapWormholeConnection.filter(whc => whc.mapId == lift(mapId) && !whc.isDeleted).map(ranksForConnection(_))
       )
     )
 
-  def getWormholeConnectionRanksForSystem(mapId: MapId, systemId: Long): Result[List[MapWormholeConnectionRank]] =
+  def getWormholeConnectionRanksForSystem(
+      mapId: MapId,
+      systemId: model.SystemId
+  ): Result[List[MapWormholeConnectionRank]] =
     run(
-      autoQuote(
+      quote(
         for
           allRanks <- mapWormholeConnection
             .filter(whc => whc.mapId == lift(mapId) && !whc.isDeleted)
@@ -449,11 +512,11 @@ object MapQueries:
 
   def getWormholeConnectionRanksForSystems(
       mapId: MapId,
-      systemId1: Long,
-      systemId2: Long
+      systemId1: model.SystemId,
+      systemId2: model.SystemId
   ): Result[List[MapWormholeConnectionRank]] =
     run(
-      autoQuote(
+      quote(
         for
           allRanks <- mapWormholeConnection
             .filter(whc => whc.mapId == lift(mapId) && !whc.isDeleted)

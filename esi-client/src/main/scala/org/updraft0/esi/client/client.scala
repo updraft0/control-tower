@@ -1,14 +1,12 @@
 package org.updraft0.esi.client
 
 import org.updraft0.controltower.constant.*
-import sttp.client3.SttpBackend
 import sttp.client3.httpclient.zio.{HttpClientZioBackend, SttpClient}
-import sttp.client3.logging.DefaultLog
 import sttp.model.Uri
 import sttp.tapir.Endpoint
-import sttp.tapir.client.sttp.{SttpClientInterpreter, SttpClientOptions, WebSocketToPipe}
+import sttp.tapir.client.sttp.{SttpClientInterpreter, WebSocketToPipe}
 import sttp.tapir.model.UsernamePassword
-import zio.{IO, Task, URIO, ZIO, ZLayer}
+import zio.{IO, Task, ZIO, ZLayer}
 
 /** Thin HTTP client over the ESI endpoints
   */
@@ -30,8 +28,8 @@ final class EsiClient(config: EsiClient.Config, sttp: SttpClient, interp: SttpCl
 
   val getCharacterRoles: JwtString => CharacterId => Task[CharacterRoles] = jwtClient(Endpoints.getCharacterRoles)
 
-  val getCharacterLocation: JwtString => CharacterId => Task[CharacterLocationResponse] =
-    jwtClient(Endpoints.getCharacterLocation)
+  val getCharacterLocation: JwtString => CharacterId => IO[EsiError, CharacterLocationResponse] =
+    jwtClientDecodeErrors(Endpoints.getCharacterLocation).andThen(_.andThen(_.orDie.absolve))
 
   val getCharacterFleet: JwtString => CharacterId => IO[FleetError, CharacterFleetResponse] =
     jwtClientDecodeErrors(Endpoints.getCharacterFleet).andThen(_.andThen(_.orDie.absolve))

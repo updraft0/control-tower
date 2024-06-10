@@ -10,7 +10,7 @@ import zio.*
 import javax.sql.DataSource
 import java.util.UUID
 
-case class CharacterMapRole(characterId: CharacterId, mapId: Long, role: model.MapRole)
+case class CharacterMapRole(characterId: CharacterId, mapId: MapId, role: model.MapRole)
 
 /** Queries for user/auth related operations
   */
@@ -27,6 +27,9 @@ object AuthQueries:
         .filter(_.sessionId == lift(sessionId))
         .filter(us => sql"${us.expiresAt} > (unixepoch() * 1000)".asCondition)
     }
+
+  def getAllCharacterIds(): Result[List[CharacterId]] =
+    run(quote(userCharacter.map(_.characterId)))
 
   def getCharacterByName(name: String): Result[Option[model.AuthCharacter]] =
     run(quote(character.filter(_.name == lift(name)))).map(_.headOption)
@@ -82,49 +85,76 @@ object AuthQueries:
   def getMapPoliciesForCharacter(
       characterIds: List[CharacterId]
   ): Result[Map[CharacterId, List[model.MapPolicyMember]]] =
-    inline def userRoles(inline cids: List[CharacterId]) = quote {
+    inline def userRoles(inline cids: Query[CharacterId]) =
       for
-        char <- character.filter(c => liftQuery(cids).contains(c.id))
+        char <- character.filter(c => cids.contains(c.id))
         roles <- mapPolicyMember
           .join(m => infix"${m.memberId} = ${char.id}".asCondition)
           // .join(_.memberId == char.id) FIXME workaround against opaque type vs non-opaque join
           .filter(_.memberType == lift(model.PolicyMemberType.Character))
       yield char.id -> roles
-    }
 
-    inline def userCorporationRoles(inline cids: List[CharacterId]) = quote {
+    inline def userCorporationRoles(inline cids: Query[CharacterId]) =
       for
-        char <- character.filter(c => liftQuery(cids).contains(c.id))
+        char <- character.filter(c => cids.contains(c.id))
         roles <- mapPolicyMember
           .join(m => infix"${m.memberId} = ${char.corporationId}".asCondition) // see comment above
           .filter(_.memberType == lift(model.PolicyMemberType.Corporation))
       yield char.id -> roles
-    }
 
-    inline def userAllianceRoles(inline cids: List[CharacterId]) = quote {
+    inline def userAllianceRoles(inline cids: Query[CharacterId]) =
       for
-        char <- character.filter(c => liftQuery(cids).contains(c.id))
+        char <- character.filter(c => cids.contains(c.id))
         roles <- mapPolicyMember
           .join(m => infix"${m.memberId} = ${char.allianceId}".asCondition) // see comment above
           .filter(_.memberType == lift(model.PolicyMemberType.Alliance))
       yield char.id -> roles
-    }
 
     run(quote {
-      userRoles(characterIds).distinct
-        .union(userCorporationRoles(characterIds))
-        .union(userAllianceRoles(characterIds))
+      val cids = liftQuery(characterIds)
+      userRoles(cids).distinct
+        .union(userCorporationRoles(cids))
+        .union(userAllianceRoles(cids))
     }).map(_.groupBy(_._1).view.mapValues(_.map(_._2)).toMap)
 
-  def getMapPolicy(mapId: model.MapId): Result[Option[model.MapPolicy]] =
+  def getMapAllowedCharactersRaw(mapId: MapId): Result[List[(model.PolicyMemberType, Long, Boolean, model.MapRole)]] =
+    inline def characters(inline mid: MapId) = quote(
+      mapPolicyMember
+        .filter(mp => mp.mapId == lift(mid) && mp.memberType == lift(model.PolicyMemberType.Character))
+        .map(mp => (mp.memberType, mp.memberId, mp.isDeny, mp.role))
+    )
+    inline def charactersInCorps(inline mid: MapId) = quote(
+      mapPolicyMember
+        .filter(mp => mp.mapId == lift(mid) && mp.memberType == lift(model.PolicyMemberType.Corporation))
+        .join(character)
+        .on((m, c) => infix"${m.memberId} = ${c.corporationId}".asCondition)
+        .map((mp, c) => (mp.memberType, infix"${c.id}".as[Long], mp.isDeny, mp.role))
+    )
+    inline def charactersInAlliances(inline mid: MapId) = quote(
+      mapPolicyMember
+        .filter(mp => mp.mapId == lift(mid) && mp.memberType == lift(model.PolicyMemberType.Alliance))
+        .join(character)
+        .on((m, c) => c.allianceId.exists(allianceId => infix"${m.memberId} = $allianceId".asCondition))
+        .map((mp, c) => (mp.memberType, infix"${c.id}".as[Long], mp.isDeny, mp.role))
+    )
+
+    run(
+      quote(
+        characters(mapId)
+          .union(charactersInCorps(mapId))
+          .union(charactersInAlliances(mapId))
+      )
+    )
+
+  def getMapPolicy(mapId: MapId): Result[Option[model.MapPolicy]] =
     run(quote(mapPolicy.filter(_.mapId == lift(mapId)))).map(_.headOption)
 
-  def getMapPolicyMembers(mapId: model.MapId): Result[List[model.MapPolicyMember]] =
+  def getMapPolicyMembers(mapId: MapId): Result[List[model.MapPolicyMember]] =
     run(quote(mapPolicyMember.filter(_.mapId == lift(mapId))))
 
   // creates
 
-  def createMapPolicy(mapId: model.MapId, userId: UserId): Result[Unit] =
+  def createMapPolicy(mapId: MapId, userId: UserId): Result[Unit] =
     run(quote {
       mapPolicy.insert(_.mapId -> lift(mapId), _.createdByUserId -> lift(userId))
     }).unit
@@ -135,7 +165,7 @@ object AuthQueries:
     }).map(_.size)
 
   // updates
-  def updateMapPolicyMembers(mapId: model.MapId, policyMembers: List[model.MapPolicyMember]): Result[Long] =
+  def updateMapPolicyMembers(mapId: MapId, policyMembers: List[model.MapPolicyMember]): Result[Long] =
     run(
       quote(
         liftQuery(policyMembers).foreach(mpm =>
@@ -151,13 +181,24 @@ object AuthQueries:
       )
     ).map(_.sum)
 
+  def updateCharacterAffiliations(xs: List[(CharacterId, CorporationId, Option[AllianceId])]): Result[Long] =
+    run(
+      quote(
+        liftQuery(xs).foreach((charId, corpId, allianceId) =>
+          character
+            .filter(_.id == charId)
+            .update(_.allianceId -> allianceId, _.corporationId -> corpId, _.updatedAt -> Some(unixepoch))
+        )
+      )
+    ).map(_.sum)
+
   // deletes
-  def deleteMapPolicyMembers(mapId: model.MapId): Result[Long] =
+  def deleteMapPolicyMembers(mapId: MapId): Result[Long] =
     run(quote {
       mapPolicyMember.filter(_.mapId == lift(mapId)).delete
     })
 
-  def deleteMapPolicyMembersByMemberIds(mapId: model.MapId, ids: List[(Long, model.PolicyMemberType)]): Result[Long] =
+  def deleteMapPolicyMembersByMemberIds(mapId: MapId, ids: List[(Long, model.PolicyMemberType)]): Result[Long] =
     run(
       quote(
         liftQuery(ids).foreach((id, mt) =>
@@ -166,5 +207,5 @@ object AuthQueries:
       )
     ).map(_.sum)
 
-  def deleteMapPolicy(mapId: model.MapId): Result[Long] =
+  def deleteMapPolicy(mapId: MapId): Result[Long] =
     run(quote(mapPolicy.filter(_.mapId == lift(mapId)).delete))

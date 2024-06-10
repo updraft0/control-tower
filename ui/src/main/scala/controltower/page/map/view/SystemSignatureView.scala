@@ -5,10 +5,12 @@ import controltower.backend.ESI
 import controltower.component.*
 import controltower.page.map.{MapAction, RoleController}
 import controltower.ui.*
+import org.updraft0.controltower.constant.ConnectionId
 import org.updraft0.controltower.protocol.*
 
 import java.time.{Duration, Instant}
 
+// TODO: move to magic constants
 val CharacterImageSize        = 32
 private val SignatureIdLength = 7
 
@@ -22,14 +24,14 @@ enum SignatureFilter derives CanEqual:
   case All, Wormhole, Combat, Indy, Hacking
 
 enum ConnectionTarget derives CanEqual:
-  def idOpt: Option[Long] =
+  def idOpt: Option[ConnectionId] =
     this match
       case Unknown               => None
       case Wormhole(id, _, _, _) => Some(id)
 
   case Unknown extends ConnectionTarget
   // TODO: EOL status, mass status etc.
-  case Wormhole(id: Long, toSystemId: Long, toSystemName: Option[String], toSolarSystem: SolarSystem)
+  case Wormhole(id: ConnectionId, toSystemId: SystemId, toSystemName: Option[String], toSolarSystem: SolarSystem)
       extends ConnectionTarget
 
 class SystemSignatureView(
@@ -158,7 +160,7 @@ private inline def sigView(
                 Modal.show(
                   editSingleSignatureView(
                     solarSystem,
-                    mss.signatures.find(s => SigId(s.id) == selected.head).get,
+                    mss.signatures.find(_.id == selected.head).get,
                     solarSystem.systemClass
                       .flatMap(whc => static.signatureByClassAndGroup.get(whc))
                       .getOrElse(Map.empty),
@@ -268,8 +270,8 @@ private def signatureRow(
     static: SystemStaticData,
     isEditingDisabled: Observable[Boolean]
 ) =
-  val toggleSelected = selectedSigs.toggle(SigId(sig.id))
-  val isSelected     = selectedSigs.isSelected(SigId(sig.id))
+  val toggleSelected = selectedSigs.toggle(sig.id)
+  val isSelected     = selectedSigs.isSelected(sig.id)
   val onSelect       = onClick.stopPropagation.filter(_.ctrlKey).mapToUnit --> toggleSelected
 
   def signatureGroupCell(s: MapSystemSignature) =
@@ -368,7 +370,7 @@ private def signatureRow(
         onSelect,
         cls("selected") <-- isSelected,
         display <-- filter.map(isVisibleWithFilter(_, u)).map(toDisplayValue),
-        td(cls := "signature-id", u.id.take(3)),
+        td(cls := "signature-id", u.id.convert.take(3)),
         signatureGroupCell(u),
         td(cls := "signature-type"),
         td(cls := "signature-target"),
@@ -380,7 +382,7 @@ private def signatureRow(
         onSelect,
         cls("selected") <-- isSelected,
         display <-- filter.map(isVisibleWithFilter(_, s)).map(toDisplayValue),
-        td(cls := "signature-id", s.id.take(3)),
+        td(cls := "signature-id", s.id.convert.take(3)),
         signatureGroupCell(s),
         siteTypeCell(s),
         td(cls := "signature-target"),
@@ -392,7 +394,7 @@ private def signatureRow(
         onSelect,
         cls("selected") <-- isSelected,
         display <-- filter.map(isVisibleWithFilter(_, w)).map(toDisplayValue),
-        td(cls := "signature-id", w.id.take(3)),
+        td(cls := "signature-id", w.id.convert.take(3)),
         signatureGroupCell(w),
         wormholeSelect(w),
         wormholeTargetSelect(w),
@@ -426,10 +428,10 @@ private def selectGroup(currentValue: SignatureGroup, newGroup: Observer[Signatu
 
 private def changeSignatureGroup(newGroup: SignatureGroup, prev: MapSystemSignature): NewSystemSignature =
   (newGroup, prev) match
-    case (SignatureGroup.Unknown, _) => NewSystemSignature.Unknown(SigId(prev.id), prev.createdAt)
+    case (SignatureGroup.Unknown, _) => NewSystemSignature.Unknown(prev.id, prev.createdAt)
     case (SignatureGroup.Wormhole, u: MapSystemSignature.Unknown) =>
       NewSystemSignature.Wormhole(
-        id = SigId(u.id),
+        id = u.id,
         createdAt = u.createdAt,
         isEol = false,
         connectionType = WormholeConnectionType.Unknown,
@@ -439,7 +441,7 @@ private def changeSignatureGroup(newGroup: SignatureGroup, prev: MapSystemSignat
       )
     case (SignatureGroup.Wormhole, s: MapSystemSignature.Site) =>
       NewSystemSignature.Wormhole(
-        id = SigId(s.id),
+        id = s.id,
         createdAt = s.createdAt,
         isEol = false,
         connectionType = WormholeConnectionType.Unknown,
@@ -449,7 +451,7 @@ private def changeSignatureGroup(newGroup: SignatureGroup, prev: MapSystemSignat
       )
     case (SignatureGroup.Wormhole, w: MapSystemSignature.Wormhole) =>
       NewSystemSignature.Wormhole(
-        id = SigId(w.id),
+        id = w.id,
         createdAt = w.createdAt,
         isEol = w.eolAt.isDefined,
         connectionType = w.connectionType,
@@ -457,13 +459,13 @@ private def changeSignatureGroup(newGroup: SignatureGroup, prev: MapSystemSignat
         massSize = w.massSize,
         connectionId = w.connectionId
       )
-    case (_, w: MapSystemSignature.Wormhole) => NewSystemSignature.Site(SigId(w.id), w.createdAt, newGroup, Some(""))
-    case (_, u: MapSystemSignature.Unknown)  => NewSystemSignature.Site(SigId(u.id), u.createdAt, newGroup, Some(""))
-    case (_, s: MapSystemSignature.Site)     => NewSystemSignature.Site(SigId(s.id), s.createdAt, newGroup, Some(""))
+    case (_, w: MapSystemSignature.Wormhole) => NewSystemSignature.Site(w.id, w.createdAt, newGroup, name = Some(""))
+    case (_, u: MapSystemSignature.Unknown)  => NewSystemSignature.Site(u.id, u.createdAt, newGroup, name = Some(""))
+    case (_, s: MapSystemSignature.Site)     => NewSystemSignature.Site(s.id, s.createdAt, newGroup, name = Some(""))
 
 private def changeSignatureName(newName: Option[String], prev: MapSystemSignature.Site): NewSystemSignature =
   NewSystemSignature.Site(
-    id = SigId(prev.id),
+    id = prev.id,
     createdAt = prev.createdAt,
     group = prev.group,
     name = newName
@@ -474,7 +476,7 @@ private def changeWormholeConnectionType(
     prev: MapSystemSignature.Wormhole
 ): NewSystemSignature =
   NewSystemSignature.Wormhole(
-    id = SigId(prev.id),
+    id = prev.id,
     createdAt = prev.createdAt,
     isEol = prev.eolAt.isDefined,
     connectionType = newType,
@@ -483,9 +485,12 @@ private def changeWormholeConnectionType(
     connectionId = prev.connectionId
   )
 
-private def changeWormholeConnectionId(newId: Option[Long], prev: MapSystemSignature.Wormhole): NewSystemSignature =
+private def changeWormholeConnectionId(
+    newId: Option[ConnectionId],
+    prev: MapSystemSignature.Wormhole
+): NewSystemSignature =
   NewSystemSignature.Wormhole(
-    id = SigId(prev.id),
+    id = prev.id,
     createdAt = prev.createdAt,
     isEol = prev.eolAt.isDefined,
     connectionType = prev.connectionType,

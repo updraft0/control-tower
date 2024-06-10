@@ -12,7 +12,7 @@ import java.time.Instant
 
 object MapQueriesSpec extends ZIOSpecDefault:
   private val DefaultMap =
-    model.MapModel(42L, "test", model.MapDisplayType.Manual, Instant.EPOCH, UserId(1), None, None)
+    model.MapModel(MapId(42L), "test", model.MapDisplayType.Manual, Instant.EPOCH, UserId(1), None, None)
 
   override def spec = suite("MapQueries::map_wormhole_connection")(
     test("can compute ranks of incoming wormholes"):
@@ -51,14 +51,14 @@ object MapQueriesSpec extends ZIOSpecDefault:
         )
 
         val connectionRanks = Map(
-          (100L, 200L) -> MapWormholeConnectionRank(0L, 1, 2, 1, 2),
-          (200L, 400L) -> MapWormholeConnectionRank(0L, 1, 1, 1, 1),
-          (400L, 100L) -> MapWormholeConnectionRank(0L, 1, 2, 1, 1),
-          (300L, 200L) -> MapWormholeConnectionRank(0L, 1, 3, 2, 2),
-          (300L, 500L) -> MapWormholeConnectionRank(0L, 2, 3, 1, 2),
-          (100L, 500L) -> MapWormholeConnectionRank(0L, 2, 2, 2, 2),
-          (300L, 600L) -> MapWormholeConnectionRank(0L, 3, 3, 1, 1),
-          (400L, 300L) -> MapWormholeConnectionRank(0L, 2, 2, 1, 1)
+          (100L, 200L) -> MapWormholeConnectionRank(ConnectionId(0L), 1, 2, 1, 2),
+          (200L, 400L) -> MapWormholeConnectionRank(ConnectionId(0L), 1, 1, 1, 1),
+          (400L, 100L) -> MapWormholeConnectionRank(ConnectionId(0L), 1, 2, 1, 1),
+          (300L, 200L) -> MapWormholeConnectionRank(ConnectionId(0L), 1, 3, 2, 2),
+          (300L, 500L) -> MapWormholeConnectionRank(ConnectionId(0L), 2, 3, 1, 2),
+          (100L, 500L) -> MapWormholeConnectionRank(ConnectionId(0L), 2, 2, 2, 2),
+          (300L, 600L) -> MapWormholeConnectionRank(ConnectionId(0L), 3, 3, 1, 1),
+          (400L, 300L) -> MapWormholeConnectionRank(ConnectionId(0L), 2, 2, 1, 1)
         )
 
         query.transaction(
@@ -107,7 +107,7 @@ object MapQueriesSpec extends ZIOSpecDefault:
 
   private def connection(fromSystem: model.SystemId, toSystem: model.SystemId): model.MapWormholeConnection =
     model.MapWormholeConnection(
-      id = 0L,
+      id = ConnectionId(0),
       mapId = DefaultMap.id,
       fromSystemId = fromSystem,
       toSystemId = toSystem,
@@ -121,7 +121,7 @@ object MapQueriesSpec extends ZIOSpecDefault:
   private def connectionsById(got: List[model.MapWormholeConnection]): Map[(Long, Long), model.MapWormholeConnection] =
     got.map(whc => (whc.fromSystemId, whc.toSystemId) -> whc).toMap
 
-  private def ranksById(got: List[MapWormholeConnectionRank]): Map[Long, MapWormholeConnectionRank] =
+  private def ranksById(got: List[MapWormholeConnectionRank]): Map[ConnectionId, MapWormholeConnectionRank] =
     got.map(r => r.connectionId -> r).toMap
 
   private def containsAll[K, V](test: Map[K, V], all: Map[K, V]): Boolean =

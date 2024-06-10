@@ -11,9 +11,9 @@ case class UserCharacter(
     corporationId: CorporationId,
     allianceId: Option[AllianceId]
 )
-case class UserCharacterMap(characterId: CharacterId, mapId: Long, mapName: String, mapRole: MapRole)
+case class UserCharacterMap(characterId: CharacterId, mapId: MapId, mapName: String, mapRole: MapRole)
 
-case class UserInfo(userId: Long, displayName: String, characters: List[UserCharacter], maps: List[UserCharacterMap])
+case class UserInfo(userId: UserId, displayName: String, characters: List[UserCharacter], maps: List[UserCharacterMap])
 
 /** All user-configurable global UI preferences
   */

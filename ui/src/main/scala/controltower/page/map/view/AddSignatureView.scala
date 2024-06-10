@@ -42,7 +42,7 @@ class AddEditSignatureView(
 ) extends ViewController:
 
   override def view =
-    val signatureId = Var(existing.map(_.id).getOrElse(""))
+    val signatureId = Var(existing.map(_.id.convert).getOrElse(""))
 
     val signatureGroup      = Var(existing.map(_.signatureGroup).getOrElse(SignatureGroup.Unknown))
     val oreSignatureType    = Var(existing.filter(_.signatureGroup == SignatureGroup.Ore).flatMap(getSiteName))

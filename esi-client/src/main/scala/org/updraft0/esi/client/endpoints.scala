@@ -14,7 +14,7 @@ case class JwtString(value: String)
 case class AuthErrorResponse(error: String, errorDescription: String)
 case class JwtAuthResponse(accessToken: JwtString, expiresIn: Long, tokenType: String, refreshToken: String)
 
-case class CharacterLocationResponse(solarSystemId: SystemId, stationId: Option[Int], structureId: Option[Int])
+case class CharacterLocationResponse(solarSystemId: SystemId, stationId: Option[Int], structureId: Option[Long])
 case class CharacterFleetResponse(fleetId: Long, role: String, squadId: Long, wingId: Long)
 case class CharacterOnlineResponse(
     lastLogin: Option[Instant],
@@ -32,13 +32,14 @@ enum FleetError:
   case NotInFleet
   case Other(code: StatusCode, message: String) extends FleetError
 
-enum EsiError:
+enum EsiError derives CanEqual:
   case BadRequest(error: String)                        extends EsiError
   case Unauthorized(error: String)                      extends EsiError
   case Forbidden(error: String, ssoStatus: Option[Int]) extends EsiError
   case RateLimited(error: String)                       extends EsiError
   case InternalServerError(error: String)               extends EsiError
   case ServiceUnavailable(error: String)                extends EsiError
+  case BadGateway                                       extends EsiError
   case Timeout(error: String, timeout: Option[Int])     extends EsiError
   case NotFound(error: String)                          extends EsiError
   case Other(code: StatusCode, message: String)         extends EsiError
@@ -57,6 +58,7 @@ object Endpoints:
     oneOfVariant(StatusCode(420), jsonBody[EsiError.RateLimited]),
     oneOfVariant(StatusCode.InternalServerError, jsonBody[EsiError.InternalServerError]),
     oneOfVariant(StatusCode.ServiceUnavailable, jsonBody[EsiError.ServiceUnavailable]),
+    oneOfVariant(StatusCode.BadGateway, emptyOutputAs(EsiError.BadGateway)),
     oneOfVariant(StatusCode.GatewayTimeout, jsonBody[EsiError.Timeout]),
     oneOfDefaultVariant(
       // TODO this still does not handle the case of getting either a string/json response back
@@ -83,6 +85,7 @@ object Endpoints:
   val getCharacterLocation = jwtEndpoint.get
     .in("v2" / "characters" / path[CharacterId] / "location")
     .out(jsonBody[CharacterLocationResponse])
+    .errorOut(esiErrorOut)
     .description("Get character location")
 
   val getCharacterFleet = jwtEndpoint.get

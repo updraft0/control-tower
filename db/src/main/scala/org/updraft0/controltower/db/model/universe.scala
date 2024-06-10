@@ -21,7 +21,7 @@ case class SolarSystemPlanet(id: Long, systemId: Long, idx: Long, typeId: Long)
 case class SolarSystemMoon(id: Long, planetId: Long, systemId: Long, idx: Long)
 case class SolarSystemStar(id: Long, type_id: Long)
 case class SolarSystem(
-    id: Long,
+    id: Long, // TODO: use opaque type
     starId: Option[Long],
     starTypeId: Option[Long],
     name: String,

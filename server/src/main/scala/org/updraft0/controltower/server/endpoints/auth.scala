@@ -4,11 +4,13 @@ import org.updraft0.controltower.protocol.{SessionCookie as _, *}
 import org.updraft0.controltower.server.Config
 import org.updraft0.controltower.server.Server.EndpointEnv
 import org.updraft0.controltower.server.auth.*
+import org.updraft0.controltower.server.tracking.CharacterAuthTracker
 import sttp.client3.UriContext
 import sttp.model.Uri
 import sttp.model.headers.{Cookie, CookieValueWithMeta}
 import sttp.tapir.ztapir.*
 import zio.{Config as _, *}
+
 import java.util.UUID
 
 def loginRedirect = Endpoints.loginRedirect.zServerLogic[Config & SessionCrypto]: cookieOpt =>
@@ -28,8 +30,12 @@ def oauth2Callback = Endpoints.oauth2Callback.zServerLogic: code =>
     redirectBack <- ZIO.serviceWith[Config](uiUrl)
     sessionIdOpt <- SessionCrypto.validateCallbackCode(code.state)
     _ <- sessionIdOpt match
-      case None      => ZIO.logWarning("no valid callback session code found, login will not proceed")
-      case Some(sid) => Users.loginCallback(code.code, sid).ignoreLogged
+      case None => ZIO.logWarning("no valid callback session code found, login will not proceed")
+      case Some(sid) =>
+        Users
+          .loginCallback(code.code, sid)
+          .flatMap(ca => ZIO.serviceWithZIO[CharacterAuthTracker](_.newLogin(ca)))
+          .ignoreLogged
   yield redirectBack.toString
 
 def allAuthEndpoints: List[ZServerEndpoint[EndpointEnv, Any]] =

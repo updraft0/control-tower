@@ -58,6 +58,17 @@ object Esi:
       .flatMap(ZIO.fromEither(_).mapError(EsiError.UpstreamAuth.apply))
       .flatMap(extractAndValidateJwt)
 
+  /** Update the JWT token based on refresh token (after it has expired)
+    */
+  def refreshTokenAndUserData(
+      refreshToken: Base64
+  ): ZIO[Config & EsiClient, EsiError, (JwtAuthResponse, EsiTokenMeta)] =
+    EsiClient
+      .withZIO(_.postJwtRefreshToken(refreshToken.stringValue))
+      .mapError(EsiError.UpstreamError.apply)
+      .flatMap(ZIO.fromEither(_).mapError(EsiError.UpstreamAuth.apply))
+      .flatMap(extractAndValidateJwt)
+
 private def extractAndValidateJwt(r: JwtAuthResponse): ZIO[Config, EsiError, (JwtAuthResponse, EsiTokenMeta)] =
   for
     conf    <- ZIO.service[Config]

@@ -9,6 +9,8 @@ import org.updraft0.controltower.protocol.jsoncodec.given
 import org.updraft0.controltower.protocol.{StationOperation, StationService}
 import zio.*
 
+case class SolarSystemWithGates(sys: model.SolarSystem, gates: Array[model.Stargate])
+
 /** Queries for "reference" data (not map-dependent)
   */
 object ReferenceQueries:
@@ -18,6 +20,8 @@ object ReferenceQueries:
   import sde.schema.*
   import zio.json.*
 
+  private given JsonCodec[model.Stargate] = JsonCodec.derived
+
   private val ShipCategoryId = 6
 
   def getFactions: Result[List[protocol.Faction]] =
@@ -26,6 +30,33 @@ object ReferenceQueries:
   def getShipTypes: Result[List[protocol.ShipType]] =
     run(itemType.join(itemGroup.filter(_.categoryId == lift(ShipCategoryId))).on(_.groupId == _.id))
       .map(_.map((it, ig) => protocol.ShipType(it.id, it.name, it.groupId, ig.name, it.mass.getOrElse(0.0).toLong)))
+
+  def getAllSolarSystemsWithGates: Result[List[SolarSystemWithGates]] =
+    run(quote {
+      (for
+        ss <- solarSystem
+        r  <- region.join(_.id == ss.regionId)
+        sg <- stargate.leftJoin(sg => sg.systemId == ss.id || sg.toSystemId == ss.id)
+      yield (ss, r, sg)).groupByMap((ss, _, _) => ss.id)((ss, r, sg) =>
+        (
+          ss,
+          r.whClassId,
+          jsonGroupArrayFilterNullDistinct[model.Stargate](
+            jsonObject3(
+              "id",
+              sg.map(_.id),
+              "systemId",
+              sg.map(_.systemId),
+              "toSystemId",
+              sg.map(_.toSystemId)
+            ),
+            sg.map(_.id)
+          )
+        )
+      )
+    }).map(
+      _.map((ss, whClass, sgs) => SolarSystemWithGates(ss.copy(whClassId = ss.whClassId.orElse(whClass)), sgs.value))
+    )
 
   def getSolarSystemByName(name: String): Result[List[protocol.SolarSystem]] =
     getSolarSystemsByName(Some(name))
@@ -53,8 +84,9 @@ object ReferenceQueries:
           .join(wormhole)
           .on(_.staticTypeId == _.typeId))
           .leftJoin(_._1.systemId == sys.id)
-      yield (sys, reg, ptj, stj, whj))
-        .groupByMap((sys, reg, _, _, _) => (sys, reg))((sys, reg, ptj, stj, whj) =>
+        sgj <- stargate.leftJoin(sg => sg.systemId == sys.id || sg.toSystemId == sys.id)
+      yield (sys, reg, ptj, stj, whj, sgj))
+        .groupByMap((sys, reg, _, _, _, _) => (sys, reg))((sys, reg, ptj, stj, whj, sgj) =>
           (
             sys,
             reg,
@@ -99,11 +131,22 @@ object ReferenceQueries:
                 whj.map(_._2.name)
               ),
               whj.map(_._1.systemId)
+            ),
+            jsonGroupArrayFilterNullDistinct[protocol.Stargate](
+              jsonObject3(
+                "id",
+                sgj.map(_.id),
+                "systemId",
+                sgj.map(_.systemId),
+                "toSystemId",
+                sgj.map(_.toSystemId)
+              ),
+              sgj.map(_.id)
             )
           )
         )
     }).map(
-      _.map((sys, reg, planets, stations, wormholeStatics) =>
+      _.map((sys, reg, planets, stations, wormholeStatics, stargates) =>
         protocol.SolarSystem(
           id = sys.id,
           name = sys.name,
@@ -116,6 +159,7 @@ object ReferenceQueries:
           effect = sys.effectTypeId.map(WormholeEffects.ById.apply),
           systemClass = sys.whClassId.orElse(reg.whClassId).map(WormholeClasses.ById.apply),
           wormholeStatics = wormholeStatics.value,
+          gates = stargates.value,
           security = sys.security,
           starTypeId = sys.starTypeId
         )

@@ -12,17 +12,22 @@ import org.updraft0.controltower.server.db.{
   MapWormholeConnectionWithSigs
 }
 import org.updraft0.controltower.server.endpoints.{toMapInfo, toProtocolRole}
+import org.updraft0.controltower.server.tracking.{CharacterLocationState, LocationTracker, LocationTrackingRequest}
 import zio.*
 import zio.http.ChannelEvent.UserEvent
 import zio.http.{ChannelEvent, Handler, WebSocketChannelEvent, WebSocketFrame}
 import zio.json.*
 import zio.logging.LogAnnotation
+
 import java.util.UUID
 
 given CanEqual[WebSocketChannelEvent, WebSocketChannelEvent]   = CanEqual.derived
 given CanEqual[ChannelEvent.UserEvent, ChannelEvent.UserEvent] = CanEqual.derived
 
 enum MapSessionMessage:
+  // TODO: add Map deleted message
+  case MapCharacters(mapId: MapId, all: Map[CharacterId, model.MapRole])
+  // TODO: currently largely unused
   case RoleChanged(characterId: CharacterId, role: Option[model.MapRole])
 
 /** Loosely, a map "session" is an open WebSocket for a single (character, map)
@@ -33,7 +38,7 @@ enum MapSessionMessage:
   *   socket closure (here we do `Channel.awaitShutdown` to close the manually-created scope and release the resources)
   */
 object MapSession:
-  type Env = MapReactive.Service & javax.sql.DataSource
+  type Env = MapReactive.Service & javax.sql.DataSource & LocationTracker
 
   private val jsonContent  = LogAnnotation[String]("json", (_, b) => b, identity)
   private val errorMessage = LogAnnotation[String]("error", (_, b) => b, identity)
@@ -74,50 +79,62 @@ object MapSession:
         resQ    <- mapE.subscribe(mapId)
         ourQ    <- Queue.bounded[protocol.MapMessage](OurQueueSize)
         mapRole <- Ref.make(initialRole)
+        // TODO: move the character tracking elsewhere :)
+        _ <- ZIO
+          .serviceWith[LocationTracker](_.inbound)
+          .flatMap(_.offer(LocationTrackingRequest.AddCharacters(Chunk(characterId))))
         ctx = Context(mapId, characterId, sid, userId, mapRole, mapQ, resQ, ourQ, sessionMessages)
         // close the scope (and the subscription) if the websocket is closed
-        _ <- ZIO
-          .serviceWithZIO[Scope.Closeable](scope =>
-            chan.awaitShutdown
-              .zipRight(ZIO.logDebug("finished map session due to socket closure"))
-              .zipRight(scope.close(Exit.succeed(())))
-          )
+        close <- ZIO.serviceWith[Scope.Closeable](scope => scope.close(Exit.succeed(())))
+        _ <- chan.awaitShutdown
+          .zipRight(ZIO.logDebug("finished map session due to socket closure"))
+          .zipRight(close)
           .forkDaemon
         // run the receive from websocket -> queue of inbox and receive from outbox --> websocket in parallel, in scope
-        recv <- ZIO
-          .whileLoop(true)((chan.receive.flatMap(decodeMessage(_)) <*> mapRole.get).flatMap:
+        recv <- (chan.receive.flatMap(decodeMessage(_)) <*> mapRole.get)
+          .flatMap {
             case (Right(msg), mapRole) if isAllowed(msg, mapRole) => processMessage(ctx, msg).unit
             case (Right(msg), mapRole) => ourQ.offer(protocol.MapMessage.Error("Permission denied")).ignoreLogged
             case (Left(error), _)      => ourQ.offer(protocol.MapMessage.Error(error)).ignoreLogged
-          )(identity)
+          }
+          .forever
           .forkScoped
-        send <- ZIO
-          .whileLoop(true)(resQ.take.map(filterToProto(sid)(_)).flatMap {
+        send <- resQ.take
+          .map(filterToProto(sid)(_))
+          .flatMap {
             case Some(msg) => chan.send(ChannelEvent.Read(WebSocketFrame.Text(msg.toJson)))
             case None      => ZIO.unit
-          })(identity)
+          }
+          .forever
           .forkScoped
-        sendOurs <- ZIO
-          .whileLoop(true)(ourQ.take.flatMap(msg => chan.send(ChannelEvent.Read(WebSocketFrame.Text(msg.toJson)))))(
-            identity
-          )
+        sendOurs <- ourQ.take
+          .flatMap(msg => chan.send(ChannelEvent.Read(WebSocketFrame.Text(msg.toJson))))
+          .forever
           .forkScoped
         // process any session messages
-        _ <- ZIO
-          .whileLoop(true)(sessionMessages.take.flatMap:
-            case MapSessionMessage.RoleChanged(charId, Some(newRole)) =>
-              mapRole.set(newRole).when(charId == characterId)
-            case MapSessionMessage.RoleChanged(charId, None) =>
-              // this should close the map
-              ZIO.logInfo(s"character no longer has any roles") *> ZIO.interrupt
-          )(identity)
-          .forkScoped
+        _ <- sessionMessages.take.flatMap(handleMapSessionMessage(characterId, mapRole, close, _)).forever.forkScoped
         // ping out every ping interval to keep connection open
         _ <- chan.send(ChannelEvent.Read(WebSocketFrame.Ping)).schedule(Schedule.fixed(PingInterval)).forkDaemon
+        // join on the remaining loops
         _ <- recv.join
         _ <- send.join
+        _ <- sendOurs.join
       yield ()
     )
+
+  private def handleMapSessionMessage(
+      characterId: CharacterId,
+      mapRole: Ref[model.MapRole],
+      close: UIO[Unit],
+      msg: MapSessionMessage
+  ) =
+    msg match
+      case MapSessionMessage.RoleChanged(charId, Some(newRole)) =>
+        mapRole.set(newRole).when(charId == characterId)
+      case MapSessionMessage.RoleChanged(charId, None) =>
+        // this should close the map
+        ZIO.logInfo(s"character no longer has any roles") *> close
+      case _ => ZIO.unit // no-op
 
   private def inContext[R](mapId: MapId, characterId: CharacterId, userId: UserId)(
       f: ZIO[R & Scope.Closeable & MapSessionId, Throwable, Any]
@@ -125,7 +142,9 @@ object MapSession:
     for
       sessionId <- ZIO.attempt(UUID.randomUUID()).map(MapSessionId(characterId, _))
       scope     <- Scope.make
-      res <- f.provideSome[R](ZLayer.succeed(scope), ZLayer.succeed(sessionId)) @@ Log.SessionId(
+      res <- f
+        .tapError(ex => ZIO.logErrorCause("Map session failed unexpectedly", Cause.fail(ex)))
+        .provideSome[R](ZLayer.succeed(scope), ZLayer.succeed(sessionId)) @@ Log.SessionId(
         sessionId.sessionId
       ) @@ Log.MapId(mapId) @@ Log.UserId(userId) @@ Log.CharacterId(sessionId.characterId)
     yield res
@@ -219,7 +238,7 @@ object MapSession:
       ctx.mapQ.offer(
         Identified(
           Some(ctx.sessionId),
-          MapRequest.RemoveSystemSignatures(systemId, Chunk(sigIds.map(s => s: String)*).nonEmptyOrElse(None)(Some(_)))
+          MapRequest.RemoveSystemSignatures(systemId, Chunk.from(sigIds).nonEmptyOrElse(None)(Some(_)))
         )
       )
     case protocol.MapRequest.RemoveAllSystemSignatures(systemId) =>
@@ -243,7 +262,8 @@ private def toProto(msg: MapResponse): Option[protocol.MapMessage] = msg match
     Some(protocol.MapMessage.ConnectionSnapshot(toProtoConnectionWithSigs(whc, rank)))
   case MapResponse.ConnectionsRemoved(whcs) =>
     Some(protocol.MapMessage.ConnectionsRemoved(whcs.map(toProtoConnection).toArray))
-  case MapResponse.Error(message) => Some(protocol.MapMessage.Error(message))
+  case MapResponse.ConnectionJumped(jump) => Some(protocol.MapMessage.ConnectionJumped(toProtoConnectionJump(jump)))
+  case MapResponse.Error(message)         => Some(protocol.MapMessage.Error(message))
   case MapResponse.MapSnapshot(systems, connections, connectionRanks) =>
     Some(
       protocol.MapMessage.MapSnapshot(
@@ -265,6 +285,14 @@ private def toProto(msg: MapResponse): Option[protocol.MapMessage] = msg match
     Some(protocol.MapMessage.SystemDisplayUpdate(systemId, name, toProtoDisplay(displayData)))
   case MapResponse.SystemRemoved(systemId) =>
     Some(protocol.MapMessage.SystemRemoved(systemId))
+  case MapResponse.CharacterLocations(locationMap) =>
+    Some(
+      protocol.MapMessage.CharacterLocations(
+        locationMap
+          .groupMap(_._2.system)((cId, inS) => toProtoCharacterLocation(cId, inS))
+          .transform((_, i) => i.toArray)
+      )
+    )
 
 private def toAddSystem(msg: protocol.MapRequest.AddSystem) =
   MapRequest.AddSystem(
@@ -493,6 +521,15 @@ private def toProtoConnection(value: model.MapWormholeConnection): protocol.MapW
     updatedByCharacterId = value.updatedByCharacterId
   )
 
+private def toProtoConnectionJump(value: model.MapWormholeConnectionJump): protocol.MapWormholeConnectionJump =
+  protocol.MapWormholeConnectionJump(
+    connectionId = value.connectionId,
+    characterId = value.characterId,
+    shipTypeId = value.shipTypeId,
+    massOverride = value.massOverride,
+    createdAt = value.createdAt
+  )
+
 private def toProtoConnectionRank(value: MapWormholeConnectionRank): protocol.MapWormholeConnectionRank =
   protocol.MapWormholeConnectionRank(
     fromSystemIdx = value.fromSystemIdx,
@@ -507,6 +544,7 @@ private def toProtoConnectionWithSigs(
 ): protocol.MapWormholeConnectionWithSigs =
   protocol.MapWormholeConnectionWithSigs(
     connection = toProtoConnection(value.connection),
+    jumps = value.jumps.map(toProtoConnectionJump),
     fromSignature = value.fromSignature.flatMap(toProtoSignatureWormhole(_)),
     toSignature = value.toSignature.flatMap(toProtoSignatureWormhole(_)),
     rank = toProtoConnectionRank(rank)
@@ -518,3 +556,15 @@ private inline def toProtoSignatureWormhole(
   toProtoSignature(value) match
     case ws: protocol.MapSystemSignature.Wormhole => Some(ws)
     case _                                        => None
+
+private def toProtoCharacterLocation(
+    characterId: CharacterId,
+    inSystem: CharacterLocationState.InSystem
+): protocol.CharacterLocation =
+  protocol.CharacterLocation(
+    characterId = characterId,
+    shipTypeId = inSystem.shipTypeId,
+    structureId = inSystem.structureId,
+    stationId = inSystem.stationId,
+    updatedAt = inSystem.updatedAt
+  )

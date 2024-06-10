@@ -3,15 +3,16 @@ package org.updraft0.controltower.protocol
 import org.updraft0.controltower.constant.*
 export org.updraft0.controltower.constant.SigId
 export org.updraft0.controltower.constant.SigId.given
-export org.updraft0.controltower.constant.SystemId
 export org.updraft0.controltower.constant.SystemId.given
 import zio.json.*
 import sttp.tapir.*
 import sttp.tapir.SchemaType.SInteger
 
 object schema:
-  given longMapSchema[V: Schema]: Schema[Map[Long, V]]             = Schema.schemaForMap[Long, V](_.toString)
-  given characterMapSchema[V: Schema]: Schema[Map[CharacterId, V]] = Schema.schemaForMap[CharacterId, V](_.toString)
+  given longMapSchema[V: Schema]: Schema[Map[Long, V]]               = Schema.schemaForMap[Long, V](_.toString)
+  given characterMapSchema[V: Schema]: Schema[Map[CharacterId, V]]   = Schema.schemaForMap[CharacterId, V](_.toString)
+  given connectionMapSchema[V: Schema]: Schema[Map[ConnectionId, V]] = Schema.schemaForMap[ConnectionId, V](_.toString)
+  given systemMapSchema[V: Schema]: Schema[Map[SystemId, V]]         = Schema.schemaForMap[SystemId, V](_.toString)
 
   // opaque
   given Schema[CharacterId]   = Schema(SInteger()).format("int64")
@@ -20,6 +21,8 @@ object schema:
   given Schema[SigId]         = Schema.string
   given Schema[SystemId]      = Schema(SInteger()).format("int64")
   given Schema[UserId]        = Schema(SInteger()).format("int64")
+  given Schema[MapId]         = Schema(SInteger()).format("int64")
+  given Schema[ConnectionId]  = Schema(SInteger()).format("int64")
 
   // auth
 
@@ -43,6 +46,7 @@ object schema:
   // system
   given Schema[Planet]         = Schema.derived
   given Schema[Station]        = Schema.derived
+  given Schema[Stargate]       = Schema.derived
   given Schema[SolarSystem]    = Schema.derived
   given Schema[WormholeStatic] = Schema.derived
   given Schema[NewSystemName]  = Schema.derived
@@ -62,6 +66,7 @@ object schema:
   given Schema[NewMap]                 = Schema.derived
   given Schema[PolicyMemberType]       = Schema.derived
   given Schema[MapDisplayType]         = Schema.derived
+  given Schema[CharacterLocation]      = Schema.derived
 
   given Schema[IntelStance]                   = Schema.derived
   given Schema[MapRequest]                    = Schema.derived
@@ -72,6 +77,7 @@ object schema:
   given Schema[MapSystemStructure]            = Schema.derived
   given Schema[MapSystemNote]                 = Schema.derived
   given Schema[MapWormholeConnection]         = Schema.derived
+  given Schema[MapWormholeConnectionJump]     = Schema.derived
   given Schema[MapWormholeConnectionRank]     = Schema.derived
   given Schema[MapWormholeConnectionWithSigs] = Schema.derived
   given Schema[SignatureGroup]                = Schema.derived
@@ -85,13 +91,25 @@ object schema:
   given Schema[NewSystemSignature]            = Schema.derived
 
 object jsoncodec:
+
   // opaque
+  given JsonFieldEncoder[SystemId] = JsonFieldEncoder.long.asInstanceOf[JsonFieldEncoder[SystemId]]
+  given JsonFieldDecoder[SystemId] = JsonFieldDecoder.long.asInstanceOf[JsonFieldDecoder[SystemId]]
+
+  given JsonFieldEncoder[ConnectionId] = JsonFieldEncoder.long.asInstanceOf[JsonFieldEncoder[ConnectionId]]
+  given JsonFieldDecoder[ConnectionId] = JsonFieldDecoder.long.asInstanceOf[JsonFieldDecoder[ConnectionId]]
+
+  given JsonFieldEncoder[CharacterId] = JsonFieldEncoder.long.asInstanceOf[JsonFieldEncoder[CharacterId]]
+  given JsonFieldDecoder[CharacterId] = JsonFieldDecoder.long.asInstanceOf[JsonFieldDecoder[CharacterId]]
+
   given JsonCodec[CharacterId]   = JsonCodec.long.asInstanceOf[JsonCodec[CharacterId]]
   given JsonCodec[CorporationId] = JsonCodec.long.asInstanceOf[JsonCodec[CorporationId]]
   given JsonCodec[AllianceId]    = JsonCodec.long.asInstanceOf[JsonCodec[AllianceId]]
   given JsonCodec[SigId]         = JsonCodec.string.asInstanceOf[JsonCodec[SigId]]
   given JsonCodec[SystemId]      = JsonCodec.long.asInstanceOf[JsonCodec[SystemId]]
   given JsonCodec[UserId]        = JsonCodec.long.asInstanceOf[JsonCodec[UserId]]
+  given JsonCodec[MapId]         = JsonCodec.long.asInstanceOf[JsonCodec[MapId]]
+  given JsonCodec[ConnectionId]  = JsonCodec.long.asInstanceOf[JsonCodec[ConnectionId]]
 
   // auth
 
@@ -115,6 +133,7 @@ object jsoncodec:
   // system
   given JsonCodec[Planet]         = JsonCodec.derived
   given JsonCodec[Station]        = JsonCodec.derived
+  given JsonCodec[Stargate]       = JsonCodec.derived
   given JsonCodec[SolarSystem]    = JsonCodec.derived
   given JsonCodec[WormholeStatic] = JsonCodec.derived
   given JsonCodec[NewSystemName]  = JsonCodec.derived
@@ -134,6 +153,7 @@ object jsoncodec:
   given JsonCodec[NewMap]                 = JsonCodec.derived
   given JsonCodec[PolicyMemberType]       = JsonCodec.string.transform(PolicyMemberType.valueOf, _.toString)
   given JsonCodec[MapDisplayType]         = JsonCodec.string.transform(MapDisplayType.valueOf, _.toString)
+  given JsonCodec[CharacterLocation]      = JsonCodec.derived
 
   given JsonCodec[IntelStance]                   = JsonCodec.string.transform(IntelStance.valueOf, _.toString)
   given JsonCodec[MapRequest]                    = JsonCodec.derived
@@ -144,6 +164,7 @@ object jsoncodec:
   given JsonCodec[MapSystemStructure]            = JsonCodec.derived
   given JsonCodec[MapSystemNote]                 = JsonCodec.derived
   given JsonCodec[MapWormholeConnection]         = JsonCodec.derived
+  given JsonCodec[MapWormholeConnectionJump]     = JsonCodec.derived
   given JsonCodec[MapWormholeConnectionRank]     = JsonCodec.derived
   given JsonCodec[MapWormholeConnectionWithSigs] = JsonCodec.derived
   given JsonCodec[SignatureGroup]                = JsonCodec.string.transform(SignatureGroup.valueOf, _.toString)

@@ -21,7 +21,7 @@ case class Station(
 )
 
 case class WormholeStatic(typeId: Int, name: String)
-
+case class Stargate(id: Int, systemId: Long, toSystemId: Long)
 case class SolarSystem(
     id: Long,
     name: String,
@@ -34,6 +34,7 @@ case class SolarSystem(
     effect: Option[WormholeEffect],
     systemClass: Option[WormholeClass],
     wormholeStatics: Array[WormholeStatic],
+    gates: Array[Stargate],
     security: Option[Double],
     starTypeId: Option[Long]
 )

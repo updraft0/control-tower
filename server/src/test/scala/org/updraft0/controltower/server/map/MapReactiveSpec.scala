@@ -1,28 +1,29 @@
 package org.updraft0.controltower.server.map
 
-import org.updraft0.controltower.constant.CharacterId
+import org.updraft0.controltower.constant.{CharacterId, ConnectionId, MapId, SigId}
 import org.updraft0.controltower.db.model.*
 import zio.test.*
+
 import java.time.Instant
 import java.util.UUID
 
 object MapReactiveSpec extends ZIOSpecDefault:
 
-  val DummySession  = MapSessionId(CharacterId(12345L), UUID.fromString("40000000-3000-2000-1000-000000000000"))
-  val DummySession2 = MapSessionId(CharacterId(67890L), UUID.fromString("50000000-6000-7000-8000-900000000000"))
+  val DummySession  = MapSessionId(CharacterId(12345), UUID.fromString("40000000-3000-2000-1000-000000000000"))
+  val DummySession2 = MapSessionId(CharacterId(67890), UUID.fromString("50000000-6000-7000-8000-900000000000"))
 
   val Time1 = Instant.ofEpochMilli(201000L)
   val Time2 = Instant.ofEpochMilli(202000L)
 
-  val MapId     = 1L
+  val MapId1    = MapId(1)
   val SystemId1 = 30000142L
   val SystemId2 = 31002604L
 
   override def spec = suite("toModelSignature")(
     test("converts an Unknown signature"):
-        val newSig = NewMapSystemSignature("UKN-000", SignatureGroup.Unknown)
+        val newSig = NewMapSystemSignature(SigId("UKN-000"), SignatureGroup.Unknown)
         val expected = modelSignature(
-          MapId,
+          MapId1,
           SystemId1,
           "UKN-000",
           createdAt = Time1,
@@ -31,13 +32,14 @@ object MapReactiveSpec extends ZIOSpecDefault:
           updatedByCharacterId = DummySession.characterId
         )
         assertTrue(
-          toModelSignature(Time1, DummySession, (MapId, SystemId1), None, newSig) == expected
+          toModelSignature(Time1, DummySession, (MapId1, SystemId1), None, newSig) == expected
         )
     ,
     test("converts a Data signature"):
-        val newSig = NewMapSystemSignature("DAT-001", SignatureGroup.Data, Some("Unsecured Frontier Enclave Relay"))
+        val newSig =
+          NewMapSystemSignature(SigId("DAT-001"), SignatureGroup.Data, Some("Unsecured Frontier Enclave Relay"))
         val expected = modelSignature(
-          MapId,
+          MapId1,
           SystemId1,
           "DAT-001",
           signatureGroup = SignatureGroup.Data,
@@ -48,13 +50,13 @@ object MapReactiveSpec extends ZIOSpecDefault:
           updatedByCharacterId = DummySession.characterId
         )
         assertTrue(
-          toModelSignature(Time1, DummySession, (MapId, SystemId1), None, newSig) == expected
+          toModelSignature(Time1, DummySession, (MapId1, SystemId1), None, newSig) == expected
         )
     ,
     test("converts a Wormhole signature of Unknown subtype"):
-        val newSig = NewMapSystemSignature("WHO-002", SignatureGroup.Wormhole)
+        val newSig = NewMapSystemSignature(SigId("WHO-002"), SignatureGroup.Wormhole)
         val expected = modelSignature(
-          MapId,
+          MapId1,
           SystemId1,
           "WHO-002",
           signatureGroup = SignatureGroup.Wormhole,
@@ -66,13 +68,13 @@ object MapReactiveSpec extends ZIOSpecDefault:
           updatedByCharacterId = DummySession.characterId
         )
         assertTrue(
-          toModelSignature(Time1, DummySession, (MapId, SystemId1), None, newSig) == expected
+          toModelSignature(Time1, DummySession, (MapId1, SystemId1), None, newSig) == expected
         )
     ,
     test("converts a Wormhole signature with a known type id and mass"):
-        val newSig = NewMapSystemSignature("WHO-003", SignatureGroup.Wormhole)
+        val newSig = NewMapSystemSignature(SigId("WHO-003"), SignatureGroup.Wormhole)
         val expected = modelSignature(
-          MapId,
+          MapId1,
           SystemId1,
           "WHO-003",
           signatureGroup = SignatureGroup.Wormhole,
@@ -84,12 +86,12 @@ object MapReactiveSpec extends ZIOSpecDefault:
           updatedByCharacterId = DummySession.characterId
         )
         assertTrue(
-          toModelSignature(Time1, DummySession, (MapId, SystemId1), None, newSig) == expected
+          toModelSignature(Time1, DummySession, (MapId1, SystemId1), None, newSig) == expected
         )
     ,
     test("updates a signature Unknown -> Relic"):
         val prevSig = modelSignature(
-          MapId,
+          MapId1,
           SystemId1,
           "REL-001",
           signatureGroup = SignatureGroup.Unknown,
@@ -98,9 +100,10 @@ object MapReactiveSpec extends ZIOSpecDefault:
           updatedAt = Time1,
           updatedByCharacterId = CharacterId(42L)
         )
-        val newSig = NewMapSystemSignature("REL-001", SignatureGroup.Relic, Some("Decayed Blood Raider Mass Grave"))
+        val newSig =
+          NewMapSystemSignature(SigId("REL-001"), SignatureGroup.Relic, Some("Decayed Blood Raider Mass Grave"))
         val expected = modelSignature(
-          MapId,
+          MapId1,
           SystemId1,
           "REL-001",
           signatureGroup = SignatureGroup.Relic,
@@ -111,12 +114,12 @@ object MapReactiveSpec extends ZIOSpecDefault:
           updatedByCharacterId = DummySession.characterId
         )
         assertTrue(
-          toModelSignature(Time2, DummySession, (MapId, SystemId1), Some(prevSig), newSig) == expected
+          toModelSignature(Time2, DummySession, (MapId1, SystemId1), Some(prevSig), newSig) == expected
         )
     ,
     test("updates a signature Unknown -> Wormhole (Unknown)"):
         val prevSig = modelSignature(
-          MapId,
+          MapId1,
           SystemId1,
           "WHO-003",
           signatureGroup = SignatureGroup.Unknown,
@@ -125,9 +128,9 @@ object MapReactiveSpec extends ZIOSpecDefault:
           updatedAt = Time1,
           updatedByCharacterId = CharacterId(42L)
         )
-        val newSig = NewMapSystemSignature("WHO-003", SignatureGroup.Wormhole)
+        val newSig = NewMapSystemSignature(SigId("WHO-003"), SignatureGroup.Wormhole)
         val expected = modelSignature(
-          MapId,
+          MapId1,
           SystemId1,
           "WHO-003",
           signatureGroup = SignatureGroup.Wormhole,
@@ -139,12 +142,12 @@ object MapReactiveSpec extends ZIOSpecDefault:
           updatedByCharacterId = DummySession.characterId
         )
         assertTrue(
-          toModelSignature(Time2, DummySession, (MapId, SystemId1), Some(prevSig), newSig) == expected
+          toModelSignature(Time2, DummySession, (MapId1, SystemId1), Some(prevSig), newSig) == expected
         )
     ,
     test("updates a signature Wormhole (Unknown) -> Wormhole (K162)"):
         val prevSig = modelSignature(
-          MapId,
+          MapId1,
           SystemId1,
           "WHO-004",
           signatureGroup = SignatureGroup.Wormhole,
@@ -156,15 +159,15 @@ object MapReactiveSpec extends ZIOSpecDefault:
           updatedByCharacterId = CharacterId(42L)
         )
         val newSig = NewMapSystemSignature(
-          "WHO-004",
+          SigId("WHO-004"),
           SignatureGroup.Wormhole,
           wormholeMassStatus = WormholeMassStatus.Fresh,
           wormholeK162Type = Some(WormholeK162Type.Dangerous)
         )
         val expected = modelSignature(
-          MapId,
+          MapId1,
           SystemId1,
-          "WHO-004",
+          SigId("WHO-004"),
           signatureGroup = SignatureGroup.Wormhole,
           wormholeMassSize = Some(WormholeMassSize.Unknown),
           wormholeMassStatus = Some(WormholeMassStatus.Fresh),
@@ -175,12 +178,12 @@ object MapReactiveSpec extends ZIOSpecDefault:
           updatedByCharacterId = DummySession.characterId
         )
         assertTrue(
-          toModelSignature(Time2, DummySession, (MapId, SystemId1), Some(prevSig), newSig) == expected
+          toModelSignature(Time2, DummySession, (MapId1, SystemId1), Some(prevSig), newSig) == expected
         )
     ,
     test("updates a signature Wormhole (Unknown) -> Wormhole (A009)"):
         val prevSig = modelSignature(
-          MapId,
+          MapId1,
           SystemId1,
           "WHO-005",
           signatureGroup = SignatureGroup.Wormhole,
@@ -192,14 +195,14 @@ object MapReactiveSpec extends ZIOSpecDefault:
           updatedByCharacterId = CharacterId(42L)
         )
         val newSig = NewMapSystemSignature(
-          "WHO-005",
+          SigId("WHO-005"),
           SignatureGroup.Wormhole,
           wormholeMassSize = WormholeMassSize.S,
           wormholeMassStatus = WormholeMassStatus.Fresh,
           wormholeTypeId = Some(34439)
         )
         val expected = modelSignature(
-          MapId,
+          MapId1,
           SystemId1,
           "WHO-005",
           signatureGroup = SignatureGroup.Wormhole,
@@ -212,37 +215,37 @@ object MapReactiveSpec extends ZIOSpecDefault:
           updatedByCharacterId = DummySession.characterId
         )
         assertTrue(
-          toModelSignature(Time2, DummySession, (MapId, SystemId1), Some(prevSig), newSig) == expected
+          toModelSignature(Time2, DummySession, (MapId1, SystemId1), Some(prevSig), newSig) == expected
         )
     ,
     test("updates a signature Wormhole with the scanning time only"):
         val prevSig = modelSignature(
-          MapId,
+          MapId1,
           SystemId1,
           "WHO-006",
           signatureGroup = SignatureGroup.Wormhole,
           wormholeMassSize = Some(WormholeMassSize.S),
           wormholeMassStatus = Some(WormholeMassStatus.Fresh),
           wormholeTypeId = Some(34439),
-          wormholeConnectionId = Some(1234L),
+          wormholeConnectionId = Some(ConnectionId(1234L)),
           createdAt = Time1,
           createdByCharacterId = CharacterId(42L),
           updatedAt = Time1,
           updatedByCharacterId = CharacterId(42L)
         )
-        val newSig = NewMapSystemSignature("WHO-006", SignatureGroup.Wormhole)
+        val newSig = NewMapSystemSignature(SigId("WHO-006"), SignatureGroup.Wormhole)
         val expected = prevSig.copy(
           updatedAt = Time2,
           updatedByCharacterId = DummySession.characterId
         )
 
         assertTrue(
-          toModelSignature(Time2, DummySession, (MapId, SystemId1), Some(prevSig), newSig) == expected
+          toModelSignature(Time2, DummySession, (MapId1, SystemId1), Some(prevSig), newSig) == expected
         )
     ,
     test("updates a signature Wormhole with the scanning time, leaving the EOL status (and time) untouched"):
         val prevSig = modelSignature(
-          MapId,
+          MapId1,
           SystemId1,
           "WHO-007",
           signatureGroup = SignatureGroup.Wormhole,
@@ -254,41 +257,41 @@ object MapReactiveSpec extends ZIOSpecDefault:
           updatedAt = Time1,
           updatedByCharacterId = CharacterId(42L)
         )
-        val newSig = NewMapSystemSignature("WHO-007", SignatureGroup.Unknown)
+        val newSig = NewMapSystemSignature(SigId("WHO-007"), SignatureGroup.Unknown)
         val expected = prevSig.copy(
           updatedAt = Time2,
           updatedByCharacterId = DummySession.characterId
         )
 
         assertTrue(
-          toModelSignature(Time2, DummySession, (MapId, SystemId1), Some(prevSig), newSig) == expected
+          toModelSignature(Time2, DummySession, (MapId1, SystemId1), Some(prevSig), newSig) == expected
         )
     ,
     test("updates a signature Wormhole from K162 -> A009"):
         val prevSig = modelSignature(
-          MapId,
+          MapId1,
           SystemId1,
           "WHO-008",
           signatureGroup = SignatureGroup.Wormhole,
           wormholeK162Type = Some(WormholeK162Type.Unknown),
           wormholeMassSize = Some(WormholeMassSize.S),
           wormholeMassStatus = Some(WormholeMassStatus.Fresh),
-          wormholeConnectionId = Some(1234L),
+          wormholeConnectionId = Some(ConnectionId(1234)),
           createdAt = Time1,
           createdByCharacterId = CharacterId(42L),
           updatedAt = Time1,
           updatedByCharacterId = CharacterId(42L)
         )
-        val newSig = NewMapSystemSignature("WHO-008", SignatureGroup.Wormhole, wormholeTypeId = Some(34439))
+        val newSig = NewMapSystemSignature(SigId("WHO-008"), SignatureGroup.Wormhole, wormholeTypeId = Some(34439))
         val expected = modelSignature(
-          MapId,
+          MapId1,
           SystemId1,
           "WHO-008",
           signatureGroup = SignatureGroup.Wormhole,
           wormholeMassSize = Some(WormholeMassSize.S),
           wormholeMassStatus = Some(WormholeMassStatus.Fresh),
           wormholeTypeId = Some(34439),
-          wormholeConnectionId = Some(1234L),
+          wormholeConnectionId = Some(ConnectionId(1234L)),
           createdAt = Time1,
           createdByCharacterId = CharacterId(42L),
           updatedAt = Time2,
@@ -296,12 +299,12 @@ object MapReactiveSpec extends ZIOSpecDefault:
         )
 
         assertTrue(
-          toModelSignature(Time2, DummySession, (MapId, SystemId1), Some(prevSig), newSig) == expected
+          toModelSignature(Time2, DummySession, (MapId1, SystemId1), Some(prevSig), newSig) == expected
         )
     ,
     test("updates a signature Wormhole by removing its EOL status"):
         val prevSig = modelSignature(
-          MapId,
+          MapId1,
           SystemId1,
           "WHO-009",
           signatureGroup = SignatureGroup.Wormhole,
@@ -313,7 +316,7 @@ object MapReactiveSpec extends ZIOSpecDefault:
           updatedAt = Time1,
           updatedByCharacterId = CharacterId(42L)
         )
-        val newSig = NewMapSystemSignature("WHO-009", SignatureGroup.Wormhole, wormholeIsEol = Some(false))
+        val newSig = NewMapSystemSignature(SigId("WHO-009"), SignatureGroup.Wormhole, wormholeIsEol = Some(false))
         val expected = prevSig.copy(
           wormholeIsEol = Some(false),
           wormholeEolAt = None,
@@ -322,7 +325,7 @@ object MapReactiveSpec extends ZIOSpecDefault:
         )
 
         assertTrue(
-          toModelSignature(Time2, DummySession, (MapId, SystemId1), Some(prevSig), newSig) == expected
+          toModelSignature(Time2, DummySession, (MapId1, SystemId1), Some(prevSig), newSig) == expected
         )
   )
 
@@ -344,7 +347,7 @@ private def modelSignature(
     wormholeMassSize: Option[WormholeMassSize] = None,
     wormholeMassStatus: Option[WormholeMassStatus] = None,
     wormholeK162Type: Option[WormholeK162Type] = None,
-    wormholeConnectionId: Option[Long] = None,
+    wormholeConnectionId: Option[ConnectionId] = None,
     createdAt: Instant = Instant.EPOCH,
     createdByCharacterId: CharacterId = CharacterId(0L),
     updatedAt: Instant = Instant.EPOCH,
@@ -353,7 +356,7 @@ private def modelSignature(
   MapSystemSignature(
     mapId = mapId,
     systemId = systemId,
-    signatureId = signatureId,
+    signatureId = SigId(signatureId),
     isDeleted = isDeleted,
     signatureGroup = signatureGroup,
     signatureTypeName = signatureTypeName,

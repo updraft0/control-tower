@@ -2,7 +2,7 @@ package controltower.page.map.view
 
 import com.raquo.laminar.api.L.*
 import controltower.ui.{ViewController, sequence}
-import org.updraft0.controltower.constant.WormholeClass
+import org.updraft0.controltower.constant.{WormholeClass, SigId, ConnectionId}
 import org.updraft0.controltower.protocol.{*, given}
 
 import java.time.Instant
@@ -269,8 +269,8 @@ private def diffExistingWithScanned(
     existing: List[MapSystemSignature],
     scanned: List[NewSystemSignature]
 ): List[SignatureUpdate] =
-  val existingMap: Map[SigId, MapSystemSignature] = existing.map(mss => (SigId(mss.id): SigId) /* FIXME */ -> mss).toMap
-  val scannedMap: Map[SigId, NewSystemSignature]  = scanned.map(s => (s.id: SigId) -> s).toMap
+  val existingMap: Map[SigId, MapSystemSignature] = existing.map(mss => mss.id -> mss).toMap
+  val scannedMap: Map[SigId, NewSystemSignature]  = scanned.map(s => s.id -> s).toMap
 
   val (potentialDiffs, removed, added) =
     if (isReplace)
@@ -302,7 +302,7 @@ private[view] def wormholeTypeCell(
     isEol: Boolean,
     massStatus: WormholeMassStatus,
     massSize: WormholeMassSize,
-    connectionId: Option[Long],
+    connectionId: Option[ConnectionId],
     static: SystemStaticData
 ): HtmlMod = ct match
   case WormholeConnectionType.Unknown => "Unknown"

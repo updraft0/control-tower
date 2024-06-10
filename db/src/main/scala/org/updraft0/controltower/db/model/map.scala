@@ -5,8 +5,7 @@ import org.updraft0.controltower.constant.*
 import java.time.Instant
 import scala.CanEqual
 
-type MapId    = Long // TODO opaque
-type SystemId = Long // TODO move to constant
+type SystemId = Long // TODO move to opaque
 
 enum ChainNamingStrategy extends Enum[ChainNamingStrategy] derives CanEqual:
   case Manual
@@ -90,7 +89,7 @@ case class MapSystemNote(
 )
 
 case class MapWormholeConnection(
-    id: Long,
+    id: ConnectionId,
     mapId: MapId,
     fromSystemId: SystemId,
     toSystemId: SystemId,
@@ -101,10 +100,18 @@ case class MapWormholeConnection(
     updatedByCharacterId: CharacterId
 )
 
+case class MapWormholeConnectionJump(
+    connectionId: ConnectionId,
+    characterId: CharacterId,
+    shipTypeId: Int,
+    massOverride: Option[Int],
+    createdAt: Instant
+)
+
 case class MapSystemSignature(
     mapId: MapId,
     systemId: SystemId,
-    signatureId: String, // TODO move to opaque type SigId
+    signatureId: SigId,
     isDeleted: Boolean,
     signatureGroup: SignatureGroup,
     signatureTypeName: Option[String],
@@ -114,7 +121,7 @@ case class MapSystemSignature(
     wormholeMassSize: Option[WormholeMassSize],
     wormholeMassStatus: Option[WormholeMassStatus],
     wormholeK162Type: Option[WormholeK162Type],
-    wormholeConnectionId: Option[Long],
+    wormholeConnectionId: Option[ConnectionId],
     createdAt: Instant,
     createdByCharacterId: CharacterId,
     updatedAt: Instant,

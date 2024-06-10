@@ -4,6 +4,7 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.codecs.StringAsIsCodec
 import controltower.page.map.{Coord, MapAction, PositionController}
 import controltower.ui.{HVar, ViewController}
+import org.updraft0.controltower.constant.ConnectionId
 import org.updraft0.controltower.protocol.MapWormholeConnectionWithSigs
 
 object ConnectionView:
@@ -15,11 +16,11 @@ object ConnectionView:
   def dataAttr(name: String) = svg.svgAttr(s"data-$name", StringAsIsCodec, namespace = None)
 
 class ConnectionView(
-    id: Long,
+    id: ConnectionId,
     fromSystemId: Long,
     toSystemId: Long,
     conn: Signal[MapWormholeConnectionWithSigs],
-    selectedConnection: Var[Option[Long]],
+    selectedConnection: Var[Option[ConnectionId]],
     pos: PositionController,
     systemViewSize: Coord
 ) extends ViewController:

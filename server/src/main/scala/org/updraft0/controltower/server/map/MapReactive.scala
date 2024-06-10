@@ -1,40 +1,64 @@
 package org.updraft0.controltower.server.map
 
-import org.updraft0.controltower.constant.CharacterId
-import org.updraft0.controltower.db.model.{MapSystemSignature, MapWormholeConnection, displayType}
-import org.updraft0.controltower.db.{model, query}
-import org.updraft0.controltower.server.db.{
-  MapQueries,
-  MapSystemWithAll,
-  MapWormholeConnectionRank,
-  MapWormholeConnectionWithSigs
+import org.updraft0.controltower.constant.{SystemId => _, *}
+import org.updraft0.controltower.db.model.{
+  MapSystemSignature,
+  MapWormholeConnection,
+  MapWormholeConnectionJump,
+  displayType
 }
+import org.updraft0.controltower.db.{model, query}
+import org.updraft0.controltower.server.Log
+import org.updraft0.controltower.server.db.*
+import org.updraft0.controltower.server.tracking.{CharacterLocationState, LocationTracker, LocationUpdate}
 import org.updraft0.minireactive.*
 import zio.*
 
-import java.util.UUID
-import org.updraft0.controltower.server.Log
-
 import java.time.Instant
+import java.util.UUID
 import scala.annotation.unused
 
-type MapId        = Long
-type MapEnv       = javax.sql.DataSource
-type SystemId     = Long
-type ConnectionId = Long
+type MapEnv   = javax.sql.DataSource & LocationTracker & MapPermissionTracker
+type SystemId = Long // TODO opaque type
+
+private[map] case class MapSolarSystem(
+    systemId: SystemId,
+    name: String,
+    whClass: WormholeClass,
+    gates: Array[model.Stargate]
+) derives CanEqual
+
+private[map] case class MapRef(solarSystems: Map[SystemId, MapSolarSystem])
 
 private[map] case class MapState(
     systems: Map[SystemId, MapSystemWithAll],
     connections: Map[ConnectionId, MapWormholeConnectionWithSigs],
-    connectionRanks: Map[ConnectionId, MapWormholeConnectionRank]
+    connectionRanks: Map[ConnectionId, MapWormholeConnectionRank],
+    locations: Map[CharacterId, MapLocationState],
+    locationsOnline: Map[CharacterId, SystemId], // manual cache of location systems - used to prevent too many updates
+    ref: MapRef
 ):
+  // TODO this should be loaded from DB
+  val displayType: model.MapDisplayType = model.MapDisplayType.Manual
+
+  def locationsForUpdate: Map[CharacterId, CharacterLocationState.InSystem] =
+    locations.view.filter(_._2.locationInfo.isDefined).mapValues(_.locationInfo.get).toMap
+
   def getSystem(id: SystemId): Option[MapSystemWithAll] = systems.get(id)
-  def hasSystem(id: SystemId): Boolean                  = systems.contains(id)
+  def hasSystem(id: SystemId): Boolean                  = systems.get(id).exists(_.display.nonEmpty)
+  def hasConnection(fromSystem: SystemId, toSystem: SystemId): Boolean =
+    systems.get(fromSystem).exists(_.connections.exists(c => c.toSystemId == toSystem || c.fromSystemId == toSystem))
+  def getConnection(fromSystem: SystemId, toSystem: SystemId): MapWormholeConnection =
+    systems(fromSystem).connections.find(c => c.toSystemId == toSystem || c.fromSystemId == toSystem).head
+  def hasGateBetween(fromSystem: SystemId, toSystem: SystemId): Boolean =
+    ref.solarSystems.get(fromSystem).exists(_.gates.exists(sg => sg.toSystemId == toSystem || sg.systemId == toSystem))
 
   def connectionsForSystem(id: SystemId): Map[ConnectionId, MapWormholeConnectionWithSigs] =
     systems(id).connections.map(c => c.id -> connections(c.id)).toMap
   def connectionRanksForSystem(id: SystemId): Map[ConnectionId, MapWormholeConnectionRank] =
     systems(id).connections.map(c => c.id -> connectionRanks(c.id)).toMap
+
+  def refSystem(id: SystemId): Option[MapSolarSystem] = ref.solarSystems.get(id)
 
   def updateOne(
       systemId: SystemId,
@@ -98,6 +122,13 @@ private[map] case class MapState(
       }
     )
 
+  def addConnectionJump(jump: MapWormholeConnectionJump): MapState =
+    this.copy(
+      connections = this.connections.updatedWith(jump.connectionId)(
+        _.map(whcs => whcs.copy(jumps = whcs.jumps :+ jump))
+      )
+    )
+
   /** Return only ranks that are different
     */
   def diffRanks(ranks: List[MapWormholeConnectionRank]): List[MapWormholeConnectionRank] =
@@ -107,19 +138,23 @@ object MapState:
   def apply(
       systems: List[MapSystemWithAll],
       connections: List[MapWormholeConnectionWithSigs],
-      connectionRanks: List[MapWormholeConnectionRank]
+      connectionRanks: List[MapWormholeConnectionRank],
+      ref: MapRef
   ): MapState =
     new MapState(
       systems.map(msa => msa.sys.systemId -> msa).toMap,
       connections.map(whc => whc.connection.id -> whc).toMap,
-      connectionRanks.map(whr => whr.connectionId -> whr).toMap
+      connectionRanks.map(whr => whr.connectionId -> whr).toMap,
+      locations = Map.empty,
+      locationsOnline = Map.empty,
+      ref
     )
 
 case class MapSessionId(characterId: CharacterId, sessionId: UUID) derives CanEqual
 case class Identified[T](sessionId: Option[MapSessionId], value: T)
 
 case class NewMapSystemSignature(
-    signatureId: String,
+    signatureId: SigId,
     signatureGroup: model.SignatureGroup,
     signatureTypeName: Option[String] = None,
     wormholeIsEol: Option[Boolean] = None,
@@ -129,6 +164,37 @@ case class NewMapSystemSignature(
     wormholeK162Type: Option[model.WormholeK162Type] = None,
     wormholeConnectionId: Option[ConnectionId] = None
 )
+
+private[map] case class MapLocationState(
+    characterId: CharacterId,
+    role: model.MapRole,
+    online: Boolean,
+    locationInfo: Option[CharacterLocationState.InSystem]
+)
+
+private[map] enum LocationUpdateAction:
+  case AddMapSystem(
+      system: SystemId,
+      characterId: CharacterId,
+      role: model.MapRole,
+      adjacentTo: Option[SystemId],
+      updatedAt: Instant
+  )
+  case AddMapConnection(
+      fromSystem: SystemId,
+      toSystem: SystemId,
+      characterId: CharacterId,
+      role: model.MapRole,
+      info: CharacterLocationState.InSystem
+  )
+  case AddJump(
+      characterId: CharacterId,
+      fromSystem: SystemId,
+      toSystem: SystemId,
+      info: CharacterLocationState.InSystem
+  )
+
+private[map] sealed trait InternalMapRequest
 
 enum MapRequest derives CanEqual:
   case MapSnapshot
@@ -149,8 +215,11 @@ enum MapRequest derives CanEqual:
   case UpdateSystemSignatures(systemId: SystemId, replaceAll: Boolean, scanned: List[NewMapSystemSignature])
   case RenameSystem(systemId: SystemId, name: Option[String])
   case RemoveSystem(systemId: SystemId)
-  case RemoveSystemSignatures(systemId: SystemId, signatures: Option[NonEmptyChunk[String]])
+  case RemoveSystemSignatures(systemId: SystemId, signatures: Option[NonEmptyChunk[SigId]])
   case RemoveSystemConnection(connectionId: ConnectionId)
+  // internals
+  case UpdateLocations(u: LocationUpdate)                         extends MapRequest with InternalMapRequest
+  case UpdateCharacters(roleMap: Map[CharacterId, model.MapRole]) extends MapRequest with InternalMapRequest
 
 enum MapResponse:
   case ConnectionSnapshot(
@@ -158,6 +227,7 @@ enum MapResponse:
       rank: MapWormholeConnectionRank
   )
   case ConnectionsRemoved(connections: List[MapWormholeConnection])
+  case ConnectionJumped(jump: MapWormholeConnectionJump)
   case Error(message: String)
   case MapSnapshot(
       systems: Map[SystemId, MapSystemWithAll],
@@ -172,18 +242,39 @@ enum MapResponse:
   )
   case SystemDisplayUpdate(systemId: SystemId, name: Option[String], displayData: model.SystemDisplayData)
   case SystemRemoved(systemId: SystemId)
+  case CharacterLocations(locations: Map[CharacterId, CharacterLocationState.InSystem])
 
 /** Mini-reactive/lightweight actor that has a state of the whole map in memory and makes corresponding db changes
   */
 object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapRequest], Identified[MapResponse]]:
   override def tag = "Map"
 
-  override def hydrate(key: MapId): URIO[MapEnv, MapState] =
+  override def hydrate(key: MapId, in: Enqueue[Identified[MapRequest]]): URIO[Scope & MapEnv, MapState] =
+    // FIXME there is a race condition here
     (for
       systems         <- MapQueries.getMapSystemAll(key)
       connections     <- MapQueries.getWormholeConnectionsWithSigs(key, None)
       connectionRanks <- MapQueries.getWormholeConnectionRanksAll(key)
-    yield MapState(systems, connections, connectionRanks)).orDie
+      mapRef          <- loadMapRef()
+      // transient state - listen to location updates
+      locationUpdates <- ZIO.serviceWithZIO[LocationTracker](_.updates)
+      _ <- locationUpdates.take
+        .flatMap(u => in.offer(Identified(None, MapRequest.UpdateLocations(u))))
+        .forever
+        .ignoreLogged
+        .forkScoped
+      // transient state - listen to map permission updates
+      permissionUpdates <- ZIO.serviceWithZIO[MapPermissionTracker](_.subscribe(key))
+      _ <- permissionUpdates.take
+        .flatMap {
+          case MapSessionMessage.MapCharacters(`key`, roleMap) =>
+            in.offer(Identified(None, MapRequest.UpdateCharacters(roleMap)))
+          case _ => ZIO.unit
+        }
+        .forever
+        .ignoreLogged
+        .forkScoped
+    yield MapState(systems, connections, connectionRanks, mapRef)).orDie
 
   override def handle(
       mapId: MapId,
@@ -196,18 +287,30 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
         (query
           .transaction(
             in match
+              case Identified(Some(id), MapRequest.MapSnapshot) if state.locationsOnline.nonEmpty =>
+                // the check for non-empty locations prevents a race where the map startup has not yet received roles
+                ZIO.succeed(
+                  state -> replyMany(
+                    id,
+                    MapResponse.MapSnapshot(state.systems, state.connections, state.connectionRanks),
+                    MapResponse.CharacterLocations(state.locationsForUpdate)
+                  )
+                )
               case Identified(Some(id), MapRequest.MapSnapshot) =>
                 ZIO.succeed(
                   state -> reply(id, MapResponse.MapSnapshot(state.systems, state.connections, state.connectionRanks))
                 )
-              case Identified(Some(sid), add: MapRequest.AddSystem)
-                  if state.getSystem(add.systemId).forall(_.display.isEmpty) =>
-                identified(sid, "add", addSystem(mapId, state, sid, now, add))
+              case Identified(Some(sid), add: MapRequest.AddSystem) if !state.hasSystem(add.systemId) =>
+                identified(sid, "add", addSystem(mapId, state, sid.characterId, now, add))
               case Identified(_, add: MapRequest.AddSystem) =>
                 ZIO.logDebug(s"no-op adding existing system $add").as(state -> Chunk.empty)
               case Identified(Some(sid), addConn: MapRequest.AddSystemConnection) =>
                 whenSystemsExist(state, addConn.fromSystemId, addConn.toSystemId)(
-                  identified(sid, "addSystemConnection", insertSystemConnection(mapId, state, sid, now, addConn))
+                  identified(
+                    sid,
+                    "addSystemConnection",
+                    insertSystemConnection(mapId, state, sid.characterId, now, addConn)
+                  )
                 )
               case Identified(Some(sid), addSig: MapRequest.AddSystemSignature) =>
                 whenSystemExists(addSig.systemId, state)(
@@ -239,6 +342,10 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
                 whenSystemExists(rs.systemId, state)(
                   identified(sid, "renameSystem", renameSystem(mapId, state, sid, now, rs))
                 )
+              case Identified(_, ul: MapRequest.UpdateLocations) =>
+                updateCharacterLocations(mapId, state, ul.u) @@ Log.MapOperation("updateLocations")
+              case Identified(_, uc: MapRequest.UpdateCharacters) =>
+                updateCharacterRoles(mapId, state, uc.roleMap) @@ Log.MapOperation("updateCharacters")
               // fall-through case
               case Identified(None, _) =>
                 ZIO.logWarning("non-identified request not processed").as(state -> Chunk.empty)
@@ -252,7 +359,7 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
   private def addSystem(
       mapId: MapId,
       state: MapState,
-      sessionId: MapSessionId,
+      charId: CharacterId,
       now: Instant,
       add: MapRequest.AddSystem
   ) =
@@ -267,7 +374,7 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
           chainNamingStrategy = curr.map(_.chainNamingStrategy).getOrElse(model.ChainNamingStrategy.Manual),
           description = curr.flatMap(_.description),
           stance = add.stance.orElse(curr.map(_.stance)).getOrElse(model.IntelStance.Unknown),
-          updatedByCharacterId = sessionId.characterId,
+          updatedByCharacterId = charId,
           updatedAt = now
         )
       )
@@ -284,22 +391,22 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
   private def insertSystemConnection(
       mapId: MapId,
       state: MapState,
-      sessionId: MapSessionId,
+      charId: CharacterId,
       now: Instant,
       addConn: MapRequest.AddSystemConnection
   ) =
     for
       whc <- query.map.insertMapWormholeConnection(
         MapWormholeConnection(
-          id = 0L,
+          id = ConnectionId.Invalid,
           mapId = mapId,
           fromSystemId = addConn.fromSystemId,
           toSystemId = addConn.toSystemId,
           isDeleted = false,
           createdAt = now,
-          createdByCharacterId = sessionId.characterId,
+          createdByCharacterId = charId,
           updatedAt = now,
-          updatedByCharacterId = sessionId.characterId
+          updatedByCharacterId = charId
         )
       )
       conn  <- loadSingleConnection(mapId, whc.id)
@@ -313,6 +420,19 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
               .ConnectionSnapshot(nextState.connections(r.connectionId), nextState.connectionRanks(r.connectionId))
           )*
       )
+
+  private def insertSystemConnectionJump(
+      mapId: MapId,
+      state: MapState,
+      charId: CharacterId,
+      now: Instant,
+      connectionId: ConnectionId,
+      shipTypeId: Int
+  ) =
+    val jump = model.MapWormholeConnectionJump(connectionId, charId, shipTypeId, None, now)
+    query.map
+      .insertMapWormholeConnectionJump(jump)
+      .as(state.addConnectionJump(jump) -> broadcast(MapResponse.ConnectionJumped(jump)))
 
   private def removeSystemConnection(
       mapId: MapId,
@@ -463,6 +583,172 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
       s -> broadcast(s.systemSnapshot(sys.sys.systemId))
     )
 
+  private def updateCharacterLocations(
+      mapId: MapId,
+      state: MapState,
+      upd: LocationUpdate
+  ): URIO[MapEnv, (MapState, Chunk[Identified[MapResponse]])] =
+    val (nextState, changes) = processCharacterLocationChanges(state, upd)
+    val locationsUpdate =
+      if (state.locationsOnline != nextState.locationsOnline)
+        broadcast(
+          MapResponse.CharacterLocations(
+            nextState.locations.view.filter(_._2.locationInfo.isDefined).mapValues(_.locationInfo.get).toMap
+          )
+        )
+      else Chunk.empty
+    ZIO.foldLeft(changes)((nextState, locationsUpdate)):
+      case ((st, responses), asm: LocationUpdateAction.AddMapSystem) if !st.hasSystem(asm.system) =>
+        addSystemFromLocation(mapId, st, responses, asm).orDie
+      case ((st, responses), amc: LocationUpdateAction.AddMapConnection)
+          if !st
+            .hasConnection(amc.fromSystem, amc.toSystem) && isPotentialWormholeJump(st, amc.fromSystem, amc.toSystem) =>
+        addMapConnectionFromLocation(mapId, st, responses, amc).orDie
+      case ((st, responses), aj: LocationUpdateAction.AddJump) if st.hasConnection(aj.fromSystem, aj.toSystem) =>
+        addMapConnectionJump(mapId, st, responses, st.getConnection(aj.fromSystem, aj.toSystem).id, aj).orDie
+      case (prev, _) => ZIO.succeed(prev)
+
+  private def addSystemFromLocation(
+      mapId: MapId,
+      state: MapState,
+      responses: Chunk[Identified[MapResponse]],
+      action: LocationUpdateAction.AddMapSystem
+  ) = addSystem(
+    mapId,
+    state,
+    action.characterId,
+    action.updatedAt,
+    MapRequest.AddSystem(
+      systemId = action.system,
+      name = None,
+      isPinned = false,
+      displayData = generateDisplayData(state, action.system, action.adjacentTo),
+      stance = None
+    )
+  ).map((st, r) => st -> (responses ++ r))
+
+  private def generateDisplayData(state: MapState, systemId: SystemId, adjacentTo: Option[SystemId]) =
+    state.displayType match
+      case model.MapDisplayType.Manual =>
+        val prevDisplay = adjacentTo.flatMap(prevId => state.systems.get(prevId).flatMap(_.display))
+        prevDisplay match
+          case None =>
+            model.SystemDisplayData.Manual(0, 0) // origin position
+          case Some(model.SystemDisplayData.Manual(x, y)) =>
+            // this must necessarily replicate the frontend code
+            val newX = x + MagicConstant.SystemBoxSizeX + (MagicConstant.SystemBoxSizeX / 3)
+            model.SystemDisplayData.Manual(newX - (newX % MagicConstant.GridSnapPx), y)
+
+  private def addMapConnectionFromLocation(
+      mapId: MapId,
+      state: MapState,
+      responses: Chunk[Identified[MapResponse]],
+      action: LocationUpdateAction.AddMapConnection
+  ) =
+    insertSystemConnection(
+      mapId,
+      state,
+      action.characterId,
+      action.info.updatedAt,
+      MapRequest.AddSystemConnection(action.fromSystem, action.toSystem)
+    ).map((st, r) => st -> (responses ++ r))
+
+  private def addMapConnectionJump(
+      mapId: MapId,
+      state: MapState,
+      responses: Chunk[Identified[MapResponse]],
+      connectionId: ConnectionId,
+      action: LocationUpdateAction.AddJump
+  ) =
+    insertSystemConnectionJump(
+      mapId,
+      state,
+      action.characterId,
+      action.info.updatedAt,
+      connectionId,
+      action.info.shipTypeId
+    ).map((st, r) => st -> (responses ++ r))
+
+  private def processCharacterLocationChanges(
+      state: MapState,
+      upd: LocationUpdate
+  ): (MapState, Chunk[LocationUpdateAction]) =
+    val (nextState, actions) = upd.state.iterator.foldLeft(state -> Chunk.empty[LocationUpdateAction]):
+      case ((s, actions), (charId, charState)) =>
+        val (online, nextLocation) = charState match
+          case is: CharacterLocationState.InSystem => true  -> Some(is)
+          case _                                   => false -> None
+
+        var nextActions = Chunk.empty[LocationUpdateAction]
+        val nextLocs = s.locations.updatedWith(charId):
+          case None => None // we need the role to be able to proceed so wait until next update
+          case Some(prev) =>
+            val prevLocation = prev.locationInfo
+            nextActions = (prevLocation, nextLocation) match
+              case (None, Some(n)) if online =>
+                // character has no previous location and is online - add the system to map (if not already there)
+                Chunk(LocationUpdateAction.AddMapSystem(n.system, charId, prev.role, None, n.updatedAt))
+              case (Some(p), Some(n)) if online && p.system != n.system && prev.role != model.MapRole.Viewer =>
+                // character has changed location and is online - add the system and a connection to the map
+                Chunk(
+                  LocationUpdateAction.AddMapSystem(n.system, charId, prev.role, Some(p.system), n.updatedAt),
+                  LocationUpdateAction.AddMapConnection(p.system, n.system, charId, prev.role, n),
+                  LocationUpdateAction.AddJump(charId, p.system, n.system, n)
+                )
+              case (Some(p), Some(n)) if online && p.system != n.system && prev.role == model.MapRole.Viewer =>
+                // character has jumped but cannot edit the map
+                Chunk(
+                  LocationUpdateAction.AddJump(charId, p.system, n.system, n)
+                )
+              case _ => Chunk.empty
+
+            Some(prev.copy(online = online, locationInfo = nextLocation))
+        (s.copy(locations = nextLocs), actions ++ nextActions)
+    recomputeOnlineMap(pruneLocations(nextState, upd)) -> actions
+
+  private def pruneLocations(state: MapState, upd: LocationUpdate): MapState =
+    val nextLocations = (state.locations.keySet -- upd.state.keySet).foldLeft(state.locations):
+      case (s, charId) =>
+        s.updatedWith(charId):
+          case None       => None
+          case Some(prev) => Some(prev.copy(locationInfo = None))
+    state.copy(locations = nextLocations)
+
+  private def recomputeOnlineMap(state: MapState): MapState =
+    state.copy(locationsOnline =
+      state.locations
+        .filter((_, mls) => mls.locationInfo.isDefined && mls.online)
+        .transform((_, mls) => mls.locationInfo.get.system.value)
+    )
+
+  private def isPotentialWormholeJump(state: MapState, fromSystemId: SystemId, toSystemId: SystemId) =
+    val differentSystem = fromSystemId != toSystemId
+    val noGate          = !state.hasGateBetween(fromSystemId, toSystemId)
+    val isTarget        = state.refSystem(fromSystemId).zip(state.refSystem(toSystemId)).exists(isTargetForJumps)
+    differentSystem && noGate && isTarget
+
+  private[map] def isTargetForJumps(fromSystem: MapSolarSystem, toSystem: MapSolarSystem) =
+    (fromSystem.whClass.spaceType, toSystem.whClass.spaceType) match
+      // wormholes are always jumps
+      case (SpaceType.Wormhole, _) => true
+      case (_, SpaceType.Wormhole) => true
+      // internal, abyssal space is never a target for jumps
+      case (_, SpaceType.Abyssal)  => false
+      case (SpaceType.Abyssal, _)  => false
+      case (_, SpaceType.Internal) => false
+      case (SpaceType.Internal, _) => false
+      // others are a potential target (stargate check for known space already happened)
+      case _ => true
+
+  private def updateCharacterRoles(mapId: MapId, state: MapState, upd: Map[CharacterId, model.MapRole]) =
+    ZIO.succeed(state.copy(locations = upd.iterator.foldLeft(state.locations) { case (s, (charId, role)) =>
+      s.updatedWith(charId) {
+        case None       => Some(MapLocationState(charId, role, online = false, locationInfo = None))
+        case Some(prev) => Some(prev.copy(role = role))
+      }
+    // TODO: should probably remove the characters that do not have roles
+    }) -> Chunk.empty)
+
   private inline def loadSingleSystem(mapId: MapId, systemId: SystemId) =
     MapQueries
       .getMapSystemAll(mapId, Some(systemId))
@@ -582,6 +868,8 @@ private def mergeModelSignature(
 
 private inline def reply(sessionId: MapSessionId, value: MapResponse): Chunk[Identified[MapResponse]] =
   Chunk.single(Identified(Some(sessionId), value))
+private inline def replyMany(sessionId: MapSessionId, values: MapResponse*): Chunk[Identified[MapResponse]] =
+  Chunk(values.map(v => Identified(Some(sessionId), v))*)
 private inline def broadcast(value: MapResponse): Chunk[Identified[MapResponse]] =
   Chunk.single(Identified(None, value))
 private inline def broadcastMany(values: MapResponse*): Chunk[Identified[MapResponse]] =
@@ -607,7 +895,7 @@ private inline def removeConnectionById(
     case -1  => arr
     case idx => arr.patch(idx, Nil, 1)
 
-private inline def removeSignatureById(arr: Array[MapSystemSignature], idOpt: Option[String]) =
+private inline def removeSignatureById(arr: Array[MapSystemSignature], idOpt: Option[SigId]) =
   idOpt
     .map(sigId =>
       arr.indexWhere(_.signatureId == sigId) match
@@ -615,6 +903,18 @@ private inline def removeSignatureById(arr: Array[MapSystemSignature], idOpt: Op
         case idx => arr.patch(idx, Nil, 1)
     )
     .getOrElse(arr)
+
+private def loadMapRef() =
+  ReferenceQueries.getAllSolarSystemsWithGates.map(allSolar =>
+    MapRef(
+      solarSystems = allSolar
+        .filter(_.sys.whClassId.nonEmpty)
+        .map(ss =>
+          ss.sys.id -> MapSolarSystem(ss.sys.id, ss.sys.name, WormholeClasses.ById(ss.sys.whClassId.get), ss.gates)
+        )
+        .toMap
+    )
+  )
 
 // convenience methods
 extension (s: MapState)

@@ -3,7 +3,7 @@ package controltower.page.map
 import com.raquo.airstream.state.Var.VarTuple
 import com.raquo.laminar.api.L
 import com.raquo.laminar.api.L.*
-import org.updraft0.controltower.protocol.{SystemId as _, *}
+import org.updraft0.controltower.protocol.*
 
 import scala.collection.mutable
 
@@ -31,7 +31,7 @@ trait PositionController:
 
 /** Initial implementation of position controller (stateless)
   */
-class VarPositionController(map: mutable.Map[Long, Var[Coord]], boxSize: Coord) extends PositionController:
+class VarPositionController(map: mutable.Map[SystemId, Var[Coord]], boxSize: Coord) extends PositionController:
   override def newSystemDisplay: SystemDisplayData = SystemDisplayData.Manual(0, 0)
 
   override def systemPosition(systemId: SystemId): Var[Coord] =

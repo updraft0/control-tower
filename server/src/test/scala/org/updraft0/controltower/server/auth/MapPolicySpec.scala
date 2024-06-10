@@ -15,9 +15,9 @@ object MapPolicySpec extends ZIOSpecDefault:
   private val CorporationId2 = 400L
   private val CharacterId1   = CharacterId(10L)
   private val CharacterId2   = CharacterId(11L)
-  private val MapId1         = 1L
-  private val MapId2         = 2L
-  private val MapId3         = 3L
+  private val MapId1         = MapId(1)
+  private val MapId2         = MapId(2)
+  private val MapId3         = MapId(3)
 
   override def spec = suite("MapPolicy.resolveCharacterMapPolicies")(
     test("[single] ==> allow(alliance, viewer)") {
@@ -119,7 +119,7 @@ object MapPolicySpec extends ZIOSpecDefault:
   )
 
 private def mapPolicy(
-    mapId: model.MapId,
+    mapId: MapId,
     memberId: Long,
     memberType: model.PolicyMemberType,
     isDeny: Boolean = false,

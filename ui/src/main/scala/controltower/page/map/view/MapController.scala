@@ -5,8 +5,8 @@ import com.raquo.laminar.api.L.*
 import controltower.db.ReferenceDataStore
 import controltower.page.map.{Coord, MapAction, VarPositionController}
 import controltower.ui.{HVar, writeChangesTo}
-import org.updraft0.controltower.constant.CharacterId
-import org.updraft0.controltower.protocol.*
+import org.updraft0.controltower.constant.*
+import org.updraft0.controltower.protocol.{SystemId => _, *}
 
 import java.time.{Duration, Instant}
 import scala.annotation.unused
@@ -35,10 +35,11 @@ class MapController(rds: ReferenceDataStore, val clock: Signal[Instant])(using O
   val mapMeta = Var[Option[MapMessage.MapMeta]](None)
 
   val allSystems     = HVar[Map[Long, MapSystemSnapshot]](Map.empty)
-  val allConnections = HVar[Map[Long, MapWormholeConnectionWithSigs]](Map.empty)
+  val allConnections = HVar[Map[ConnectionId, MapWormholeConnectionWithSigs]](Map.empty)
+  val allLocations   = HVar[Map[SystemId, Array[CharacterLocation]]](Map.empty)
 
   val selectedSystemId     = Var[Option[Long]](None)
-  val selectedConnectionId = Var[Option[Long]](None)
+  val selectedConnectionId = Var[Option[ConnectionId]](None)
 
   val lastError = Var[Option[String]](None)
 
@@ -159,7 +160,7 @@ class MapController(rds: ReferenceDataStore, val clock: Signal[Instant])(using O
                 _.map(mss => mss.copy(connections = updateConnectionById(mss.connections, whc.connection)))
               )
           ),
-          allConnections.current -> ((conns: Map[Long, MapWormholeConnectionWithSigs]) =>
+          allConnections.current -> ((conns: Map[ConnectionId, MapWormholeConnectionWithSigs]) =>
             conns.updated(whc.connection.id, whc)
           )
         )
@@ -176,7 +177,7 @@ class MapController(rds: ReferenceDataStore, val clock: Signal[Instant])(using O
                   _.map(mss => mss.copy(connections = mss.connections.filterNot(_.id == whc.id)))
                 )
           ),
-          allConnections.current -> ((conns: Map[Long, MapWormholeConnectionWithSigs]) =>
+          allConnections.current -> ((conns: Map[ConnectionId, MapWormholeConnectionWithSigs]) =>
             conns.removedAll(whcs.map(_.id))
           )
         )
@@ -219,7 +220,7 @@ class MapController(rds: ReferenceDataStore, val clock: Signal[Instant])(using O
         inline def doUpdate(@unused solarSystem: SolarSystem) =
           Var.update(
             allSystems.current -> ((map: Map[Long, MapSystemSnapshot]) => map.updated(systemId, system)),
-            allConnections.current -> ((conns: Map[Long, MapWormholeConnectionWithSigs]) =>
+            allConnections.current -> ((conns: Map[ConnectionId, MapWormholeConnectionWithSigs]) =>
               connections.foldLeft(conns) { case (conns, (cid, whc)) =>
                 conns.updated(cid, whc)
               }
@@ -243,6 +244,21 @@ class MapController(rds: ReferenceDataStore, val clock: Signal[Instant])(using O
         Var.update(
           (allSystems.current, updateInMap(systemId, updateDisplay(_))(_)),
           (pos.systemDisplayData(systemId), (_: Option[SystemDisplayData]) => Some(displayData))
+        )
+      case MapMessage.CharacterLocations(locations) =>
+        Var.update(
+          (allLocations.current, (_: Map[SystemId, Array[CharacterLocation]]) => locations)
+        )
+      case MapMessage.ConnectionJumped(jumpInfo) =>
+        Var.update(
+          (
+            allConnections.current,
+            (conns: Map[ConnectionId, MapWormholeConnectionWithSigs]) =>
+              conns.updatedWith(jumpInfo.connectionId) {
+                case None       => None // this should not happen
+                case Some(whcs) => Some(whcs.copy(jumps = whcs.jumps :+ jumpInfo))
+              }
+          )
         )
 
 object MapController:

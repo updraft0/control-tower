@@ -42,9 +42,18 @@ case class HttpConfig(protocol: String, host: String, listenHost: String, port: 
 case class EsiConfig(base: Uri)
 case class SdeConfig(base: Uri, parallel: Int)
 
+case class LocationTrackingConfig(interval: Duration, parallel: Int)
+
 /** Top-level ControlTower configuration (read from a HOCON file `application.conf`)
   */
-case class Config(auth: AuthConfig, db: DbConfig, esi: EsiConfig, sde: SdeConfig, http: HttpConfig)
+case class Config(
+    auth: AuthConfig,
+    db: DbConfig,
+    esi: EsiConfig,
+    sde: SdeConfig,
+    http: HttpConfig,
+    location: LocationTrackingConfig
+)
 
 object Config:
   private given DeriveConfig[zio.Config.Secret]  = DeriveConfig[String].map(zio.Config.Secret.apply)

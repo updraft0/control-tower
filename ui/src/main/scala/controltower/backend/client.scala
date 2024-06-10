@@ -3,7 +3,7 @@ package controltower.backend
 import com.raquo.airstream.core.{EventStream, Observable}
 import com.raquo.airstream.ownership.Owner
 import org.scalajs.dom.RequestCredentials
-import org.updraft0.controltower.constant.CharacterId
+import org.updraft0.controltower.constant.{CharacterId, MapId}
 import org.updraft0.controltower.protocol.*
 import sttp.capabilities.WebSockets
 import sttp.client3.{FetchBackend, FetchOptions, SttpBackend, UriContext}
@@ -26,6 +26,7 @@ class ControlTowerBackend(
   private val dummyCookie = SessionCookie("dummy")
 
   // region endpoints
+  // TODO refactor version endpoint to include code version
   val getVersion: () => Future[Int]                           = () => callNormalThrows(Endpoints.getVersion)(())
   val getSolarSystemsAll: () => Future[ReferenceSolarSystems] = () => callNormalThrows(Endpoints.getAllSolarSystems)(())
   val getReferenceAll: () => Future[Reference]                = () => callNormalThrows(Endpoints.getAllReference)(())
@@ -34,10 +35,10 @@ class ControlTowerBackend(
   val logoutUserCharacter: CharacterId => Future[Either[String, Unit]] = (id: CharacterId) =>
     callSecure(Endpoints.logoutUserCharacter)(id)
 
-  val createMap: NewMap => Future[Either[String, MapInfo]]           = newMap => callSecure(Endpoints.createMap)(newMap)
-  val deleteMap: Long => Future[Either[String, Unit]]                = (id) => callSecure(Endpoints.deleteMap)(id)
-  val getMap: Long => Future[Either[String, MapInfoWithPermissions]] = (id) => callSecure(Endpoints.getMap)(id)
-  val updateMap: (Long, MapInfoWithPermissions) => Future[Either[String, MapInfoWithPermissions]] = (id, mapInfo) =>
+  val createMap: NewMap => Future[Either[String, MapInfo]] = newMap => callSecure(Endpoints.createMap)(newMap)
+  val deleteMap: MapId => Future[Either[String, Unit]]     = (id) => callSecure(Endpoints.deleteMap)(id)
+  val getMap: MapId => Future[Either[String, MapInfoWithPermissions]] = (id) => callSecure(Endpoints.getMap)(id)
+  val updateMap: (MapId, MapInfoWithPermissions) => Future[Either[String, MapInfoWithPermissions]] = (id, mapInfo) =>
     callSecure(Endpoints.updateMap)(id -> mapInfo)
 
   // endregion

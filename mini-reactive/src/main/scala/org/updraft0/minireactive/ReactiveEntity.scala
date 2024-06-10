@@ -11,7 +11,8 @@ import java.util.concurrent.TimeoutException
 //  - [ ] Timeouts for mailbox processing
 //  - [ ] Comprehensive tests
 
-/** A "reactive entity" is like a "persistent actor"
+/** A "reactive entity" is like a "persistent actor" - it has a typed {in,out}box, a hydrate/onStart state recovery
+  * mechanism and ability to send/subscribe to messages
   *
   * @tparam R
   *   The 'environment' type - aka what effects processing needs
@@ -30,7 +31,7 @@ trait ReactiveEntity[R, K, S, I, O]:
 
   /** Initial state for this entity with given id
     */
-  def hydrate(key: K): URIO[R, S]
+  def hydrate(key: K, in: Enqueue[I]): URIO[Scope & R, S]
 
   /** Handle a state change based on an input, producing zero or more outputs and the next state
     */
@@ -80,7 +81,7 @@ object MiniReactive:
       env   <- ZIO.environment[R]
       s     <- Semaphore.make(1)
       refs  <- Ref.make(Map.empty[K, State[K, S, I, O]])
-      sup   <- Supervisor.track(true)
+      sup   <- Supervisor.track(true) // TODO - is this necessary?
     yield new MiniReactive[K, I, O]:
 
       override def enqueue(key: K): UIO[Enqueue[I]] =
@@ -108,9 +109,12 @@ object MiniReactive:
 
       private def create(key: K): URIO[Scope, State[K, S, I, O]] =
         for
-          inbox        <- Queue.bounded[I](config.mailboxSize)
-          outbox       <- Hub.bounded[O](config.mailboxSize)
-          initialState <- entity.hydrate(key).provideEnvironment(env).flatMap(Ref.make) // TODO add timeout here too
+          inbox  <- Queue.bounded[I](config.mailboxSize)
+          outbox <- Hub.bounded[O](config.mailboxSize)
+          initialState <- entity
+            .hydrate(key, inbox)
+            .provideEnvironment(env.add(scope.get))
+            .flatMap(Ref.make) // TODO add timeout here too
           labels        = Set(MetricLabel("entity_tag", entity.tag), MetricLabel("key", key.toString))
           inboxCounter  = Metric.counter("entity_inbox_count").fromConst(1).tagged(labels)
           outboxCounter = Metric.counter("entity_outbox_count").tagged(labels)
