@@ -40,7 +40,8 @@ object CharacterAuthTracker:
         .repeat(Schedule.duration(1.seconds).andThen(Schedule.fixed(SnapshotInterval)))
         .forkScoped
     yield new CharacterAuthTracker:
-      override def newLogin(auth: CharacterAuth): UIO[Unit] = ???
+      override def newLogin(auth: CharacterAuth): UIO[Unit] =
+        hub.publish(Chunk(auth)).unit
       override def updates: URIO[Scope, Dequeue[Chunk[CharacterAuth]]] =
         hub.subscribe
 

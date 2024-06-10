@@ -107,3 +107,8 @@ object auth:
     ctx.run(
       quote(schema.userCharacter.filter(uc => uc.userId == lift(userId) && uc.characterId == lift(characterId)).delete)
     )
+
+  def deleteCharacterAuthToken(characterId: CharacterId): DbOperation[Long] =
+    ctx.run(
+      quote(schema.characterAuthToken.filter(_.characterId == lift(characterId)).delete)
+    )

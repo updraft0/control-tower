@@ -48,7 +48,10 @@ object Users:
       .getUserCharactersBySessionId(sessionId)
       .flatMap:
         case Some((user, _, chars)) if chars.exists(_.id == characterId) =>
-          auth.removeCharacterFromUser(user.userId, characterId).map(count => if (count > 0) true else false)
+          auth
+            .removeCharacterFromUser(user.userId, characterId)
+            .map(count => if (count > 0) true else false)
+            .zipLeft(auth.deleteCharacterAuthToken(characterId))
         case _ => ZIO.succeed(false)
 
   def allCharacters: ZIO[Env, Throwable, Chunk[CharacterId]] =
