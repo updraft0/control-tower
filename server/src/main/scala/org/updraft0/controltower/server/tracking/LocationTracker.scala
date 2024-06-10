@@ -47,7 +47,6 @@ object LocationTracker:
   private val InCapacity            = 64
   private val InternalHubCapacity   = 64
   private val OnlineUpdateSeconds   = 60
-  private val RateLimitRetrySeconds = 60
 
   case class Config(interval: Duration, maxParallel: Int)
 
