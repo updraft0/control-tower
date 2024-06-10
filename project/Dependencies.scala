@@ -25,7 +25,7 @@ object Dependencies {
     val waypoint           = "8.0.0"
     val zio                = "2.1.2"
     val `zio-config`       = "4.0.1"
-    val `zio-json`         = "0.6.2" // TODO migrate to jsoniter
+    val `zio-json`         = "0.6.2"                      // TODO migrate to jsoniter
     val `zio-logging`      = "2.3.0"
     val `zio-metrics`      = "2.2.1"
   }

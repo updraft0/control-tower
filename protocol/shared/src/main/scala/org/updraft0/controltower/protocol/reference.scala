@@ -14,6 +14,10 @@ case class Reference(
     wormholeTypes: Array[WormholeType]
 )
 
+/** Version of (data, code) - if either changes, reference should be reloaded
+  */
+case class ReferenceVersion(data: Int, code: String)
+
 case class ReferenceSolarSystems(version: Int, solarSystems: Array[SolarSystem])
 
 case class StationService(id: Int, name: String)

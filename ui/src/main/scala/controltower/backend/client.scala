@@ -26,8 +26,7 @@ class ControlTowerBackend(
   private val dummyCookie = SessionCookie("dummy")
 
   // region endpoints
-  // TODO refactor version endpoint to include code version
-  val getVersion: () => Future[Int]                           = () => callNormalThrows(Endpoints.getVersion)(())
+  val getVersion: () => Future[ReferenceVersion]              = () => callNormalThrows(Endpoints.getVersion)(())
   val getSolarSystemsAll: () => Future[ReferenceSolarSystems] = () => callNormalThrows(Endpoints.getAllSolarSystems)(())
   val getReferenceAll: () => Future[Reference]                = () => callNormalThrows(Endpoints.getAllReference)(())
 

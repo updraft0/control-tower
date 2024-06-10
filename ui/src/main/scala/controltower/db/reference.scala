@@ -31,7 +31,7 @@ object ReferenceDataStore:
   def usingBackend()(using ct: ControlTowerBackend): Future[ReferenceDataStore] =
     for
       version <- ct.getVersion()
-      ds      <- IdbReferenceDataStore(version)
+      ds      <- IdbReferenceDataStore(version.data, version.code)
     yield ds
 
 class IdbReferenceDataStore(db: Database, maxSearchHits: Int = 10) extends ReferenceDataStore:
@@ -111,31 +111,42 @@ class IdbReferenceDataStore(db: Database, maxSearchHits: Int = 10) extends Refer
 object IdbReferenceDataStore:
   private val SolarSystem     = "solar_system"
   private val ReferenceAll    = "reference_all"
+  private val VersionInfo     = "version_info"
   private val ByNameIndex     = "byName"
   private val AllReferenceKey = "all"
+  private val CodeVersionKey  = "code_version"
 
   // TODO: think of a better algorithm for determining what needs to be updated in the db - maybe a last_updated
   //        timestamp?
   private val NumSolarSystemsApprox = 8_000
 
-  private[db] def apply(dbVersion: Int, forceRefresh: Boolean = false)(using
+  given CanEqual[Any, String] = CanEqual.derived
+
+  private[db] def apply(dbVersion: Int, codeVersion: String, forceRefresh: Boolean = false)(using
       ControlTowerBackend
   ): Future[IdbReferenceDataStore] =
     for
       factory <- Future.fromTry(indexedDb)
       db      <- openIndexedDb(factory, "controltower_ref", dbVersion, createTables)
+      // check version
+      trx0 = db.transaction(VersionInfo, TransactionMode.readonly)
+      currDbVersion <- inTransaction(trx0, VersionInfo, _.get(CodeVersionKey))
+      _             <- onFinished(trx0)
+      doForce = (forceRefresh || currDbVersion != codeVersion)
       // first transaction - make sure solar system table is populated
       trx1 = db.transaction(SolarSystem, TransactionMode.readonly)
       solarSystemKeys <- inTransaction(trx1, SolarSystem, _.getAllKeys())
       _               <- onFinished(trx1)
       _ <-
-        if (forceRefresh || solarSystemKeys.length < NumSolarSystemsApprox) populateAllSolarSystems(db)
+        if (doForce || solarSystemKeys.length < NumSolarSystemsApprox) populateAllSolarSystems(db)
         else Future.successful(())
       // second transaction - make sure reference table is populated
       trx2 = db.transaction(ReferenceAll, TransactionMode.readonly)
       referenceKeys <- inTransaction(trx2, ReferenceAll, _.getAllKeys())
       _             <- onFinished(trx2)
-      _ <- if (forceRefresh || referenceKeys.length != 1) populateAllReference(db) else Future.successful(())
+      _             <- if (doForce || referenceKeys.length != 1) populateAllReference(db) else Future.successful(())
+      // last transaction - update version
+      _ <- populateCodeVersion(db, codeVersion)
     yield new IdbReferenceDataStore(db)
 
   private def populateAllSolarSystems(db: Database)(using ct: ControlTowerBackend): Future[Unit] =
@@ -153,6 +164,13 @@ object IdbReferenceDataStore:
       trx = db.transaction(ReferenceAll, TransactionMode.readwrite)
       _ <- inTransaction(trx, ReferenceAll, _.clear())
       _ <- inTransaction(trx, ReferenceAll, _.put(all.toNative, AllReferenceKey))
+      _ <- onFinished(trx)
+    yield ()
+
+  private def populateCodeVersion(db: Database, codeVersion: String): Future[Unit] =
+    val trx = db.transaction(VersionInfo, TransactionMode.readwrite)
+    for
+      _ <- inTransaction(trx, VersionInfo, _.put(codeVersion, CodeVersionKey))
       _ <- onFinished(trx)
     yield ()
 
@@ -177,6 +195,9 @@ object IdbReferenceDataStore:
     }
     if (!objectStoreNames.contains(ReferenceAll)) {
       val _ = db.createObjectStore(ReferenceAll)
+    }
+    if (!objectStoreNames.contains(VersionInfo)) {
+      val _ = db.createObjectStore(VersionInfo)
     }
 
 class IndexedDbError(msg: String, @unused cause: org.scalajs.dom.Event) extends RuntimeException(msg)

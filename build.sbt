@@ -5,7 +5,6 @@ import org.scalajs.linker.interface.ModuleSplitStyle
 Global / onChangedBuildSource := ReloadOnSourceChanges
 //Global / conflictManager := ConflictManager.strict
 
-
 lazy val constant =
   crossProject(JSPlatform, JVMPlatform)
     .crossType(CrossType.Pure)
@@ -31,7 +30,8 @@ lazy val `esi-client` = project
       libraryDependencies ++= jsoniter ++ tapir ++ `tapir-client` ++ `tapir-jsoniter`,
       libraryDependencies ++= zio ++ `zio-test`
     )
-  ).dependsOn(constant.jvm)
+  )
+  .dependsOn(constant.jvm)
 
 lazy val `mini-reactive` = project
   .in(file("mini-reactive"))
@@ -46,7 +46,26 @@ lazy val protocol =
   crossProject(JSPlatform, JVMPlatform)
     .crossType(CrossType.Full)
     .in(file("protocol"))
+    .enablePlugins(BuildInfoPlugin)
     .settings(commonSettings)
+    .settings(
+      buildInfoKeys := Seq[BuildInfoKey](
+        "builtAt" -> System.currentTimeMillis(),
+        "gitHash" -> {
+          new java.lang.Object() {
+            override def toString: String = {
+              scala.util
+                .Try {
+                  val is = java.lang.Runtime.getRuntime.exec(Array("git", "rev-parse", "HEAD"), null).getInputStream
+                  (new java.io.BufferedReader(new java.io.InputStreamReader(is)).readLine())
+                }
+                .getOrElse("???")
+            }
+          }
+        }
+      ),
+      buildInfoPackage := "org.updraft0.controltower.build"
+    )
     .jvmSettings(
       libraryDependencies ++= tapir ++ `tapir-zio-json`,
       libraryDependencies ++= `zio-test`

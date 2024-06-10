@@ -44,9 +44,9 @@ trait LocationTracker:
   def updates: URIO[Scope, Dequeue[LocationUpdate]]
 
 object LocationTracker:
-  private val InCapacity            = 64
-  private val InternalHubCapacity   = 64
-  private val OnlineUpdateSeconds   = 60
+  private val InCapacity          = 64
+  private val InternalHubCapacity = 64
+  private val OnlineUpdateSeconds = 60
 
   case class Config(interval: Duration, maxParallel: Int)
 

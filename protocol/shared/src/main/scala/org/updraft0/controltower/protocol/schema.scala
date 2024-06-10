@@ -42,6 +42,7 @@ object schema:
 
   given Schema[Reference]             = Schema.derived
   given Schema[ReferenceSolarSystems] = Schema.derived
+  given Schema[ReferenceVersion]      = Schema.derived
 
   // system
   given Schema[Planet]         = Schema.derived
@@ -129,6 +130,7 @@ object jsoncodec:
 
   given JsonCodec[Reference]             = JsonCodec.derived
   given JsonCodec[ReferenceSolarSystems] = JsonCodec.derived
+  given JsonCodec[ReferenceVersion]      = JsonCodec.derived
 
   // system
   given JsonCodec[Planet]         = JsonCodec.derived

@@ -38,7 +38,7 @@ object Endpoints:
       .description("Get all solar systems")
 
   val getAllReference = reference.get.in("all").out(jsonBody[Reference])
-  val getVersion      = reference.get.in("version").out(jsonBody[Int])
+  val getVersion      = reference.get.in("version").out(jsonBody[ReferenceVersion])
 
   val getFactions          = reference.get.in("factions").out(jsonBody[List[Faction]])
   val getShipTypes         = reference.get.in("shipTypes").out(jsonBody[List[ShipType]])

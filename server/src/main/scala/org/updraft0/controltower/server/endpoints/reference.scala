@@ -1,5 +1,6 @@
 package org.updraft0.controltower.server.endpoints
 
+import org.updraft0.controltower.build.BuildInfo
 import org.updraft0.controltower.protocol.*
 import org.updraft0.controltower.server.Server.EndpointEnv
 import org.updraft0.controltower.server.db.ReferenceQueries
@@ -23,7 +24,7 @@ def getVersion = Endpoints.getVersion.zServerLogic(_ =>
   getLatestVersion
     .flatMapError(logDbError)
     .flatMap(_.map(ZIO.succeed).getOrElse(NoSdeVersion))
-    .map(_.id)
+    .map(v => ReferenceVersion(v.id, BuildInfo.gitHash)) // TODO: switch to semantic versions once past 0.x
 )
 
 def getAllReference = Endpoints.getAllReference.zServerLogic(_ =>
