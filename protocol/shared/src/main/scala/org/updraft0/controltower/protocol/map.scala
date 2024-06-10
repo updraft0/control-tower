@@ -320,6 +320,10 @@ enum MapMessage:
       connections: Map[ConnectionId, MapWormholeConnectionWithSigs]
   )
   case SystemDisplayUpdate(systemId: SystemId, name: Option[String], displayData: SystemDisplayData)
-  case SystemRemoved(systemId: SystemId)
+  case SystemRemoved(
+      removedSystem: MapSystemSnapshot,
+      removedConnectionIds: Array[ConnectionId],
+      connections: Map[ConnectionId, MapWormholeConnectionWithSigs]
+  )
 
 // endregion

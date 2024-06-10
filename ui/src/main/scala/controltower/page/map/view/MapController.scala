@@ -209,12 +209,17 @@ class MapController(rds: ReferenceDataStore, val clock: Signal[Instant])(using O
             }
             .onComplete(_ => doUpdate())
         else doUpdate()
-      case MapMessage.SystemRemoved(systemId) =>
-        // TODO: what happens to the connections in this case :/
+      case MapMessage.SystemRemoved(removedSystem, removedConnectionIds, updatedConnections) =>
+        val systemId = removedSystem.system.systemId
         Var.update(
-          allSystems.current              -> ((map: Map[Long, MapSystemSnapshot]) => map.removed(systemId)),
-          selectedSystemId                -> ((sOpt: Option[Long]) => sOpt.filterNot(_ == systemId)),
-          pos.systemDisplayData(systemId) -> ((_: Option[SystemDisplayData]) => None)
+          allSystems.current -> ((map: Map[Long, MapSystemSnapshot]) => map.updated(systemId, removedSystem)),
+          selectedSystemId   -> ((sOpt: Option[Long]) => sOpt.filterNot(_ == systemId)),
+          pos.systemDisplayData(systemId) -> ((_: Option[SystemDisplayData]) => None),
+          allConnections.current -> ((conns: Map[ConnectionId, MapWormholeConnectionWithSigs]) =>
+            updatedConnections.foldLeft(conns.removedAll(removedConnectionIds)) { case (conns, (cid, whc)) =>
+              conns.updated(cid, whc)
+            }
+          )
         )
       case MapMessage.SystemSnapshot(systemId, system, connections) =>
         inline def doUpdate(@unused solarSystem: SolarSystem) =

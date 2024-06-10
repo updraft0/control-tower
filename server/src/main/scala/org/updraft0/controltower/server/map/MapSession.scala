@@ -283,8 +283,15 @@ private def toProto(msg: MapResponse): Option[protocol.MapMessage] = msg match
     )
   case MapResponse.SystemDisplayUpdate(systemId, name, displayData) =>
     Some(protocol.MapMessage.SystemDisplayUpdate(systemId, name, toProtoDisplay(displayData)))
-  case MapResponse.SystemRemoved(systemId) =>
-    Some(protocol.MapMessage.SystemRemoved(systemId))
+  case MapResponse.SystemRemoved(removedSystem, removedConnectionIds, connections, connectionRanks) =>
+    Some(
+      protocol.MapMessage.SystemRemoved(
+        removedSystem = toProtoSystemSnapshot(removedSystem),
+        removedConnectionIds = removedConnectionIds.toArray,
+        connections =
+          connections.view.mapValues(c => toProtoConnectionWithSigs(c, connectionRanks(c.connection.id))).toMap
+      )
+    )
   case MapResponse.CharacterLocations(locationMap) =>
     Some(
       protocol.MapMessage.CharacterLocations(

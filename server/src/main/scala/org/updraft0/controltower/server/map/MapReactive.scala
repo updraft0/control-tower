@@ -16,7 +16,6 @@ import zio.*
 
 import java.time.Instant
 import java.util.UUID
-import scala.annotation.unused
 
 type MapEnv   = javax.sql.DataSource & LocationTracker & MapPermissionTracker
 type SystemId = Long // TODO opaque type
@@ -92,6 +91,42 @@ private[map] case class MapState(
       connectionRanks = connectionRanks.foldLeft(this.connectionRanks) { case (ranks, r) =>
         ranks.updated(r.connectionId, r)
       }
+    )
+
+  def removeSystem(
+      removedSystemId: model.SystemId,
+      removedConnectionIds: Chunk[ConnectionId],
+      otherSystemIds: Chunk[model.SystemId],
+      connectionRanks: List[MapWormholeConnectionRank],
+      connectionsWithSigs: List[MapWormholeConnectionWithSigs]
+  ): MapState =
+    this.copy(
+      systems = otherSystemIds.foldLeft(this.systems.updatedWith(removedSystemId) {
+        case None => None
+        case Some(prev) =>
+          Some(
+            prev.copy(
+              display = None,
+              connections = Array.empty,
+              signatures = prev.signatures.filterNot(_.wormholeConnectionId.exists(removedConnectionIds.contains))
+            )
+          )
+      })((ss, nextSystemId) =>
+        ss.updatedWith(nextSystemId) {
+          case None => None
+          case Some(prev) =>
+            Some(
+              prev.copy(
+                connections = prev.connections.filterNot(c => removedConnectionIds.contains(c.id)),
+                signatures = prev.signatures.filterNot(_.wormholeConnectionId.exists(removedConnectionIds.contains))
+              )
+            )
+        }
+      ),
+      connections = connectionsWithSigs.foldLeft(this.connections.removedAll(removedConnectionIds))((cc, mwhcs) =>
+        cc.updated(mwhcs.connection.id, mwhcs)
+      ),
+      connectionRanks = connectionRanks.map(whcr => whcr.connectionId -> whcr).toMap
     )
 
   def removeConnection(
@@ -241,7 +276,12 @@ enum MapResponse:
       connectionRanks: Map[ConnectionId, MapWormholeConnectionRank]
   )
   case SystemDisplayUpdate(systemId: SystemId, name: Option[String], displayData: model.SystemDisplayData)
-  case SystemRemoved(systemId: SystemId)
+  case SystemRemoved(
+      removedSystem: MapSystemWithAll,
+      removedConnectionIds: Chunk[ConnectionId],
+      connections: Map[ConnectionId, MapWormholeConnectionWithSigs],
+      connectionRanks: Map[ConnectionId, MapWormholeConnectionRank]
+  )
   case CharacterLocations(locations: Map[CharacterId, CharacterLocationState.InSystem])
 
 /** Mini-reactive/lightweight actor that has a state of the whole map in memory and makes corresponding db changes
@@ -330,7 +370,7 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
                 )
               case Identified(Some(sid), rs: MapRequest.RemoveSystem) =>
                 whenSystemExists(rs.systemId, state)(
-                  identified(sid, "removeFromDisplay", removeSystemFromDisplay(mapId, state, sid, rs))
+                  identified(sid, "removeFromDisplay", removeSystemAndConnection(mapId, state, sid, rs))
                 )
               case Identified(Some(sid), rsc: MapRequest.RemoveSystemConnection) =>
                 identified(sid, "removeSystemConnection", removeSystemConnection(mapId, state, sid, rsc))
@@ -441,6 +481,7 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
       removeConn: MapRequest.RemoveSystemConnection
   ) =
     for
+      // TODO: remove connection id from signature too!
       _ <- query.map.deleteMapWormholeConnection(removeConn.connectionId, sessionId.characterId)
       whcOpt <- MapQueries
         .getWormholeConnectionsWithSigs(mapId, Some(removeConn.connectionId), includeDeleted = true)
@@ -540,16 +581,43 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
       nextState -> broadcast(nextState.systemSnapshot(sys.sys.systemId))
     )
 
-  private def removeSystemFromDisplay(
+  private def removeSystemAndConnection(
       mapId: MapId,
       state: MapState,
-      @unused sessionId: MapSessionId,
+      sessionId: MapSessionId,
       rs: MapRequest.RemoveSystem
   ) =
+    val connections   = state.connectionsForSystem(rs.systemId)
+    val connectionIds = Chunk.from(connections.valuesIterator.map(_.connection.id))
+    val otherSystemIds = Chunk.from(connections.valuesIterator.map(_.connection.toSystemId).filter(_ != rs.systemId)) ++
+      Chunk.from(connections.valuesIterator.map(_.connection.fromSystemId).filter(_ != rs.systemId))
     for
-      _   <- query.map.deleteMapSystemDisplay(mapId, rs.systemId)
-      sys <- loadSingleSystem(mapId, rs.systemId)
-    yield state.updateOne(sys.sys.systemId, sys, Nil, Nil) -> broadcast(MapResponse.SystemRemoved(sys.sys.systemId))
+      // mark connections as removed
+      _ <- query.map.deleteMapWormholeConnections(connectionIds, sessionId.characterId)
+      // remove the display of the system
+      _ <- query.map.deleteMapSystemDisplay(mapId, rs.systemId)
+      // recompute all the connection ranks
+      connectionRanks <- MapQueries.getWormholeConnectionRanksAll(mapId)
+      // load all the affected connections with sigs
+      connectionsWithSigs <- MapQueries.getWormholeConnectionsWithSigsBySystemIds(mapId, otherSystemIds)
+    yield withState(
+      state.removeSystem(
+        rs.systemId,
+        connectionIds,
+        otherSystemIds,
+        connectionRanks,
+        connectionsWithSigs
+      )
+    )(nextState =>
+      nextState -> broadcast(
+        MapResponse.SystemRemoved(
+          state.systems(rs.systemId),
+          connectionIds,
+          connectionsWithSigs.map(whcs => whcs.connection.id -> whcs).toMap,
+          connectionRanks = nextState.connectionRanks
+        )
+      )
+    )
 
   private def renameSystem(
       mapId: MapId,

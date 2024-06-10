@@ -3,7 +3,7 @@ package org.updraft0.controltower.db.query
 import io.getquill.*
 import org.updraft0.controltower.constant.{SystemId as _, *}
 import org.updraft0.controltower.db.model.*
-import zio.ZIO
+import zio.{ZIO, Chunk}
 
 import scala.collection.immutable.BitSet
 import java.time.Instant
@@ -286,6 +286,23 @@ object map:
         .filter(_.id == lift(id))
         .update(_.isDeleted -> lift(true), _.updatedByCharacterId -> lift(byCharacterId), _.updatedAt -> unixepoch)
     )
+
+  def deleteMapWormholeConnections(ids: Chunk[ConnectionId], byCharacterId: CharacterId): DbOperation[Long] =
+    ctx
+      .run(
+        quote(
+          liftQuery(ids).foreach(id =>
+            mapWormholeConnection
+              .filter(_.id == id)
+              .update(
+                _.isDeleted            -> lift(true),
+                _.updatedByCharacterId -> lift(byCharacterId),
+                _.updatedAt            -> unixepoch
+              )
+          )
+        )
+      )
+      .map(_.sum)
 
   def deleteMapSystemSignatures(
       mapId: MapId,

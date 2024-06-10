@@ -447,7 +447,7 @@ object MapQueries:
 
   def getWormholeConnectionsWithSigsBySystemId(
       mapId: MapId,
-      systemId: Long
+      systemId: model.SystemId
   ): Result[List[MapWormholeConnectionWithSigs]] =
     run(
       quote(
@@ -456,6 +456,31 @@ object MapQueries:
             .filter(whc =>
               whc.mapId == lift(mapId) && !whc.isDeleted &&
                 (whc.fromSystemId == lift(systemId) || whc.toSystemId == lift(systemId))
+            )
+        )
+      )
+    ).map(
+      _.map((whc, fromSig, toSig, jumps) =>
+        MapWormholeConnectionWithSigs(
+          connection = whc,
+          fromSignature = fromSig,
+          toSignature = toSig,
+          jumps = jumps.value
+        )
+      )
+    )
+
+  def getWormholeConnectionsWithSigsBySystemIds(
+      mapId: MapId,
+      systemIds: Chunk[model.SystemId]
+  ): Result[List[MapWormholeConnectionWithSigs]] =
+    run(
+      quote(
+        connectionsWithSigs(
+          mapWormholeConnection
+            .filter(whc =>
+              whc.mapId == lift(mapId) && !whc.isDeleted &&
+                (liftQuery(systemIds).contains(whc.fromSystemId) || liftQuery(systemIds).contains(whc.toSystemId))
             )
         )
       )
