@@ -33,6 +33,7 @@ object native:
   given NativeConverter[Station]          = NativeConverter.derived
   given NativeConverter[WormholeStatic]   = NativeConverter.derived
   given NativeConverter[SolarSystem]      = NativeConverter.derived
+  given NativeConverter[Stargate]         = NativeConverter.derived
   given NativeConverter[Faction]          = NativeConverter.derived
   given NativeConverter[StationService]   = NativeConverter.derived
   given NativeConverter[SignatureGroup]   = NativeConverter.derived
