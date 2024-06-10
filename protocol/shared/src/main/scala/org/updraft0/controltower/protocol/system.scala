@@ -21,7 +21,7 @@ case class Station(
 )
 
 case class WormholeStatic(typeId: Int, name: String)
-case class Stargate(id: Int, systemId: Long, toSystemId: Long)
+case class Stargate(id: Int, systemId: Long, toStargateId: Long)
 case class SolarSystem(
     id: Long,
     name: String,

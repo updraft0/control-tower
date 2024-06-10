@@ -52,6 +52,8 @@ CREATE TABLE sde.item_name
     FOREIGN KEY (group_id) REFERENCES item_group (id) DEFERRABLE INITIALLY DEFERRED
 ) STRICT;
 
+CREATE INDEX sde.idx_item_name ON item_name (name);
+
 -- item_type
 CREATE TABLE sde.item_type
 (
@@ -65,6 +67,9 @@ CREATE TABLE sde.item_type
     FOREIGN KEY (group_id) REFERENCES item_group (id) DEFERRABLE INITIALLY DEFERRED
 ) STRICT;
 
+CREATE INDEX sde.idx_item_type_name ON item_type (name);
+CREATE INDEX sde.idx_item_type_group_id ON item_type (group_id);
+
 -- item_dogma_attribute
 CREATE TABLE sde.item_dogma_attribute
 (
@@ -76,6 +81,8 @@ CREATE TABLE sde.item_dogma_attribute
     FOREIGN KEY (attribute_id) REFERENCES dogma_attribute_type (id) DEFERRABLE INITIALLY DEFERRED,
     UNIQUE (item_id, attribute_id)
 ) STRICT;
+
+CREATE INDEX sde.idx_item_dogma_attribute_item_attribute_id ON item_dogma_attribute (item_id, attribute_id);
 
 -- station_service
 CREATE TABLE sde.station_service
@@ -175,6 +182,11 @@ CREATE TABLE sde.solar_system
     CHECK (wh_class_id > 0 AND wh_class_id < 26)
 ) STRICT;
 
+CREATE INDEX sde.idx_solar_system_region_id ON solar_system (region_id);
+CREATE INDEX sde.idx_solar_system_constellation_id ON solar_system (constellation_id);
+CREATE INDEX sde.idx_solar_system_name ON solar_system (name);
+CREATE INDEX sde.idx_solar_system_wh_class_id ON solar_system (wh_class_id);
+
 -- solar_system_planet
 CREATE TABLE sde.solar_system_planet
 (
@@ -188,6 +200,8 @@ CREATE TABLE sde.solar_system_planet
     UNIQUE (system_id, idx),
     CHECK (idx > 0)
 ) STRICT;
+
+CREATE INDEX sde.idx_solar_system_planet_id ON solar_system_planet (system_id);
 
 -- solar_system_moon
 CREATE TABLE sde.solar_system_moon
@@ -203,6 +217,8 @@ CREATE TABLE sde.solar_system_moon
     CHECK (idx > 0)
 ) STRICT;
 
+CREATE INDEX sde.idx_solar_system_moon_system_id ON solar_system_moon (system_id);
+
 -- solar_system_asteroid_belt
 CREATE TABLE sde.solar_system_asteroid_belt
 (
@@ -214,16 +230,20 @@ CREATE TABLE sde.solar_system_asteroid_belt
     FOREIGN KEY (system_id) REFERENCES solar_system (id) DEFERRABLE INITIALLY DEFERRED
 ) STRICT;
 
+CREATE INDEX sde.idx_solar_system_asteroid_belt_system_id ON solar_system_asteroid_belt (system_id);
+
 -- stargate
 CREATE TABLE sde.stargate
 (
-    id           INTEGER PRIMARY KEY,
-    system_id    INTEGER NOT NULL,
-    to_system_id INTEGER NOT NULL,
+    id             INTEGER PRIMARY KEY,
+    system_id      INTEGER NOT NULL,
+    to_stargate_id INTEGER NOT NULL,
 
     FOREIGN KEY (system_id) REFERENCES solar_system (id) DEFERRABLE INITIALLY DEFERRED,
-    FOREIGN KEY (to_system_id) REFERENCES solar_system (id) DEFERRABLE INITIALLY DEFERRED
+    FOREIGN KEY (to_stargate_id) REFERENCES stargate (id) DEFERRABLE INITIALLY DEFERRED
 ) STRICT;
+
+CREATE INDEX sde.idx_stargate_system_id ON stargate (system_id);
 
 -- npc_station
 CREATE TABLE sde.npc_station
@@ -243,6 +263,8 @@ CREATE TABLE sde.npc_station
     FOREIGN KEY (system_id) REFERENCES solar_system (id) DEFERRABLE INITIALLY DEFERRED,
     FOREIGN KEY (type_id) REFERENCES item_type (id) DEFERRABLE INITIALLY DEFERRED
 ) STRICT;
+
+CREATE INDEX sde.idx_npc_station_system_id ON npc_station (system_id);
 
 -- faction
 CREATE TABLE sde.faction
@@ -285,6 +307,8 @@ CREATE TABLE sde.npc_corporation
     FOREIGN KEY (station_id) REFERENCES npc_station (id) DEFERRABLE INITIALLY DEFERRED,
     CHECK (unique_name == 1 or unique_name == 0)
 ) STRICT;
+
+CREATE INDEX sde.idx_npc_corporation_name ON npc_corporation (name);
 
 -- version
 CREATE TABLE sde.version

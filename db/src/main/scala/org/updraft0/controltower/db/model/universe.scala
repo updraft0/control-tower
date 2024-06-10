@@ -41,7 +41,7 @@ case class SolarSystem(
     regional: Boolean
 )
 
-case class Stargate(id: Long, systemId: Long, toSystemId: Long)
+case class Stargate(id: Long, systemId: SystemId, toStargateId: Long)
 
 // from map
 

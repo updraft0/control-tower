@@ -1,6 +1,7 @@
 package org.updraft0.controltower.server.db
 
 import io.getquill.*
+import org.updraft0.controltower.constant
 import org.updraft0.controltower.constant.{WormholeClasses, WormholeEffects}
 import org.updraft0.controltower.db.model
 import org.updraft0.controltower.db.query.*
@@ -9,7 +10,13 @@ import org.updraft0.controltower.protocol.jsoncodec.given
 import org.updraft0.controltower.protocol.{StationOperation, StationService}
 import zio.*
 
-case class SolarSystemWithGates(sys: model.SolarSystem, gates: Array[model.Stargate])
+case class StargateBothSides(
+    inGateId: Long,
+    outGateId: Long,
+    inSystemId: constant.SystemId,
+    outSystemId: constant.SystemId
+)
+case class SolarSystemWithGates(sys: model.SolarSystem, gates: Array[StargateBothSides])
 
 /** Queries for "reference" data (not map-dependent)
   */
@@ -20,7 +27,7 @@ object ReferenceQueries:
   import sde.schema.*
   import zio.json.*
 
-  private given JsonCodec[model.Stargate] = JsonCodec.derived
+  private given JsonCodec[StargateBothSides] = JsonCodec.derived
 
   private val ShipCategoryId = 6
 
@@ -34,23 +41,26 @@ object ReferenceQueries:
   def getAllSolarSystemsWithGates: Result[List[SolarSystemWithGates]] =
     run(quote {
       (for
-        ss <- solarSystem
-        r  <- region.join(_.id == ss.regionId)
-        sg <- stargate.leftJoin(sg => sg.systemId == ss.id || sg.toSystemId == ss.id)
-      yield (ss, r, sg)).groupByMap((ss, _, _) => ss.id)((ss, r, sg) =>
+        ss      <- solarSystem
+        r       <- region.join(_.id == ss.regionId)
+        inGate  <- stargate.leftJoin(_.systemId == ss.id)
+        outGate <- stargate.leftJoin(osg => inGate.exists(_.toStargateId == osg.id))
+      yield (ss, r, inGate, outGate)).groupByMap((ss, _, _, _) => ss.id)((ss, r, isg, osg) =>
         (
           ss,
           r.whClassId,
-          jsonGroupArrayFilterNullDistinct[model.Stargate](
-            jsonObject3(
-              "id",
-              sg.map(_.id),
-              "systemId",
-              sg.map(_.systemId),
-              "toSystemId",
-              sg.map(_.toSystemId)
+          jsonGroupArrayFilterNullDistinct[StargateBothSides](
+            jsonObject4(
+              "inGateId",
+              isg.map(_.id),
+              "outGateId",
+              osg.map(_.systemId),
+              "inSystemId",
+              isg.map(_.systemId),
+              "outSystemId",
+              osg.map(_.systemId)
             ),
-            sg.map(_.id)
+            isg.map(_.id)
           )
         )
       )
@@ -79,12 +89,12 @@ object ReferenceQueries:
           .on((sc, f) => sc._2.factionId == Option(f.id)))
           .leftJoin(_._1._1.systemId == sys.id)
         whj <- (systemStaticWormhole
-          .filter(ss => sql"${ss.validFrom} < (unixepoch() * 1000)".asCondition) // TODO test this
+          .filter(ss => sql"${ss.validFrom} < (unixepoch() * 1000)".asCondition)
           .filter(ss => sql"${ss.validUntil} > (unixepoch() * 1000)".asCondition)
           .join(wormhole)
           .on(_.staticTypeId == _.typeId))
           .leftJoin(_._1.systemId == sys.id)
-        sgj <- stargate.leftJoin(sg => sg.systemId == sys.id || sg.toSystemId == sys.id)
+        sgj <- stargate.leftJoin(_.systemId == sys.id)
       yield (sys, reg, ptj, stj, whj, sgj))
         .groupByMap((sys, reg, _, _, _, _) => (sys, reg))((sys, reg, ptj, stj, whj, sgj) =>
           (
@@ -138,8 +148,8 @@ object ReferenceQueries:
                 sgj.map(_.id),
                 "systemId",
                 sgj.map(_.systemId),
-                "toSystemId",
-                sgj.map(_.toSystemId)
+                "toStargateId",
+                sgj.map(_.toStargateId)
               ),
               sgj.map(_.id)
             )

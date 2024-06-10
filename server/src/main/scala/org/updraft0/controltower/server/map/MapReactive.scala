@@ -25,7 +25,7 @@ private[map] case class MapSolarSystem(
     systemId: SystemId,
     name: String,
     whClass: WormholeClass,
-    gates: Array[model.Stargate]
+    gates: Map[SystemId, Long]
 ) derives CanEqual
 
 private[map] case class MapRef(solarSystems: Map[SystemId, MapSolarSystem])
@@ -51,7 +51,7 @@ private[map] case class MapState(
   def getConnection(fromSystem: SystemId, toSystem: SystemId): MapWormholeConnection =
     systems(fromSystem).connections.find(c => c.toSystemId == toSystem || c.fromSystemId == toSystem).head
   def hasGateBetween(fromSystem: SystemId, toSystem: SystemId): Boolean =
-    ref.solarSystems.get(fromSystem).exists(_.gates.exists(sg => sg.toSystemId == toSystem || sg.systemId == toSystem))
+    ref.solarSystems.get(fromSystem).exists(_.gates.contains(toSystem))
 
   def connectionsForSystem(id: SystemId): Map[ConnectionId, MapWormholeConnectionWithSigs] =
     systems(id).connections.map(c => c.id -> connections(c.id)).toMap
@@ -910,7 +910,12 @@ private def loadMapRef() =
       solarSystems = allSolar
         .filter(_.sys.whClassId.nonEmpty)
         .map(ss =>
-          ss.sys.id -> MapSolarSystem(ss.sys.id, ss.sys.name, WormholeClasses.ById(ss.sys.whClassId.get), ss.gates)
+          ss.sys.id -> MapSolarSystem(
+            systemId = ss.sys.id,
+            name = ss.sys.name,
+            whClass = WormholeClasses.ById(ss.sys.whClassId.get),
+            gates = ss.gates.map(sg => sg.outSystemId.value -> sg.inGateId).toMap
+          )
         )
         .toMap
     )
