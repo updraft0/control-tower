@@ -17,6 +17,9 @@ object CharacterAuthTracker:
   // Every poll interval, refresh the tokens that need to be refreshed
   private val PollInterval = 20.seconds
 
+  // Multiplier of PollInterval to consider starting to refresh tokens before they expire
+  private val PollIntervalExpiryMultiplier = 4
+
   private val FailedRefreshInterval = 1.minute
 
   // Every snapshot interval, send out the current universe of auth tokens
@@ -31,8 +34,6 @@ object CharacterAuthTracker:
   private enum CharacterState:
     case Active(token: CharacterAuth)
     case RefreshFailure(prev: CharacterAuth, retryCount: Int, nextAt: Instant)
-
-//  private case class CharacterState(auth: Option[CharacterAuth], refreshFailureCount: Int)
 
   def layer: ZLayer[Users.Env, Throwable, CharacterAuthTracker] = ZLayer.scoped(apply())
 
@@ -67,7 +68,7 @@ object CharacterAuthTracker:
   ) =
     for
       now <- ZIO.clockWith(_.instant)
-      nowExp = now.plus(PollInterval.multipliedBy(2))
+      nowExp = now.plus(PollInterval.multipliedBy(PollIntervalExpiryMultiplier))
       curr <- state.get
       nextStates <- ZIO.foreachExec(curr.keys.zip(curr.values))(ExecutionStrategy.ParallelN(EsiParallel))((cId, cSt) =>
         handleRefresh(cId, cSt, nowExp)
