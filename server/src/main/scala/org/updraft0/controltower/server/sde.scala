@@ -20,12 +20,18 @@ def updateReferenceData =
 /** Load while checking if up to date
   */
 private[server] def checkSdeAndReload(): RIO[SdeConfig & DataSource & SdeClient, (Int, Chunk[Long])] =
-  (query.transaction(query.sde.getLatestVersion) <&> ZIO.serviceWithZIO[SdeClient](_.latestChecksum)).flatMap:
+  (query.transaction(query.sde.getLatestVersion) <&> loadSdeZipChecksum).flatMap:
     case (None, checksum) => ZIO.logInfo("SDE not loaded, loading") *> loadSde(checksum)
     case (Some(version), checksum) if version.meta.checksum == checksum =>
       ZIO.logInfo(s"SDE up to date with ${version}").as(version.id -> Chunk.empty)
     case (Some(version), checksum) =>
       ZIO.logInfo(s"SDE checksum changed from ${version.meta.checksum} to ${checksum}, updating") *> loadSde(checksum)
+
+// checksums contains a newline-delimited list of checksums and we got to find the one for sde.zip
+private def loadSdeZipChecksum =
+  ZIO
+    .serviceWithZIO[SdeClient](_.latestChecksum)
+    .map(_.linesIterator.filter(_.endsWith("sde.zip")).map(_.split("""\s""")(0)).next())
 
 // TODO: add query.transaction() here
 private[server] def loadSde(checksum: String): RIO[SdeConfig & DataSource & SdeClient, (Int, Chunk[Long])] =

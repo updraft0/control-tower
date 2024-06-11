@@ -10,9 +10,9 @@ import org.snakeyaml.engine.v2.api.LoadSettings
   */
 object parser:
 
-  private val RegionData        = """sde/fsd/universe/\w+/([-\w]+)/region.staticdata""".r
-  private val ConstellationData = """sde/fsd/universe/\w+/([-\w]+)/([-\w]+)/constellation.staticdata""".r
-  private val SolarSystemData   = """sde/fsd/universe/\w+/([-\w]+)/([-\w]+)/([-\w]+)/solarsystem.staticdata""".r
+  private val RegionData        = """universe/\w+/([-\w]+)/region.yaml""".r
+  private val ConstellationData = """universe/\w+/([-\w]+)/([-\w]+)/constellation.yaml""".r
+  private val SolarSystemData   = """universe/\w+/([-\w]+)/([-\w]+)/([-\w]+)/solarsystem.yaml""".r
 
   private type Parser[T] = IO[Error, T]
 
@@ -24,27 +24,27 @@ object parser:
   def parse(entry: zip.ZipEntry): ZIO[LoadSettings, Error, Option[ExportedData]] = {
     val bytes = entry.bytes
     ZIO.logTrace(s"parsing entry ${entry.name}") *> (entry.name match {
-      case "sde/bsd/invUniqueNames.yaml" =>
+      case "bsd/invUniqueNames.yaml" =>
         parseYamlArray(bytes).flatMap(parseUniqueNames).asSome
-      case "sde/fsd/categoryIDs.yaml" =>
+      case "fsd/categories.yaml" =>
         parseYaml[Integer](bytes).flatMap(parseCategoryIds).asSome
-      case "sde/fsd/dogmaAttributeCategories.yaml" =>
+      case "fsd/dogmaAttributeCategories.yaml" =>
         parseYaml[Integer](bytes).flatMap(parseDogmaAttributeCategories).asSome
-      case "sde/fsd/dogmaAttributes.yaml" =>
+      case "fsd/dogmaAttributes.yaml" =>
         parseYaml[Integer](bytes).flatMap(parseDogmaAttributes).asSome
-      case "sde/fsd/factions.yaml" =>
+      case "fsd/factions.yaml" =>
         parseYaml[Integer](bytes).flatMap(parseFactions).asSome
-      case "sde/fsd/npcCorporations.yaml" =>
+      case "fsd/npcCorporations.yaml" =>
         parseYaml[Integer](bytes).flatMap(parseNpcCorporations).asSome
-      case "sde/fsd/groupIDs.yaml" =>
+      case "fsd/groups.yaml" =>
         parseYaml[Integer](bytes).flatMap(parseGroupIds).asSome
-      case "sde/fsd/stationOperations.yaml" =>
+      case "fsd/stationOperations.yaml" =>
         parseYaml[Integer](bytes).flatMap(parseStationOperations).asSome
-      case "sde/fsd/stationServices.yaml" =>
+      case "fsd/stationServices.yaml" =>
         parseYaml[Integer](bytes).flatMap(parseStationServices).asSome
-      case "sde/fsd/typeDogma.yaml" =>
+      case "fsd/typeDogma.yaml" =>
         parseYaml[Integer](bytes).flatMap(parseTypeDogmas).asSome
-      case "sde/fsd/typeIDs.yaml" =>
+      case "fsd/types.yaml" =>
         parseYaml[Integer](bytes).flatMap(parseTypeIds).asSome
       case RegionData(regionName) =>
         parseYaml[String](bytes).flatMap(parseRegion(regionName, _)).asSome
