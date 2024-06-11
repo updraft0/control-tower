@@ -142,7 +142,10 @@ class MapController(rds: ReferenceDataStore, val clock: Signal[Instant])(using O
         case (MapAction.UpdateSignatures(systemId, replaceAll, scanned), _) =>
           Some(MapRequest.UpdateSystemSignatures(systemId, replaceAll, scanned))
         case (MapAction.Select(systemIdOpt), _) =>
-          selectedSystemId.set(systemIdOpt)
+          Var.set(
+            (selectedSystemId, systemIdOpt),
+            (selectedConnectionId, None)
+          )
           None
         case (MapAction.TogglePinned(systemId), allSystems) =>
           allSystems.get(systemId).map(sys => MapRequest.UpdateSystem(systemId, isPinned = Some(!sys.system.isPinned)))
