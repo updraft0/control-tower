@@ -185,11 +185,6 @@
     }
 
     & tr.signature-toolbar {
-        & td > * {
-            margin-left: 2px;
-            margin-right: 2px;
-        }
-
         & td span {
             color: $gray-lighter;
             align-self: center;
@@ -284,7 +279,7 @@
 }
 
 dialog.system-add-signature {
-    width: 300px;
+    width: 300px; /* FIXME */
 
     & div.add-signature-line {
         display: flex;
@@ -308,6 +303,13 @@ dialog.system-add-signature {
         text-align: center;
     }
 
+    & input.signature-id:disabled {
+        user-select: none;
+        border: 1px $gray-light;
+        background-color: $gray;
+        font-weight: bold;
+    }
+
     & select.signature-group {
         font-size: 0.8rem;
     }
@@ -323,10 +325,16 @@ dialog.system-paste-signatures {
     width: 50em;
 
     & textarea.signature-paste {
-        width: 100%;
+        padding: 0;
+        min-width: 100%;
+        max-width: 100%;
         /*height: fit-content;*/
         max-height: 50vh;
         min-height: 10em;
+    }
+
+    & span.validation-error {
+        color: $yellow;
     }
 
     & table.signature-list {

@@ -270,7 +270,7 @@ private def systemRenameView(systemId: Long, name: String, actions: WriteBus[Map
   val nameVar = Var(name)
   div(
     cls := "system-rename-view",
-    div(cls := "dialog-header", "Rename System"),
+    h2(cls := "dialog-header", "Rename System"),
     systemNameInput(
       nameVar,
       autoFocus := true,

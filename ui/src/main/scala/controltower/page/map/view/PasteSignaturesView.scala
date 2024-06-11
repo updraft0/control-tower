@@ -67,13 +67,15 @@ class PasteSignaturesView(
       textArea(
         cls         := "signature-paste",
         placeholder := "Paste signatures here...",
+        // TODO: figure out why onMountFocus does not work
+        onMountCallback(ctx => scala.scalajs.js.timers.setTimeout(50)(ctx.thisNode.ref.focus())),
         onInput.mapToValue --> signatures
       ),
       div(
         cls := "display-signatures",
         child <-- signaturesParsed.signal
           .foldEither(
-            errText => span(errText),
+            errText => span(cls := "validation-error", errText),
             tableOfUpdates
           )
       )

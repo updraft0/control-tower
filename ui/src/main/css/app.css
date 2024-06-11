@@ -27,6 +27,7 @@
 
 button {
     padding: 0;
+    color: $gray-lightest;
 }
 
 :root {
@@ -44,10 +45,31 @@ button {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     -webkit-text-size-adjust: 100%;
+
+    scrollbar-color: $gray-darker $gray-dark;
 }
 
 table {
     border-collapse: collapse;
+}
+
+input, textarea, select, button {
+    color: $gray-lightest;
+    background-color: $gray-darker;
+}
+
+span, div, i, p, h1, h2, h3, label {
+    color: $gray-lightest;
+    user-select: none;
+}
+
+/* dialogs TODO move elsewhere */
+
+
+h2.dialog-header {
+    font-size: 1.2em;
+    margin: 0;
+    text-align: center;
 }
 
 /* character */
@@ -135,6 +157,8 @@ $box-height:    40px;
     background-color: $gray-darker;
 
     margin-left: 2px;
+
+    anchor-name: --map-parent;
 }
 
 /* TODO removed as wasn't sure this is needed!? */
@@ -499,8 +523,21 @@ img.type-icon-16-round {
 }
 
 dialog.system-rename-dialog {
-    width: 20%;
-    min-width: 200px;
+    width: 15em;
+    user-select: none;
+
+    & div.dialog-header {
+        & h2 {
+            font-size: 1.2em;
+            margin: 0;
+        }
+        text-align: center;
+        color: $gray-lightest;
+    }
+
+    & input {
+        width: 100%;
+    }
 }
 
 input.input-system-name {
@@ -545,8 +582,11 @@ input.input-system-name {
     flex-direction: column;
     width: 1.6em;
     /* float + relative position to receive mouse events */
-    float: left;
-    position: relative;
+    /*float: left;*/
+    position: absolute;
+
+    left: anchor(--map-parent left);
+
     opacity: 85%;
 
     & button {

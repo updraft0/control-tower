@@ -83,6 +83,7 @@ private inline def sigView(
             cls := "signature-toolbar",
             span("Signatures"),
             select(
+              cls := "signature-filter",
               modSeq(SignatureFilter.values.map(_.selectOption).toSeq),
               controlled(
                 value <-- currentFilter.signal.map(_.toString),
@@ -202,7 +203,11 @@ private inline def sigView(
               cls    := "sig-destructive",
               cls    := "ti",
               cls    := "ti-clear-all",
-              disabled <-- mapRole.map(!RoleController.canEditSignatures(_)).combineWith(isConnected).map(_ || !_),
+              disabled <-- mapRole
+                .map(!RoleController.canEditSignatures(_))
+                .combineWith(isConnected)
+                .map(_ || !_)
+                .map(v => v || mss.signatures.isEmpty),
               onClick.stopPropagation.mapToUnit --> (_ =>
                 Modal.showConfirmation(
                   "Remove all signatures?",
@@ -256,7 +261,7 @@ private inline def sigView(
           },
           solarSystem,
           static,
-          isEditingDisabled = mapRole.map(!RoleController.canEditSignatures(_))
+          isEditingDisabled = mapRole.map(!RoleController.canEditSignatures(_)).combineWith(isConnected).map(_ || !_)
         )
       )
     )
@@ -343,6 +348,7 @@ private def signatureRow(
     )
 
   def wormholeTargetSelect(w: MapSystemSignature.Wormhole) =
+    // TODO: current approach prevents filtering out connections that are already targeted - rethink
     val current = Var(w.connectionId.flatMap(cId => connections.find(_.id == cId)).getOrElse(ConnectionTarget.Unknown))
     val dropdown = OptionDropdown(
       connections.prepended(ConnectionTarget.Unknown).toIndexedSeq,
@@ -649,12 +655,12 @@ private def pasteSignaturesView(
   div(
     cls := "system-paste-signatures-view",
     cls := "dialog-view",
-    div(cls := "dialog-header", "Paste system signatures"),
+    h2(cls := "dialog-header", "Paste system signatures"),
     addAll.view,
     div(
       cls := "add-signature-line",
       hideIfEmptyOpt(validationError.signal),
-      child.maybe <-- validationError.signal.map(_.map(span(_)))
+      child.maybe <-- validationError.signal.map(_.map(s => span(cls := "validation-error", s)))
     ),
     div(
       cls := "dialog-submit",
