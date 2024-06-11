@@ -280,7 +280,7 @@ private def diffExistingWithScanned(
         scannedMap.keySet.diff(existingMap.keySet)
       )
     else
-      (existingMap.keySet.diff(scannedMap.keySet), Set.empty[SigId], scannedMap.keySet.diff(existingMap.keySet))
+      (existingMap.keySet.intersect(scannedMap.keySet), Set.empty[SigId], scannedMap.keySet.diff(existingMap.keySet))
 
   (potentialDiffs.toList.map(sigId => compareSigs(existingMap(sigId), scannedMap.get(sigId))) :::
     removed.toList.map(sigId => SignatureUpdate.Removed(existingMap(sigId))) :::
