@@ -166,10 +166,11 @@ private class MapView(
           idAttr := "map-inner",
           children.command <-- systemNodes,
           svg.svg(
-            svg.cls    := "connection-container",
-            svg.style  := "position: absolute; left: 0px; top: 0px;",
-            svg.height := "100%",
-            svg.width  := "100%",
+            svg.cls      := "connection-container",
+            svg.style    := "position: absolute; left: 0px; top: 0px;",
+            svg.height   := "100%",
+            svg.width    := "100%",
+            svg.overflow := "visible",
             children.command <-- connectionNodes,
             connectionInProgress.view
           )
