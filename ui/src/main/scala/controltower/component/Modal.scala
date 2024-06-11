@@ -75,7 +75,7 @@ object Modal:
         div(
           cls := "dialog-view",
           cls := "confirm-dialog-view",
-          div(cls := "dialog-header", title),
+          h2(cls  := "dialog-header", title),
           div(cls := "dialog-body", description),
           form(
             method := "dialog",

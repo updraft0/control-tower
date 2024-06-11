@@ -43,17 +43,7 @@ class ToolbarView(
         "ti-trash",
         disableWhenNotSelectedAndRole(selected, mapRole, RoleController.canRemoveSystem, isConnected),
         onClick.stopPropagation.compose(_.sampleCollectSome(selected)) --> (system =>
-          Modal.showConfirmation(
-            "Confirm removal",
-            span(
-              child.text <-- Signal
-                .fromFuture(rds.systemForId(system.system.systemId))
-                .map(_.flatten.map(_.name).getOrElse(s"?? ${system.system.systemId}"))
-                .map(n => s"Remove system $n?")
-            ),
-            actions.contramap(_ => MapAction.Remove(system.system.systemId)),
-            isDestructive = true
-          )
+          removeSystemConfirm(system, actions)(using rds)
         )
       ),
       toolbarButtonS(
@@ -232,4 +222,22 @@ private def systemAddView(
         onClick.mapToUnit --> (_ => onSubmit())
       )
     )
+  )
+
+private[map] def removeSystemConfirm(system: MapSystemSnapshot, actions: WriteBus[MapAction])(using
+    rds: ReferenceDataStore
+) =
+  Modal.showConfirmation(
+    "Confirm removal",
+    span(
+      child.text <--
+        Signal
+          .fromFuture(rds.systemForId(system.system.systemId))
+          .map(_.flatten.map(_.name).getOrElse(s"?? ${system.system.systemId}"))
+          .map(solarName =>
+            system.system.name.map(n => s"Remove system $n ($solarName)?").getOrElse(s"Remove system $solarName?")
+          )
+    ),
+    actions.contramap(_ => MapAction.Remove(system.system.systemId)),
+    isDestructive = true
   )

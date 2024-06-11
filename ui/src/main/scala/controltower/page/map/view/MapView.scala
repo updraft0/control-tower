@@ -150,6 +150,16 @@ private class MapView(
 
     div(
       idAttr := "map-view-inner",
+
+      // delete -> remove system
+
+      // TODO: make helpers for these
+      documentEvents(
+        _.onKeyDown
+          .filter(ev => !ev.repeat && ev.code == "Delete")
+      ).mapToUnit.compose(_.withCurrentValueOf(controller.selectedSystem)).filterNot(_.isEmpty).map(_.get) --> (
+        system => removeSystemConfirm(system, controller.actionsBus)(using rds)
+      ),
       div(
         idAttr := "map-parent",
         cls    := "grid",

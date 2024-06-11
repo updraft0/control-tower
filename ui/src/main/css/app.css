@@ -25,11 +25,6 @@
     box-sizing: border-box;
 }
 
-button {
-    padding: 0;
-    color: $gray-lightest;
-}
-
 :root {
     font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
     line-height: 1.5;
@@ -47,6 +42,12 @@ button {
     -webkit-text-size-adjust: 100%;
 
     scrollbar-color: $gray-darker $gray-dark;
+}
+
+
+button {
+    padding: 2px;
+    color: $gray-lightest;
 }
 
 table {
