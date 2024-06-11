@@ -9,6 +9,8 @@ div#nav-top-view {
 
     display: flex;
 
+    padding: 0px 0px 0px 5px;
+
     & > * {
         align-self: center;
     }
@@ -26,14 +28,21 @@ div#nav-top-view {
         border-radius: 2px;
         font-size: 1.1em;
         height: 1.3em;
+        width: 1em;
 
-        /* FIXME why this? */
-        padding-left: 1em;
-
-        &:hover {
+        &:hover:not(:disabled) {
             background: $teal-dark;
             color: $orange;
         }
+
+        &:disabled {
+            color: $gray;
+        }
+    }
+
+    & button:first-of-type {
+        /* FIXME why this? */
+        padding-left: 1em;
     }
 
     & button:last-of-type {
@@ -50,24 +59,41 @@ div#nav-top-view {
         display: inline-block;
         height: 1em;
         border-radius: 2px;
+        margin-left: 2px;
     }
 
     /* current time */
-    & span.time-status {
+    & span.right-block {
+        background-color: $gray-dark;
+        border-radius: 2px;
+        padding-left: 0.3em;
+        padding-right: 0.3em;
         font-weight: bold;
         font-size: 0.9em;
-        color: $gray;
+        vertical-align: center;
+        text-align: center;
+    }
+
+    & span.location-status {
         margin-left: auto;
+        color: $green-dark;
+        width: 1.8em;
+    }
+
+    & span.time-status {
+        color: $gray-light;
     }
 
     /* connection status icon */
-    & i {
+    & span.connection-status {
+        padding-top: 0.2em;
+        height: 105%;
     }
 
-    & i.connection-status.ti-link {
+    & span.connection-status.ti-link {
         color: $green;
     }
-    & i.connection-status.ti-unlink {
+    & span.connection-status.ti-unlink {
         color: $red;
     }
 }

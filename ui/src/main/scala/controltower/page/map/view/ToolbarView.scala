@@ -18,6 +18,7 @@ class ToolbarView(
     selectedConnection: Signal[Option[MapWormholeConnectionWithSigs]],
     actions: WriteBus[MapAction],
     mapRole: Signal[MapRole],
+    isConnected: Signal[Boolean],
     rds: ReferenceDataStore,
     positionController: PositionController
 ) extends ViewController:
@@ -28,7 +29,7 @@ class ToolbarView(
       toolbarButton(
         "add-system",
         "ti-circle-plus",
-        disabled <-- mapRole.map(!RoleController.canAddSystem(_)),
+        disabled <-- mapRole.map(!RoleController.canAddSystem(_)).combineWith(isConnected).map(_ || !_),
         onClick.stopPropagation --> (_ =>
           Modal.show(
             (closeMe, owner) => systemAddView(actions, closeMe, rds, positionController)(using owner),
@@ -40,7 +41,7 @@ class ToolbarView(
       toolbarButton(
         id = "remove-system",
         "ti-trash",
-        disableWhenNotSelectedAndRole(selected, mapRole, RoleController.canRemoveSystem),
+        disableWhenNotSelectedAndRole(selected, mapRole, RoleController.canRemoveSystem, isConnected),
         onClick.stopPropagation.compose(_.sampleCollectSome(selected)) --> (system =>
           Modal.showConfirmation(
             "Confirm removal",
@@ -61,14 +62,14 @@ class ToolbarView(
           case false => "ti-pin-filled"
           case true  => "ti-pin"
         },
-        disableWhenNotSelectedAndRole(selected, mapRole, RoleController.canPinUnpinSystem),
+        disableWhenNotSelectedAndRole(selected, mapRole, RoleController.canPinUnpinSystem, isConnected),
         onClick.stopPropagation.compose(_.sampleCollectSome(selected)) -->
           actions.contramap[MapSystemSnapshot](s => MapAction.TogglePinned(s.system.systemId))
       ),
       toolbarButton(
         id = "stance-friendly",
         icon = "ti-heart",
-        disableWhenNotSelectedAndRole(selected, mapRole, RoleController.canUpdateIntelStance),
+        disableWhenNotSelectedAndRole(selected, mapRole, RoleController.canUpdateIntelStance, isConnected),
         onClick.stopPropagation.compose(_.sampleCollectSome(selected)) -->
           actions.contramap[MapSystemSnapshot](s =>
             MapAction.IntelChange(
@@ -80,7 +81,7 @@ class ToolbarView(
       toolbarButton(
         id = "stance-hostile",
         icon = "ti-swords",
-        disableWhenNotSelectedAndRole(selected, mapRole, RoleController.canUpdateIntelStance),
+        disableWhenNotSelectedAndRole(selected, mapRole, RoleController.canUpdateIntelStance, isConnected),
         onClick.stopPropagation.compose(_.sampleCollectSome(selected)) -->
           actions.contramap[MapSystemSnapshot](s =>
             MapAction.IntelChange(
@@ -92,7 +93,7 @@ class ToolbarView(
       toolbarButton(
         id = "remove-connection",
         icon = "ti-link-off",
-        disableWhenNotSelectedAndRole(selectedConnection, mapRole, RoleController.canChangeConnections),
+        disableWhenNotSelectedAndRole(selectedConnection, mapRole, RoleController.canChangeConnections, isConnected),
         onClick.stopPropagation.compose(_.sampleCollectSome(selectedConnection)) --> (conn =>
           Modal.showConfirmation(
             "Confirm removal",
@@ -121,9 +122,10 @@ class ToolbarView(
 private inline def disableWhenNotSelectedAndRole[A](
     selected: Signal[Option[A]],
     role: Signal[MapRole],
-    roleAllows: MapRole => Boolean
+    roleAllows: MapRole => Boolean,
+    isConnected: Signal[Boolean]
 ) =
-  disabled <-- selected.combineWith(role).map(sr => sr._1.forall(_ => !roleAllows(sr._2)))
+  disabled <-- selected.combineWith(role, isConnected).map(sr => !sr._3 || sr._1.forall(_ => !roleAllows(sr._2)))
 
 private inline def toolbarButton(id: String, icon: String, mods: Modifier[Button]*) =
   button(idAttr := id, typ := "button", cls := "ti", cls := icon, cls := "toolbar-button", mods)

@@ -138,7 +138,7 @@ def mapWebSocket: zio.http.HttpApp[EndpointEnv] =
                 .mapError(Response.unauthorized)
               (mapId, mapRole) = mapTup
               sessionMsgs <- ZIO.serviceWithZIO[MapPermissionTracker](_.subscribeSession(mapId, characterOpt.get.id))
-              resp        <- MapSession(mapId, characterOpt.get.id, user.userId, mapRole, sessionMsgs).toResponse
+              resp        <- MapSession(mapId, characterOpt.get, user.userId, mapRole, sessionMsgs).toResponse
             yield resp
         else ZIO.fail(Response.notFound("Not a map websocket endpoint"))
       }

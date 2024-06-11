@@ -84,6 +84,7 @@ private class MapView(
       controller.selectedConnection,
       mapCtx.actions,
       mapCtx.mapRole,
+      ws.isConnected,
       rds,
       controller.pos
     )
@@ -91,7 +92,8 @@ private class MapView(
     // TODO: move this into the controller?
     val connectingSystem = HVar(MapNewConnectionState.Stopped)
 
-    val navTopView = NavTopView(page.name, mapCtx.characterId, time, mapCtx.mapRole, ws.isConnected)
+    val navTopView =
+      NavTopView(page.name, controller.mapMetaSignal, controller.allLocations.signal, time, ws.isConnected, ct)
     val systemInfoView =
       SolarSystemInfoView(
         static,
@@ -104,7 +106,8 @@ private class MapView(
         mapCtx.actions,
         controller.mapSettings,
         mapCtx.mapRole,
-        time
+        time,
+        ws.isConnected
       )
 
     val systemNodesTransformer = CollectionCommandTransformer[MapSystemSnapshot, SystemView, Element, Long](

@@ -44,10 +44,14 @@ class MapController(rds: ReferenceDataStore, val clock: Signal[Instant])(using O
   val lastError = Var[Option[String]](None)
 
   // derived data
+  val mapMetaSignal: Signal[MapMessage.MapMeta] = mapMeta.signal.map(_.get).recoverIgnoreErrors
+
   val mapRole: Signal[MapRole] = mapMeta.signal.map(_.map(_.role).getOrElse(MapRole.Viewer))
+  val mapId: Signal[MapId]     = mapMeta.signal.map(_.map(_.info.id).getOrElse(MapId.Invalid))
   val userPreferences: Signal[UserPreferences] =
     mapMeta.signal.map(_.map(_.preferences).getOrElse(UserPreferences.Default))
-  val characterId: Signal[CharacterId] = mapMeta.signal.map(_.map(_.characterId).getOrElse(CharacterId(0L)))
+  val characterId: Signal[CharacterId] =
+    mapMeta.signal.map(_.map(_.character.characterId).getOrElse(CharacterId.Invalid))
   val mapSettings: Signal[MapSettings] =
     mapMeta.signal.map(_.map(_.info.settings).getOrElse(MapController.DefaultMapSettings))
 

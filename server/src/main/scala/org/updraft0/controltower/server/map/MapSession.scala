@@ -53,7 +53,7 @@ object MapSession:
 
   private case class Context(
       mapId: MapId,
-      characterId: CharacterId,
+      character: model.AuthCharacter,
       sessionId: MapSessionId,
       userId: UserId,
       mapRole: Ref[model.MapRole],
@@ -65,12 +65,12 @@ object MapSession:
 
   def apply(
       mapId: MapId,
-      characterId: CharacterId,
+      character: model.AuthCharacter,
       userId: UserId,
       initialRole: model.MapRole,
       sessionMessages: Dequeue[MapSessionMessage]
   ) = Handler.webSocket: chan =>
-    inContext(mapId, characterId, userId)(
+    inContext(mapId, character.id, userId)(
       for
         sid     <- ZIO.service[MapSessionId]
         _       <- ZIO.logDebug("started map session")
@@ -79,11 +79,12 @@ object MapSession:
         resQ    <- mapE.subscribe(mapId)
         ourQ    <- Queue.bounded[protocol.MapMessage](OurQueueSize)
         mapRole <- Ref.make(initialRole)
-        // TODO: move the character tracking elsewhere :)
+        // add character id to location tracking (strictly not entirely necessary because currently all map characters
+        //    should get tracked automatically)
         _ <- ZIO
           .serviceWith[LocationTracker](_.inbound)
-          .flatMap(_.offer(LocationTrackingRequest.AddCharacters(Chunk(characterId))))
-        ctx = Context(mapId, characterId, sid, userId, mapRole, mapQ, resQ, ourQ, sessionMessages)
+          .flatMap(_.offer(LocationTrackingRequest.AddCharacters(Chunk(character.id))))
+        ctx = Context(mapId, character, sid, userId, mapRole, mapQ, resQ, ourQ, sessionMessages)
         // close the scope (and the subscription) if the websocket is closed
         close <- ZIO.serviceWith[Scope.Closeable](scope => scope.close(Exit.succeed(())))
         _ <- chan.awaitShutdown
@@ -112,7 +113,7 @@ object MapSession:
           .forever
           .forkScoped
         // process any session messages
-        _ <- sessionMessages.take.flatMap(handleMapSessionMessage(characterId, mapRole, close, _)).forever.forkScoped
+        _ <- sessionMessages.take.flatMap(handleMapSessionMessage(character.id, mapRole, close, _)).forever.forkScoped
         // ping out every ping interval to keep connection open
         _ <- chan.send(ChannelEvent.Read(WebSocketFrame.Ping)).schedule(Schedule.fixed(PingInterval)).forkDaemon
         // join on the remaining loops
@@ -172,7 +173,12 @@ object MapSession:
         case (Some(map: model.MapModel), role) =>
           ctx.ourQ.offer(
             protocol.MapMessage
-              .MapMeta(ctx.characterId, toMapInfo(map), toProtocolRole(role), protocol.UserPreferences.Default)
+              .MapMeta(
+                toProtoCharacter(ctx.character),
+                toMapInfo(map),
+                toProtocolRole(role),
+                protocol.UserPreferences.Default
+              )
           )
         case _ => ZIO.logError("BUG: map not set")
       }
@@ -300,6 +306,14 @@ private def toProto(msg: MapResponse): Option[protocol.MapMessage] = msg match
           .transform((_, i) => i.toArray)
       )
     )
+
+private def toProtoCharacter(char: model.AuthCharacter) =
+  protocol.UserCharacter(
+    name = char.name,
+    characterId = char.id,
+    corporationId = char.corporationId,
+    allianceId = char.allianceId
+  )
 
 private def toAddSystem(msg: protocol.MapRequest.AddSystem) =
   MapRequest.AddSystem(

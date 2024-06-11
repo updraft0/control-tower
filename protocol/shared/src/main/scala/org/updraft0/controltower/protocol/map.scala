@@ -313,7 +313,7 @@ enum MapMessage:
       systems: Map[SystemId, MapSystemSnapshot],
       connections: Map[ConnectionId, MapWormholeConnectionWithSigs]
   )
-  case MapMeta(characterId: CharacterId, info: MapInfo, role: MapRole, preferences: UserPreferences)
+  case MapMeta(character: UserCharacter, info: MapInfo, role: MapRole, preferences: UserPreferences)
   case SystemSnapshot(
       systemId: SystemId,
       system: MapSystemSnapshot,

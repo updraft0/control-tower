@@ -10,6 +10,8 @@ import scala.language.implicitConversions
 opaque type CharacterId = Long
 
 object CharacterId:
+  val Invalid: CharacterId = CharacterId(-1)
+
   def apply(i: Long): CharacterId = i
 
   given Conversion[CharacterId, Long] with
@@ -58,6 +60,8 @@ object AllianceId:
 opaque type MapId = Long
 
 object MapId:
+  val Invalid: MapId = MapId(-1)
+
   def apply(i: Long): MapId = i
 
   given Conversion[MapId, Long] with

@@ -2,19 +2,23 @@ package controltower.page.map.view
 
 import com.raquo.laminar.api.L.*
 import controltower.{Page, Routes}
-import controltower.backend.ESI
+import controltower.backend.{ControlTowerBackend, ESI}
 import controltower.ui.ViewController
-import org.updraft0.controltower.constant.CharacterId
+import controltower.component.Modal
+import controltower.dialog.EditMapView
+import org.updraft0.controltower.constant
 import org.updraft0.controltower.protocol.*
 
 import java.time.{Instant, LocalDate, LocalTime}
+import scala.concurrent.ExecutionContext.Implicits.global
 
 class NavTopView(
     mapName: String,
-    characterId: Signal[CharacterId],
+    mapMeta: Signal[MapMessage.MapMeta],
+    locations: Signal[Map[constant.SystemId, Array[CharacterLocation]]],
     time: Signal[Instant],
-    mapRole: Signal[MapRole],
-    isConnected: Signal[Boolean]
+    isConnected: Signal[Boolean],
+    ct: ControlTowerBackend
 ) extends ViewController:
 
   override def view = div(
@@ -22,25 +26,62 @@ class NavTopView(
     cls    := "nav-top-view",
     cls    := "left-sidebar-view",
     navButton("go-home", cls := "ti", cls := "ti-home-filled", Routes.navigateTo(Page.Landing)),
-    userInfo(mapName, characterId, mapRole),
+    editMapButton(using ct),
+    userInfo(mapName, mapMeta.map(_.character), mapMeta.map(_.role)),
+    locationStatus(locations),
     timeStatus(time),
     connectionStatus(isConnected)
   )
 
+  private def editMapButton(using ControlTowerBackend) =
+    navButton(
+      "edit-map",
+      cls := "ti",
+      cls := "ti-table-options",
+      display <-- mapMeta.map(_.role).map {
+        case MapRole.Admin => ""
+        case _             => "none"
+      },
+      disabled <-- isConnected.map(!_),
+      onClick.preventDefault.mapToUnit.compose(_.withCurrentValueOf(mapMeta)) --> { (meta) =>
+        ct.getMap(meta.info.id)
+          .onComplete:
+            case scala.util.Success(Right(mapInfoWithPermissions)) =>
+              Modal.show(
+                (closeMe, _) => EditMapView(meta.character, closeMe, Some(mapInfoWithPermissions)),
+                clickCloses = false,
+                idAttr := "edit-map-dialog"
+              )
+            case other => org.scalajs.dom.console.error(s"Failed to get map permissions: $other")
+      }
+    )
+
 private def navButton(id: String, mods: Modifier[Button]*) =
   button(idAttr := id, tpe := "button", cls := "nav-button", mods)
 
-private def userInfo(mapName: String, characterId: Signal[CharacterId], mapRole: Signal[MapRole]) =
+private def userInfo(mapName: String, char: Signal[UserCharacter], mapRole: Signal[MapRole]) =
   nodeSeq(
-    ESI.characterImageS(characterId.map(id => id -> "?"), size = CharacterImageSize),
+    ESI.characterImageS(char.map(c => c.characterId -> c.name), size = CharacterImageSize),
     span(cls := "map-role", child.text <-- mapRole.map(r => s"${mapName}/${r.toString}"))
   )
 
+private def locationStatus(locations: Signal[Map[constant.SystemId, Array[CharacterLocation]]]) =
+  span(cls := "location-status", cls := "right-block", child <-- locations.map(_.valuesIterator.map(_.length).sum))
+
 private def timeStatus(time: Signal[Instant]) =
-  span(cls := "time-status", child <-- time.map(i => asLocal(i)._2).map(t => f"${t.getHour}%02d:${t.getMinute}%02d"))
+  span(
+    cls := "time-status",
+    cls := "right-block",
+    child <-- time.map(i => asLocal(i)._2).map(t => f"${t.getHour}%02d:${t.getMinute}%02d")
+  )
 
 private def connectionStatus(isConnected: Signal[Boolean]) =
-  i(cls := "ti", cls := "connection-status", cls <-- isConnected.map(c => if (c) "ti-link" else "ti-unlink"))
+  span(
+    cls := "connection-status",
+    cls := "right-block",
+    cls := "ti",
+    cls <-- isConnected.map(c => if (c) "ti-link" else "ti-unlink")
+  )
 
 // TODO move this somewhere else
 private val SecondsInDay              = 24 * 60 * 60

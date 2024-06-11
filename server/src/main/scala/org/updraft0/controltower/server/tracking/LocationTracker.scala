@@ -156,7 +156,7 @@ object LocationTracker:
           if now.isBefore(prevAt.plusSeconds(OnlineUpdateSeconds)) =>
         // no-op - with the character offline within the endpoint cache window there is nothing to update
         ZIO.succeed(st)
-      case CharacterState(charId, _, Some(auth), _, _) if auth.expiry.isBefore(now) =>
+      case CharacterState(charId, _, Some(auth), _, _) if auth.expiry.isBefore(now.plusSeconds(OnlineUpdateSeconds)) =>
         // cannot use a token that is expired (but character auth tracker should give us an update)
         ZIO
           .logWarning("Not refreshing character due to expired auth token")
@@ -174,16 +174,18 @@ object LocationTracker:
             identity
           )
           .resurrect
-          .tapError(ex => ZIO.logErrorCause("Seriously failed to refresh character", Cause.fail(ex)))
-          .fold(
+          .foldZIO(
             {
               case iox: java.io.IOException if iox.getMessage.contains("GOAWAY received") =>
                 // TODO look into using a different client that handles errors more gracefully?
                 // ignore HTTP/2 GOAWAY as a transient error similar to the 502 errors above
-                st
-              case _ => st.copy(state = CharacterLocationState.ApiError, prevState = Some(prevState), updatedAt = now)
+                ZIO.succeed(st)
+              case ex =>
+                ZIO
+                  .logErrorCause("Seriously failed to refresh character", Cause.fail(ex))
+                  .as(st.copy(state = CharacterLocationState.ApiError, prevState = Some(prevState), updatedAt = now))
             },
-            identity
+            ZIO.succeed
           )
 
   private def doRefresh(

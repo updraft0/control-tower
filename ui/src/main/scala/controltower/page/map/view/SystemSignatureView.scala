@@ -40,7 +40,8 @@ class SystemSignatureView(
     actions: WriteBus[MapAction],
     settings: Signal[MapSettings],
     mapRole: Signal[MapRole],
-    time: Signal[Instant]
+    time: Signal[Instant],
+    isConnected: Signal[Boolean]
 ) extends ViewController:
 
   private val filter = Var(SignatureFilter.All)
@@ -53,7 +54,7 @@ class SystemSignatureView(
       hideIfEmptyOpt(selected),
       table(
         children <-- selected.map {
-          case Some(selected) => sigView(selected, filter, staticData, settings, mapRole, time, actions)
+          case Some(selected) => sigView(selected, filter, staticData, settings, mapRole, time, isConnected, actions)
           case None           => nodeSeq()
         }
       )
@@ -66,6 +67,7 @@ private inline def sigView(
     settings: Signal[MapSettings],
     mapRole: Signal[MapRole],
     time: Signal[Instant],
+    isConnected: Signal[Boolean],
     actions: WriteBus[MapAction]
 ) =
   val solarSystem  = static.solarSystemMap(mss.system.systemId)
@@ -106,7 +108,7 @@ private inline def sigView(
               typ    := "button",
               cls    := "ti",
               cls    := "ti-clipboard-plus",
-              disabled <-- mapRole.map(!RoleController.canEditSignatures(_)),
+              disabled <-- mapRole.map(!RoleController.canEditSignatures(_)).combineWith(isConnected).map(_ || !_),
               onClick.stopPropagation.mapToUnit --> (_ =>
                 Modal.show(
                   pasteSignaturesView(
@@ -129,7 +131,7 @@ private inline def sigView(
               typ    := "button",
               cls    := "ti",
               cls    := "ti-plus",
-              disabled <-- mapRole.map(!RoleController.canEditSignatures(_)),
+              disabled <-- mapRole.map(!RoleController.canEditSignatures(_)).combineWith(isConnected).map(_ || !_),
               onClick.stopPropagation.mapToUnit --> (_ =>
                 Modal.show(
                   addSingleSignatureView(
@@ -151,9 +153,10 @@ private inline def sigView(
               disabled <-- Signal
                 .combine(
                   selectedSigs.signal.map(_.size != 1),
-                  mapRole.map(!RoleController.canEditSignatures(_))
+                  mapRole.map(!RoleController.canEditSignatures(_)),
+                  isConnected
                 )
-                .mapN(_ || _),
+                .mapN(_ || _ || !_),
               cls := "ti",
               cls := "ti-pencil",
               onClick.stopPropagation.mapToUnit.compose(_.withCurrentValueOf(selectedSigs.signal)) --> (selected =>
@@ -178,9 +181,10 @@ private inline def sigView(
               disabled <-- Signal
                 .combine(
                   selectedSigs.signal.map(_.isEmpty),
-                  mapRole.map(!RoleController.canEditSignatures(_))
+                  mapRole.map(!RoleController.canEditSignatures(_)),
+                  isConnected
                 )
-                .mapN(_ || _),
+                .mapN(_ || _ || !_),
               cls := "sig-destructive",
               cls := "ti",
               cls := "ti-eraser",
@@ -198,7 +202,7 @@ private inline def sigView(
               cls    := "sig-destructive",
               cls    := "ti",
               cls    := "ti-clear-all",
-              disabled <-- mapRole.map(!RoleController.canEditSignatures(_)),
+              disabled <-- mapRole.map(!RoleController.canEditSignatures(_)).combineWith(isConnected).map(_ || !_),
               onClick.stopPropagation.mapToUnit --> (_ =>
                 Modal.showConfirmation(
                   "Remove all signatures?",
