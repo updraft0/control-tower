@@ -15,7 +15,7 @@ class SolarSystemInfoView(staticData: SystemStaticData, selectedSystem: Observab
 
   override def view =
     div(
-      idAttr := "solarys-system-info-view",
+      idAttr := "solar-system-info-view",
       cls    := "solar-system-info-view",
       cls    := "left-sidebar-view",
       table(children <-- selectedSystem.map {

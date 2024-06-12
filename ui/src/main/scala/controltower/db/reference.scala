@@ -4,6 +4,7 @@ import controltower.backend.ControlTowerBackend
 import org.getshaka.nativeconverter.NativeConverter.given
 import org.getshaka.nativeconverter.{NativeConverter, fromNative}
 import org.scalajs.dom.idb.*
+import org.updraft0.controltower.build.BuildInfo
 import org.updraft0.controltower.protocol.*
 import org.updraft0.controltower.protocol.native.given
 
@@ -31,6 +32,7 @@ object ReferenceDataStore:
   def usingBackend()(using ct: ControlTowerBackend): Future[ReferenceDataStore] =
     for
       version <- ct.getVersion()
+      _       <- refreshIfVersionMismatch(version)
       ds      <- IdbReferenceDataStore(version.data, version.code)
     yield ds
 
@@ -252,3 +254,11 @@ private def onFinished(trx: Transaction): Future[Unit] =
     res.complete(Failure(IndexedDbError("transaction aborted", e)))
   }
   res.future
+
+// arguably the wrong place for this but
+private def refreshIfVersionMismatch(version: ReferenceVersion) =
+  if (version.code != BuildInfo.gitHash)
+    org.scalajs.dom.console.log(s"Reloading due to server version ${version.code} != ${BuildInfo.gitHash}")
+    org.scalajs.dom.window.location.reload()
+    Future.never
+  else Future.unit

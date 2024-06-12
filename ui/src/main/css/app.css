@@ -530,12 +530,16 @@ tr.solar-system-properties > mark {
     font-size: 0.9em;
 }
 
-tr.solar-system-properties > mark:first-of-type {
+tr.solar-system-properties mark:first-of-type {
     margin-left: 0;
 }
 
-tr.solar-system-properties > mark.system-planets {
+tr.solar-system-properties mark.system-planets {
     margin-right: auto;
+}
+
+tr.solar-system-properties mark.system-class {
+    width: fit-content;
 }
 
 mark.system-planets {
