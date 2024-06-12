@@ -45,8 +45,19 @@ private[map] case class MapState(
 
   def getSystem(id: SystemId): Option[MapSystemWithAll] = systems.get(id)
   def hasSystem(id: SystemId): Boolean                  = systems.get(id).exists(_.display.nonEmpty)
-  def hasConnection(fromSystem: SystemId, toSystem: SystemId): Boolean =
+
+  private inline def hasConnectionInternal(fromSystem: SystemId, toSystem: SystemId): Boolean =
     systems.get(fromSystem).exists(_.connections.exists(c => c.toSystemId == toSystem || c.fromSystemId == toSystem))
+
+  def hasConnection(fromSystem: SystemId, toSystem: SystemId): Boolean =
+    val res       = hasConnectionInternal(fromSystem, toSystem)
+    val otherSide = hasConnectionInternal(toSystem, fromSystem)
+    if (res != otherSide)
+      throw new IllegalStateException(
+        s"Inconsistent state: ${fromSystem}-->${toSystem} @ $res but ${toSystem}-->${fromSystem} @ $otherSide"
+      )
+    res
+
   def getConnection(fromSystem: SystemId, toSystem: SystemId): MapWormholeConnection =
     systems(fromSystem).connections.find(c => c.toSystemId == toSystem || c.fromSystemId == toSystem).head
   def hasGateBetween(fromSystem: SystemId, toSystem: SystemId): Boolean =
@@ -666,7 +677,14 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
         )
       else Chunk.empty
     ZIO.foldLeft(changes)((nextState, locationsUpdate)):
-      case ((st, responses), asm: LocationUpdateAction.AddMapSystem) if !st.hasSystem(asm.system) =>
+      case ((st, responses), asm: LocationUpdateAction.AddMapSystem)
+          if asm.adjacentTo.isEmpty && !st.hasSystem(asm.system) =>
+        addSystemFromLocation(mapId, st, responses, asm).orDie
+      case ((st, responses), asm: LocationUpdateAction.AddMapSystem)
+          if asm.adjacentTo.exists(fromSystemId =>
+            !st
+              .hasConnection(fromSystemId, asm.system) && isPotentialWormholeJump(st, fromSystemId, asm.system)
+          ) && !st.hasSystem(asm.system) =>
         addSystemFromLocation(mapId, st, responses, asm).orDie
       case ((st, responses), amc: LocationUpdateAction.AddMapConnection)
           if !st
@@ -674,7 +692,8 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
         addMapConnectionFromLocation(mapId, st, responses, amc).orDie
       case ((st, responses), aj: LocationUpdateAction.AddJump) if st.hasConnection(aj.fromSystem, aj.toSystem) =>
         addMapConnectionJump(mapId, st, responses, st.getConnection(aj.fromSystem, aj.toSystem).id, aj).orDie
-      case (prev, _) => ZIO.succeed(prev)
+      case (prev, msg) =>
+        ZIO.succeed(prev)
 
   private def addSystemFromLocation(
       mapId: MapId,
@@ -759,6 +778,7 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
               case (Some(p), Some(n)) if online && p.system != n.system && prev.role != model.MapRole.Viewer =>
                 // character has changed location and is online - add the system and a connection to the map
                 Chunk(
+                  LocationUpdateAction.AddMapSystem(p.system, charId, prev.role, Some(n.system), n.updatedAt),
                   LocationUpdateAction.AddMapSystem(n.system, charId, prev.role, Some(p.system), n.updatedAt),
                   LocationUpdateAction.AddMapConnection(p.system, n.system, charId, prev.role, n),
                   LocationUpdateAction.AddJump(charId, p.system, n.system, n)

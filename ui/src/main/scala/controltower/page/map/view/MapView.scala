@@ -12,7 +12,6 @@ import org.updraft0.controltower.constant
 import org.updraft0.controltower.protocol.*
 
 import java.time.Instant
-import scala.annotation.unused
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration.*
@@ -24,7 +23,7 @@ given equalEventTarget[El <: org.scalajs.dom.Element]: CanEqual[org.scalajs.dom.
 private class MapView(
     viewId: Int,
     page: Page.Map,
-    @unused ct: ControlTowerBackend,
+    ct: ControlTowerBackend,
     rds: ReferenceDataStore,
     ws: WebSocket[MapMessage, MapRequest],
     time: Signal[Instant]

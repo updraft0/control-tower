@@ -101,10 +101,14 @@ class MapController(rds: ReferenceDataStore, val clock: Signal[Instant])(using O
       override def now             = self.clock
       override def userPreferences = self.userPreferences
 
+      override def systemName(systemId: Long)   = self.allSystems.signal.map(_.get(systemId).flatMap(_.system.name))
+      override def connection(id: ConnectionId) = self.allConnections.signal.map(_.get(id))
+
   def clear(): Unit =
     Var.set(
       allSystems.current     -> Map.empty,
       allConnections.current -> Map.empty,
+      allLocations.current   -> Map.empty,
       selectedSystemId       -> Option.empty,
       selectedConnectionId   -> Option.empty
     )
@@ -274,7 +278,7 @@ class MapController(rds: ReferenceDataStore, val clock: Signal[Instant])(using O
         )
 
 object MapController:
-  private val DefaultMapSettings = MapSettings(staleScanThreshold = Duration.ofHours(24))
+  private val DefaultMapSettings = MapSettings(staleScanThreshold = Duration.ofHours(6))
 
 private inline def updateConnectionById(
     connections: Array[MapWormholeConnection],

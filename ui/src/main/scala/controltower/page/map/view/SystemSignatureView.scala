@@ -21,18 +21,22 @@ private val SigIdNameDashNumPrefix = "^[A-Za-z]{3}-[0-9]{1,3}$".r
 private val SigIdRegexFull         = "^[A-Za-z]{3}-[0-9]{3}$".r
 
 enum SignatureFilter derives CanEqual:
-  case All, Wormhole, Combat, Indy, Hacking
+  case All, Wormhole, Combat, Indy, Hacking, Unscanned
 
 enum ConnectionTarget derives CanEqual:
   def idOpt: Option[ConnectionId] =
     this match
-      case Unknown               => None
-      case Wormhole(id, _, _, _) => Some(id)
+      case Unknown                  => None
+      case Wormhole(id, _, _, _, _) => Some(id)
 
   case Unknown extends ConnectionTarget
-  // TODO: EOL status, mass status etc.
-  case Wormhole(id: ConnectionId, toSystemId: SystemId, toSystemName: Option[String], toSolarSystem: SolarSystem)
-      extends ConnectionTarget
+  case Wormhole(
+      id: ConnectionId,
+      toSystemId: SystemId,
+      toSystemName: Signal[Option[String]],
+      toSolarSystem: SolarSystem,
+      connection: Signal[Option[MapWormholeConnectionWithSigs]]
+  ) extends ConnectionTarget
 
 class SystemSignatureView(
     staticData: SystemStaticData,
@@ -42,7 +46,8 @@ class SystemSignatureView(
     mapRole: Signal[MapRole],
     time: Signal[Instant],
     isConnected: Signal[Boolean]
-) extends ViewController:
+)(using mapCtx: MapViewContext)
+    extends ViewController:
 
   private val filter = Var(SignatureFilter.All)
 
@@ -69,7 +74,7 @@ private inline def sigView(
     time: Signal[Instant],
     isConnected: Signal[Boolean],
     actions: WriteBus[MapAction]
-) =
+)(using mapCtx: MapViewContext) =
   val solarSystem  = static.solarSystemMap(mss.system.systemId)
   val selectedSigs = Selectable[SigId]()
 
@@ -255,8 +260,9 @@ private inline def sigView(
             ConnectionTarget.Wormhole(
               id = whc.id,
               toSystemId = targetId,
-              toSystemName = None /* TODO how to lookup name of other system on map */,
-              toSolarSystem = static.solarSystemMap(targetId)
+              toSystemName = mapCtx.systemName(targetId),
+              toSolarSystem = static.solarSystemMap(targetId),
+              connection = mapCtx.connection(whc.id)
             )
           },
           solarSystem,
@@ -413,6 +419,7 @@ private def signatureRow(
       )
 
 private def isVisibleWithFilter(filter: SignatureFilter, sig: MapSystemSignature) = (filter, sig) match
+  case (SignatureFilter.Unscanned, sig)                     => !sigIsScanned(sig, fakeScan = true)
   case (SignatureFilter.All, _: MapSystemSignature.Unknown) => true
   case (_, _: MapSystemSignature.Unknown)                   => false
   case (_, _: MapSystemSignature.Wormhole)                  => true
@@ -427,6 +434,7 @@ private def isVisibleWithFilter(filter: SignatureFilter, sig: MapSystemSignature
 
 private def selectGroup(currentValue: SignatureGroup, newGroup: Observer[SignatureGroup]) =
   // note: need to exclude unknown because currently cannot go back to unknown
+  // FIXME allow reverting back to Unknown
   select(
     cls := "signature-group-inline",
     SignatureGroup.values
@@ -521,18 +529,22 @@ given DropdownItem[SignatureClassified] with
 
 given DropdownItem[ConnectionTarget] with
   def key(ct: ConnectionTarget): String = ct match
-    case ConnectionTarget.Unknown               => "unknown"
-    case ConnectionTarget.Wormhole(id, _, _, _) => id.toString
+    case ConnectionTarget.Unknown                  => "unknown"
+    case ConnectionTarget.Wormhole(id, _, _, _, _) => id.toString
   def group(ct: ConnectionTarget): Option[String] = None
   def view(ct: ConnectionTarget): Element = ct match
     case ConnectionTarget.Unknown => span(dataAttr("connection-type") := "Unknown", "Unknown")
-    case ConnectionTarget.Wormhole(id, _, toName, toSystem) =>
+    case ConnectionTarget.Wormhole(id, _, toName, toSystem, connection) =>
+      // TODO: this code duplicates the wormhole rendering code in the paste signature view
       span(
         cls                       := "wormhole-connection-option",
         dataAttr("connection-id") := id.toString,
+        cls("wormhole-eol") <-- connection.map(
+          _.exists(whcs => whcs.toSignature.exists(_.eolAt.nonEmpty) || whcs.fromSignature.exists(_.eolAt.nonEmpty))
+        ),
         span(
           cls := "connection-system-name",
-          toName.getOrElse(toSystem.name)
+          child.text <-- toName.map(_.getOrElse(toSystem.name))
         ),
         mark(
           cls := "wh-target-class",
@@ -546,7 +558,10 @@ given (using static: SystemStaticData): DropdownItem[WormholeSelectInfo] with
   def key(wsi: WormholeSelectInfo): String           = wsi.key
   def group(wsi: WormholeSelectInfo): Option[String] = Some(wsi.group)
   def view(wsi: WormholeSelectInfo): Element =
-    div(wormholeTypeCell(wsi.connectionType, false, WormholeMassStatus.Unknown, WormholeMassSize.Unknown, None, static))
+    div(
+      dataAttr("wormhole-type") := wsi.key,
+      wormholeTypeCell(wsi.connectionType, false, WormholeMassStatus.Unknown, WormholeMassSize.Unknown, None, static)
+    )
 
 private def toDisplayValue(res: Boolean) = if (res) "" else "none"
 
@@ -559,20 +574,41 @@ private inline def displayDuration(d: Duration) =
   else s"${d.getSeconds / 3_600}h ${d.getSeconds                          % 3_600 / 60}m"
 
 private def scanClass(sigs: Array[MapSystemSignature]) =
-  if (sigs.forall(_.signatureGroup == SignatureGroup.Unknown)) "unscanned"
-  else if (sigs.exists(_.signatureGroup == SignatureGroup.Unknown)) "partially-scanned"
+  if (sigs.forall(!sigIsScanned(_, fakeScan = true))) "unscanned"
+  else if (sigs.exists(!sigIsScanned(_, fakeScan = true))) "partially-scanned"
   else "fully-scanned"
 
 private[map] def scanPercent(sigs: Array[MapSystemSignature], fullOnEmpty: Boolean): Double =
-  if (sigs.isEmpty && fullOnEmpty) 100
-  else if (sigs.isEmpty) 0
-  else 100.0 * (sigs.count(_.signatureGroup != SignatureGroup.Unknown).toDouble / sigs.size)
+  val needsScanning = sigs.count(sigNeedsScanning)
+  val scanned       = sigs.count(sigIsScanned(_))
+
+  if (scanned == 0 && fullOnEmpty) 100
+  else if (needsScanning == 0) 0
+  else 100.0 * (scanned.toDouble / needsScanning)
+
+private inline def sigIsScanned(sig: MapSystemSignature, fakeScan: Boolean = false) =
+  sig match
+    case _: MapSystemSignature.Unknown   => false
+    case wh: MapSystemSignature.Wormhole => hasWormholeTarget(wh)
+    case s: MapSystemSignature.Site
+        if s.signatureGroup == SignatureGroup.Combat || s.signatureGroup == SignatureGroup.Ore =>
+      fakeScan
+    case _ => true
+
+private inline def hasWormholeTarget(wh: MapSystemSignature.Wormhole) =
+  wh.connectionType != WormholeConnectionType.Unknown && wh.connectionId.isDefined
+
+private inline def sigNeedsScanning(sig: MapSystemSignature) =
+  sig.signatureGroup match
+    case SignatureGroup.Combat => false
+    case SignatureGroup.Ore    => false
+    case _                     => true
 
 private[map] def scanStale(sigs: Array[MapSystemSignature], settings: MapSettings, now: Instant): Boolean =
   sigs.exists(sigIsStale(_, settings, now))
 
 private[map] def sigIsStale(sig: MapSystemSignature, settings: MapSettings, now: Instant): Boolean =
-  Duration.between(sig.updatedAt, now).compareTo(settings.staleScanThreshold) >= 0
+  sig.updatedAt.plus(settings.staleScanThreshold).isBefore(now)
 
 private def addSingleSignatureView(
     solarSystem: SolarSystem,

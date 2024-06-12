@@ -47,6 +47,12 @@ object CharacterAuthTracker:
       _   <- state.update(_ => all.map(ca => ca.characterId -> CharacterState.Active(ca)).toMap)
       // wait for initial refresh
       _ <- refreshPending(esi, state, hub)
+      _ <- state.get.flatMap(sm =>
+        ZIO.logDebug(s"Have active tokens for ${sm.count {
+            case (_, _: CharacterState.Active) => true
+            case _                             => false
+          }} characters")
+      )
       // start the refresh timer
       _ <- refreshPending(esi, state, hub).repeat(Schedule.fixed(PollInterval)).forkScoped
       // start the snapshot timer
@@ -112,8 +118,8 @@ object CharacterAuthTracker:
       now <- ZIO.clockWith(_.instant)
       nowExp = now.plus(PollInterval)
       curr <- state.get
-      activeEntries = curr.values.collect {
-        case CharacterState.Active(token) if token.expiry.isAfter(nowExp) => token
+      activeEntries = curr.values.collect { case CharacterState.Active(token) =>
+        token
       }
       _ <- q.offer(Chunk.from(activeEntries))
     yield ()

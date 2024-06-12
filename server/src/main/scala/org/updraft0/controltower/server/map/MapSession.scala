@@ -115,7 +115,7 @@ object MapSession:
         // process any session messages
         _ <- sessionMessages.take.flatMap(handleMapSessionMessage(character.id, mapRole, close, _)).forever.forkScoped
         // ping out every ping interval to keep connection open
-        _ <- chan.send(ChannelEvent.Read(WebSocketFrame.Ping)).schedule(Schedule.fixed(PingInterval)).forkDaemon
+        _ <- chan.send(ChannelEvent.Read(WebSocketFrame.Ping)).schedule(Schedule.fixed(PingInterval)).ignore.forkDaemon
         // join on the remaining loops
         _ <- recv.join
         _ <- send.join

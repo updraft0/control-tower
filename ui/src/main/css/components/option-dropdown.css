@@ -76,11 +76,11 @@ div.option-dropdown {
         }
 
         & li:hover, & input:focus ~ label {
-            background-color: $gray-lighter;
+            background-color: $gray-light;
         }
 
         & input:checked ~ label {
-            background-color: $orange-dark;
+            background-color: $orange-darkest;
         }
 
         & li label {

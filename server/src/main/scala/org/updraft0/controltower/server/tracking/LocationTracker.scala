@@ -46,7 +46,17 @@ trait LocationTracker:
 object LocationTracker:
   private val InCapacity          = 64
   private val InternalHubCapacity = 64
-  private val OnlineUpdateSeconds = 60
+
+  // Ensure that the token is at least this much before expiry
+  private val AuthTooOld = 10.seconds
+
+  // Update the 'online' status of characters with this period
+  private val OnlineUpdateInterval = 1.minute
+
+  // Error if the ESI call takes more than this period
+  private val EsiCallTimeout = 3.seconds
+
+  private val FakeEsiTimeout = EsiError.Timeout("Internal location tracker timeout", None)
 
   case class Config(interval: Duration, maxParallel: Int)
 
@@ -145,7 +155,7 @@ object LocationTracker:
     m.updatedWith(s.charId):
       case None => Some(s)
       case Some(p) =>
-        Some(s.copy(auth = p.auth.orElse(s.auth))) // update auth in case it was refreshed during checking locations
+        Some(s.copy(auth = p.auth)) // update auth in case it was refreshed during checking locations
 
   private def refreshLocation(esi: EsiClient, now: Instant, st: CharacterState): UIO[CharacterState] =
     st match
@@ -153,30 +163,35 @@ object LocationTracker:
         // no-op - with no auth there is nothing to update
         ZIO.succeed(st.copy(state = CharacterLocationState.NoAuth, updatedAt = now))
       case CharacterState(_, CharacterLocationState.Offline, _, prevAt, _)
-          if now.isBefore(prevAt.plusSeconds(OnlineUpdateSeconds)) =>
+          if now.isBefore(prevAt.plus(OnlineUpdateInterval)) =>
         // no-op - with the character offline within the endpoint cache window there is nothing to update
         ZIO.succeed(st)
-      case CharacterState(charId, _, Some(auth), _, _) if auth.expiry.isBefore(now.plusSeconds(OnlineUpdateSeconds)) =>
+      case CharacterState(charId, _, Some(auth), _, _) if auth.expiry.isBefore(now.plus(AuthTooOld)) =>
         // cannot use a token that is expired (but character auth tracker should give us an update)
         ZIO
-          .logWarning("Not refreshing character due to expired auth token")
+          .logWarning("Not refreshing character due to expiring/expired auth token")
           .as(st.copy(auth = None, state = CharacterLocationState.NoAuth, updatedAt = now))
       case CharacterState(charId, prevState, Some(auth), prevAt, _) =>
         // refresh with previous state
         doRefresh(esi, now, charId, prevState, auth)
-          .tapError(ex => ZIO.logError(s"ESI error while refreshing character status: ${ex}"))
-          .fold(
+          .foldZIO(
             {
-              case EsiError.BadGateway => st // ignore bad gateway errors
-              case _: EsiError.Timeout => st // ignore gateway timeouts
-              case _ => st.copy(state = CharacterLocationState.ApiError, prevState = Some(prevState), updatedAt = now)
+              case EsiError.BadGateway => ZIO.succeed(st) // ignore bad gateway errors
+              case t: EsiError.Timeout =>
+                ZIO.logTrace(s"Timed out during ESI call: ${t.error}").as(st) // ignore gateway timeouts
+              case e =>
+                ZIO
+                  .logError(s"ESI error while refreshing character status, ignoring: ${e}")
+                  .as(
+                    st.copy(state = CharacterLocationState.ApiError, prevState = Some(prevState), updatedAt = now)
+                  )
             },
-            identity
+            ZIO.succeed
           )
           .resurrect
           .foldZIO(
             {
-              case iox: java.io.IOException if iox.getMessage.contains("GOAWAY received") =>
+              case scx: sttp.client3.SttpClientException if scx.cause.getMessage.contains("GOAWAY received") =>
                 // TODO look into using a different client that handles errors more gracefully?
                 // ignore HTTP/2 GOAWAY as a transient error similar to the 502 errors above
                 ZIO.succeed(st)
@@ -195,9 +210,9 @@ object LocationTracker:
       prevState: CharacterLocationState,
       auth: CharacterAuth
   ) =
-    (esi.getCharacterOnline(auth.token)(charId) <&>
-      esi.getCharacterLocation(auth.token)(charId) <&>
-      esi.getCharacterShip(auth.token)(charId))
+    (esi.getCharacterOnline(auth.token)(charId).timeoutFail(FakeEsiTimeout)(EsiCallTimeout) <&>
+      esi.getCharacterLocation(auth.token)(charId).timeoutFail(FakeEsiTimeout)(EsiCallTimeout) <&>
+      esi.getCharacterShip(auth.token)(charId).timeoutFail(FakeEsiTimeout)(EsiCallTimeout))
       .map: (online, location, ship) =>
         val prevSystemId = prevState match
           case is: CharacterLocationState.InSystem => Some(is.system)

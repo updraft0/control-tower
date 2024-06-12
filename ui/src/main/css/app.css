@@ -146,7 +146,8 @@ $box-height:    40px;
     /*flex: unset; !* TODO not sure ? *!*/
     /*width: 70%;*/
     /*width: 500px;*/
-    min-height: 600px;
+    min-height: 60vh;
+    height: 60vh;
     /*height: 500px;*/
     overflow: auto;
     box-sizing: content-box;
@@ -271,6 +272,30 @@ mark.system-online-chars {
 
 span.wormhole-connection-option {
     margin: 1px 0 1px 0;
+
+    /* TODO this is a mess - use @mixin wormhole-type-cell */
+}
+
+span.wormhole-connection-option.wormhole-eol {
+    & :first-child {
+        border-top: 2px solid $pink-dark;
+        border-bottom: 2px solid $pink-dark;
+    }
+}
+
+td.signature-type {
+    /* FIXME why a div and lowercase ... */
+    & div[data-wormhole-type="unknown"] {
+        color: $red;
+        text-decoration: $red-dark dotted underline;
+    }
+}
+
+td.signature-target {
+    & span[data-connection-type="Unknown"] {
+        color: $red;
+        text-decoration: $red-dark dotted underline;
+    }
 }
 
 span.connection-system-name {

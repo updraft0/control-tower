@@ -102,7 +102,9 @@ class SystemView(
             systemShattered(solarSystem),
             systemEffect(solarSystem),
             systemIsPinned(system.map(_.system)),
-            systemScanStatus(system.map(_.signatures), settings, ctx.now)
+            // do not display scan status for kspace
+            if (solarSystem.systemClass.exists(_.spaceType == SpaceType.Known)) emptyNode
+            else systemScanStatus(system.map(_.signatures), settings, ctx.now)
           )
 
           val secondLine = div(
@@ -220,6 +222,7 @@ private inline def systemScanStatus(
     settings: Signal[MapSettings],
     now: Signal[Instant]
 ) =
+  // TODO: this now does not correspond to the scan status indicator on the signature view
   val scanIsStale = now
     .withCurrentValueOf(s, settings)
     .map:
