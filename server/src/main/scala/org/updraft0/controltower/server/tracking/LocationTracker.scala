@@ -3,7 +3,7 @@ package org.updraft0.controltower.server.tracking
 import org.updraft0.controltower.constant.*
 import org.updraft0.controltower.server.auth.CharacterAuth
 import org.updraft0.controltower.server.Log
-import org.updraft0.esi.client.{EsiClient, EsiError}
+import org.updraft0.esi.client.{EsiClient, EsiError, ServerStatusResponse}
 import zio.*
 
 import java.time.Instant
@@ -44,6 +44,8 @@ trait LocationTracker:
   def updates: URIO[Scope, Dequeue[LocationUpdate]]
 
 object LocationTracker:
+  type Env = EsiClient & CharacterAuthTracker & ServerStatusTracker & Config
+
   private val InCapacity          = 64
   private val InternalHubCapacity = 64
 
@@ -60,10 +62,10 @@ object LocationTracker:
 
   case class Config(interval: Duration, maxParallel: Int)
 
-  def layer: ZLayer[EsiClient & CharacterAuthTracker & Config, Throwable, LocationTracker] =
+  def layer: ZLayer[Env, Throwable, LocationTracker] =
     ZLayer.scoped(ZIO.serviceWithZIO[Config](c => apply(c)).tap(subscribeToAuthUpdates))
 
-  def apply(c: Config): ZIO[Scope & EsiClient, Throwable, LocationTracker] =
+  def apply(c: Config): ZIO[Scope & Env, Throwable, LocationTracker] =
     for
       // create services
       esi         <- ZIO.service[EsiClient]
@@ -139,7 +141,22 @@ object LocationTracker:
       response: Enqueue[LocationUpdate],
       parallel: Int
   ) =
+    ZIO
+      .serviceWithZIO[ServerStatusTracker](_.status)
+      .flatMap:
+        case Left(err) => ZIO.logDebug(s"Not refreshing locations due to server status error: ${err}")
+        case Right(s) if !s.isOnlineEnough => ZIO.logDebug("Not refreshing locations due to not being online enough")
+        case Right(_)                      => refreshLocationsInner(esi, state, response, parallel)
+
+  private def refreshLocationsInner(
+      esi: EsiClient,
+      state: Ref[TrackerState],
+      response: Enqueue[LocationUpdate],
+      parallel: Int
+  ) =
     for
+      status <- ZIO.serviceWithZIO[ServerStatusTracker](_.status)
+
       curr <- state.get
       now  <- ZIO.clockWith(_.instant)
       withAuth = curr.charState.view.filter(_._2.auth.isDefined).values

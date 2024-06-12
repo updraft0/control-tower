@@ -27,6 +27,7 @@ case class CharacterShipResponse(
     shipName: String,
     shipTypeId: Int
 )
+case class ServerStatusResponse(players: Int, serverVersion: String, startTime: String, vip: Option[Boolean])
 
 enum FleetError:
   case NotInFleet
@@ -75,6 +76,13 @@ object Endpoints:
     .in(formBody[Map[String, String]])
     .out(jsonBody[JwtAuthResponse])
     .errorOut(jsonBody[AuthErrorResponse])
+
+  // status
+  val getStatus = endpoint.get
+    .in("v2" / "status")
+    .out(jsonBody[ServerStatusResponse])
+    .errorOut(esiErrorOut)
+    .description("Get server status")
 
   // character
   val getCharacterRoles = jwtEndpoint.get

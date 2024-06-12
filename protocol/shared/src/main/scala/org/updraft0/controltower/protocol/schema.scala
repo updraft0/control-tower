@@ -89,6 +89,7 @@ object schema:
   given Schema[MapSystemSignature]            = Schema.derived
   given Schema[MapSystemSignature.Wormhole]   = Schema.derived
   given Schema[MapSystemSnapshot]             = Schema.derived
+  given Schema[MapServerStatus]               = Schema.derived
   given Schema[NewSystemSignature]            = Schema.derived
 
 object jsoncodec:
@@ -169,6 +170,7 @@ object jsoncodec:
   given JsonCodec[MapWormholeConnectionJump]     = JsonCodec.derived
   given JsonCodec[MapWormholeConnectionRank]     = JsonCodec.derived
   given JsonCodec[MapWormholeConnectionWithSigs] = JsonCodec.derived
+  given JsonCodec[MapServerStatus]               = JsonCodec.derived
   given JsonCodec[SignatureGroup]                = JsonCodec.string.transform(SignatureGroup.valueOf, _.toString)
   given JsonCodec[WormholeMassSize]              = JsonCodec.string.transform(WormholeMassSize.valueOf, _.toString)
   given JsonCodec[WormholeMassStatus]            = JsonCodec.string.transform(WormholeMassStatus.valueOf, _.toString)

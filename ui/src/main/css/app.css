@@ -41,7 +41,7 @@
     -moz-osx-font-smoothing: grayscale;
     -webkit-text-size-adjust: 100%;
 
-    scrollbar-color: $gray-darker $gray-dark;
+    scrollbar-color: $teal-dark $gray-dark;
 }
 
 

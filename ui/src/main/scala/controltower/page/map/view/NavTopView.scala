@@ -18,6 +18,7 @@ class NavTopView(
     locations: Signal[Map[constant.SystemId, Array[CharacterLocation]]],
     time: Signal[Instant],
     isConnected: Signal[Boolean],
+    serverStatus: Signal[MapServerStatus],
     ct: ControlTowerBackend
 ) extends ViewController:
 
@@ -30,7 +31,8 @@ class NavTopView(
     userInfo(mapName, mapMeta.map(_.character), mapMeta.map(_.role)),
     locationStatus(locations),
     timeStatus(time),
-    connectionStatus(isConnected)
+    connectionStatus(isConnected),
+    eveServerStatus(isConnected, serverStatus)
   )
 
   private def editMapButton(using ControlTowerBackend) =
@@ -81,6 +83,18 @@ private def connectionStatus(isConnected: Signal[Boolean]) =
     cls := "right-block",
     cls := "ti",
     cls <-- isConnected.map(c => if (c) "ti-link" else "ti-unlink")
+  )
+
+private def eveServerStatus(isConnected: Signal[Boolean], status: Signal[MapServerStatus]) =
+  span(
+    cls := "eve-server-status",
+    cls := "right-block",
+    cls := "ti",
+    cls <-- isConnected.combineWith(status).map {
+      case (false, _)                        => "ti-satellite-off"
+      case (_, MapServerStatus.Error)        => "ti-satellite-off"
+      case (true, _: MapServerStatus.Online) => "ti-satellite"
+    }
   )
 
 // TODO move this somewhere else

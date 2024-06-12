@@ -234,6 +234,10 @@ case class MapSystemSnapshot(
     connections: Array[MapWormholeConnection]
 ) derives CanEqual
 
+enum MapServerStatus derives CanEqual:
+  case Error
+  case Online(players: Int, version: String, startedAt: String, vip: Boolean)
+
 enum NewSystemName derives CanEqual:
   case None
   case Name(value: String)
@@ -325,5 +329,6 @@ enum MapMessage:
       removedConnectionIds: Array[ConnectionId],
       connections: Map[ConnectionId, MapWormholeConnectionWithSigs]
   )
+  case ServerStatus(status: MapServerStatus)
 
 // endregion

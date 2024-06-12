@@ -12,7 +12,12 @@ import org.updraft0.controltower.server.db.{
   MapWormholeConnectionWithSigs
 }
 import org.updraft0.controltower.server.endpoints.{toMapInfo, toProtocolRole}
-import org.updraft0.controltower.server.tracking.{CharacterLocationState, LocationTracker, LocationTrackingRequest}
+import org.updraft0.controltower.server.tracking.{
+  CharacterLocationState,
+  LocationTracker,
+  LocationTrackingRequest,
+  ServerStatusTracker
+}
 import zio.*
 import zio.http.ChannelEvent.UserEvent
 import zio.http.{ChannelEvent, Handler, WebSocketChannelEvent, WebSocketFrame}
@@ -38,7 +43,7 @@ enum MapSessionMessage:
   *   socket closure (here we do `Channel.awaitShutdown` to close the manually-created scope and release the resources)
   */
 object MapSession:
-  type Env = MapReactive.Service & javax.sql.DataSource & LocationTracker
+  type Env = MapReactive.Service & javax.sql.DataSource & LocationTracker & ServerStatusTracker
 
   private val jsonContent  = LogAnnotation[String]("json", (_, b) => b, identity)
   private val errorMessage = LogAnnotation[String]("error", (_, b) => b, identity)
@@ -50,6 +55,8 @@ object MapSession:
   /** Proxies etc. close websocket connections if there are no messages
     */
   private val PingInterval = 1.minute
+
+  private val ServerStatusInterval = 1.minute
 
   private case class Context(
       mapId: MapId,
@@ -116,6 +123,11 @@ object MapSession:
         _ <- sessionMessages.take.flatMap(handleMapSessionMessage(character.id, mapRole, close, _)).forever.forkScoped
         // ping out every ping interval to keep connection open
         _ <- chan.send(ChannelEvent.Read(WebSocketFrame.Ping)).schedule(Schedule.fixed(PingInterval)).ignore.forkDaemon
+        // listen for server status
+        _ <- sendServerStatus(ourQ)
+          .schedule(Schedule.once.andThen(Schedule.fixed(ServerStatusInterval)))
+          .ignore
+          .forkDaemon
         // join on the remaining loops
         _ <- recv.join
         _ <- send.join
@@ -254,6 +266,18 @@ object MapSession:
           MapRequest.RemoveSystemSignatures(systemId, None)
         )
       )
+
+private def sendServerStatus(ourQ: Enqueue[protocol.MapMessage]) =
+  ZIO
+    .serviceWithZIO[ServerStatusTracker](_.status)
+    .flatMap:
+      case Left(_) => ourQ.offer(protocol.MapMessage.ServerStatus(protocol.MapServerStatus.Error))
+      case Right(s) =>
+        ourQ.offer(
+          protocol.MapMessage.ServerStatus(
+            protocol.MapServerStatus.Online(s.players, s.serverVersion, s.startTime, s.vip.contains(true))
+          )
+        )
 
 private def isAllowed(msg: protocol.MapRequest, role: model.MapRole): Boolean = (msg, role) match
   case (protocol.MapRequest.GetMapInfo | protocol.MapRequest.GetSnapshot, _) => true

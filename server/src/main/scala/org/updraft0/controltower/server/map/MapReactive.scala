@@ -1,6 +1,6 @@
 package org.updraft0.controltower.server.map
 
-import org.updraft0.controltower.constant.{SystemId => _, *}
+import org.updraft0.controltower.constant.{SystemId as _, *}
 import org.updraft0.controltower.db.model.{
   MapSystemSignature,
   MapWormholeConnection,

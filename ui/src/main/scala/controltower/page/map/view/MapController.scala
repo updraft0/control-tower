@@ -32,7 +32,8 @@ class MapController(rds: ReferenceDataStore, val clock: Signal[Instant])(using O
   val requestBus  = EventBus[MapRequest]()
   val responseBus = EventBus[MapMessage]()
 
-  val mapMeta = Var[Option[MapMessage.MapMeta]](None)
+  val mapMeta      = Var[Option[MapMessage.MapMeta]](None)
+  val serverStatus = Var[MapServerStatus](MapServerStatus.Error)
 
   val allSystems     = HVar[Map[Long, MapSystemSnapshot]](Map.empty)
   val allConnections = HVar[Map[ConnectionId, MapWormholeConnectionWithSigs]](Map.empty)
@@ -110,7 +111,8 @@ class MapController(rds: ReferenceDataStore, val clock: Signal[Instant])(using O
       allConnections.current -> Map.empty,
       allLocations.current   -> Map.empty,
       selectedSystemId       -> Option.empty,
-      selectedConnectionId   -> Option.empty
+      selectedConnectionId   -> Option.empty,
+      serverStatus           -> MapServerStatus.Error
     )
     pos.clear()
 
@@ -276,6 +278,7 @@ class MapController(rds: ReferenceDataStore, val clock: Signal[Instant])(using O
               }
           )
         )
+      case MapMessage.ServerStatus(status) => serverStatus.set(status)
 
 object MapController:
   private val DefaultMapSettings = MapSettings(staleScanThreshold = Duration.ofHours(6))

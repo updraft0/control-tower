@@ -24,7 +24,8 @@ import java.security.SecureRandom
   */
 object Server extends ZIOAppDefault:
   type EndpointEnv = Config & javax.sql.DataSource & SessionCrypto & EsiClient & SdeClient & UserSession &
-    MapReactive.Service & TokenCrypto & SecureRandom & MapPermissionTracker & CharacterAuthTracker & LocationTracker
+    MapReactive.Service & TokenCrypto & SecureRandom & MapPermissionTracker & CharacterAuthTracker & LocationTracker &
+    ServerStatusTracker
 
   override val bootstrap = Runtime.enableRuntimeMetrics >>> desktopLogger
 
@@ -63,6 +64,7 @@ object Server extends ZIOAppDefault:
         TokenCrypto.layer,
         ZLayer(ZIO.attempt(new SecureRandom())),
         MapPermissionTracker.layer,
+        ServerStatusTracker.layer,
         ZLayer.scoped(CharacterAffiliationTracker.apply())
       )
 

@@ -92,7 +92,15 @@ private class MapView(
     val connectingSystem = HVar(MapNewConnectionState.Stopped)
 
     val navTopView =
-      NavTopView(page.name, controller.mapMetaSignal, controller.allLocations.signal, time, ws.isConnected, ct)
+      NavTopView(
+        page.name,
+        controller.mapMetaSignal,
+        controller.allLocations.signal,
+        time,
+        ws.isConnected,
+        controller.serverStatus.signal,
+        ct
+      )
     val systemInfoView =
       SolarSystemInfoView(
         static,

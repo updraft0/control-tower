@@ -34,6 +34,9 @@ object schema:
   given Schema[EsiError.NotFound]            = Schema.derived
   given Schema[EsiError.Forbidden]           = Schema.derived
 
+  // status
+  given Schema[ServerStatusResponse] = Schema.derived
+
 object jsoncodec:
   // debug print codecs
   // given CodecMakerConfig.PrintCodec with {}
@@ -90,3 +93,6 @@ object jsoncodec:
   given JsonValueCodec[CharacterLocationResponse]  = JsonCodecMaker.make(config)
   given JsonValueCodec[CharacterOnlineResponse]    = JsonCodecMaker.make(config)
   given JsonValueCodec[CharacterShipResponse]      = JsonCodecMaker.make(config)
+
+  // status
+  given JsonValueCodec[ServerStatusResponse] = JsonCodecMaker.make(config)

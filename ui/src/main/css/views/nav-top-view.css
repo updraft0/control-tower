@@ -85,7 +85,7 @@ div#nav-top-view {
     }
 
     /* connection status icon */
-    & span.connection-status {
+    & span.connection-status, & span.eve-server-status {
         padding-top: 0.2em;
         height: 105%;
     }
@@ -95,5 +95,9 @@ div#nav-top-view {
     }
     & span.connection-status.ti-unlink {
         color: $red;
+    }
+
+    & span.eve-server-status.ti-satellite {
+        color: $green-dark;
     }
 }

@@ -41,13 +41,17 @@ final class EsiClient(config: EsiClient.Config, sttp: SttpClient, interp: SttpCl
     jwtClientDecodeErrors(Endpoints.getCharacterShip).andThen(_.andThen(_.orDie.absolve))
 
   val getCharacter: CharacterId => IO[EsiError, Character] =
-    interp
-      .toClientThrowDecodeFailures(Endpoints.getCharacter, Some(config.base), sttp)
-      .andThen(_.orDie.absolve)
+    noAuthClientDecodeErrors(Endpoints.getCharacter)
 
   val getCharacterAffiliations: List[CharacterId] => IO[EsiError, List[CharacterAffiliation]] =
+    noAuthClientDecodeErrors(Endpoints.getCharacterAffiliations)
+
+  val getServerStatus: Unit => IO[EsiError, ServerStatusResponse] =
+    noAuthClientDecodeErrors(Endpoints.getStatus)
+
+  private def noAuthClientDecodeErrors[I, O](e: Endpoint[Unit, I, EsiError, O, Any]) =
     interp
-      .toClientThrowDecodeFailures(Endpoints.getCharacterAffiliations, Some(config.base), sttp)
+      .toClientThrowDecodeFailures(e, Some(config.base), sttp)
       .andThen(_.orDie.absolve)
 
   private def jwtClient[A, I, E, O](e: Endpoint[A, I, E, O, Any]) =
