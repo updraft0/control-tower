@@ -100,4 +100,8 @@ div#nav-top-view {
     & span.eve-server-status.ti-satellite {
         color: $green-dark;
     }
+
+    & span.eve-server-status.ti-satellite-off {
+        color: $red;
+    }
 }

@@ -24,8 +24,8 @@ enum SignatureUpdate:
   def toScanned: Option[NewSystemSignature] = this match
     case Added(a)        => Some(a)
     case Removed(_)      => None
-    case Unchanged(_, u) => u
-    case Updated(_, u)   => Some(u)
+    case Unchanged(p, _) => Some(p.asNew)
+    case Updated(p, u)   => Some(p.asNewFromUpdate(u))
 
 class PasteSignaturesView(
     existingSigs: Array[MapSystemSignature],
@@ -361,3 +361,26 @@ private[view] def wormholeTypeCell(
 
 private inline def massSizeNotUnknown(ms: WormholeMassSize) =
   if (ms == WormholeMassSize.Unknown) "?" else ms.toString
+
+// NOTE: this is necessary to not have the wormhole attributes overridden while pasting signatures - might need
+//       reworking if paste signature view allows editing
+extension (v: MapSystemSignature)
+  def asNew: NewSystemSignature =
+    v match
+      case u: MapSystemSignature.Unknown => NewSystemSignature.Unknown(u.id, u.createdAt)
+      case s: MapSystemSignature.Site    => NewSystemSignature.Site(s.id, s.createdAt, s.signatureGroup, s.name)
+      case w: MapSystemSignature.Wormhole =>
+        NewSystemSignature.Wormhole(
+          w.id,
+          w.createdAt,
+          w.eolAt.isDefined,
+          w.connectionType,
+          w.massStatus,
+          w.massSize,
+          w.connectionId
+        )
+  def asNewFromUpdate(u: NewSystemSignature): NewSystemSignature =
+    (v, u) match
+      case (w: MapSystemSignature.Wormhole, nw: NewSystemSignature.Wormhole) =>
+        nw.copy(createdAt = w.createdAt, isEol = w.eolAt.isDefined, massStatus = w.massStatus, massSize = w.massSize)
+      case (_, _) => u
