@@ -26,16 +26,18 @@ enum SignatureFilter derives CanEqual:
 enum ConnectionTarget derives CanEqual:
   def idOpt: Option[ConnectionId] =
     this match
-      case Unknown                  => None
-      case Wormhole(id, _, _, _, _) => Some(id)
+      case _: Unknown  => None
+      case w: Wormhole => Some(w.id)
 
-  case Unknown extends ConnectionTarget
+  case Unknown(isEol: Boolean, massStatus: WormholeMassStatus) extends ConnectionTarget
   case Wormhole(
       id: ConnectionId,
       toSystemId: SystemId,
       toSystemName: Signal[Option[String]],
       toSolarSystem: SolarSystem,
-      connection: Signal[Option[MapWormholeConnectionWithSigs]]
+      isEol: Signal[Boolean],
+      connection: Signal[Option[MapWormholeConnectionWithSigs]],
+      massStatus: WormholeMassStatus
   ) extends ConnectionTarget
 
 class SystemSignatureView(
@@ -247,14 +249,14 @@ private inline def sigView(
       )
     ),
     tbody(
-      mss.signatures.map(
+      mss.signatures.map(sig =>
         signatureRow(
           time,
           currentFilter.signal,
           settings,
           selectedSigs,
           actions.contramap(nss => MapAction.UpdateSignatures(solarSystem.id, false, Array(nss))),
-          _,
+          sig,
           mss.connections.map { whc =>
             val targetId = if (whc.fromSystemId == solarSystem.id) whc.toSystemId else whc.fromSystemId
             ConnectionTarget.Wormhole(
@@ -262,7 +264,17 @@ private inline def sigView(
               toSystemId = targetId,
               toSystemName = mapCtx.systemName(targetId),
               toSolarSystem = static.solarSystemMap(targetId),
-              connection = mapCtx.connection(whc.id)
+              connection = mapCtx.connection(whc.id),
+              isEol = mapCtx
+                .connection(whc.id)
+                .map(
+                  _.exists(whcs =>
+                    whcs.toSignature.exists(_.eolAt.nonEmpty) || whcs.fromSignature.exists(_.eolAt.nonEmpty)
+                  )
+                ),
+              massStatus = sig match
+                case w: MapSystemSignature.Wormhole => w.massStatus
+                case _                              => WormholeMassStatus.Unknown
             )
           },
           solarSystem,
@@ -355,9 +367,15 @@ private def signatureRow(
 
   def wormholeTargetSelect(w: MapSystemSignature.Wormhole) =
     // TODO: current approach prevents filtering out connections that are already targeted - rethink
-    val current = Var(w.connectionId.flatMap(cId => connections.find(_.id == cId)).getOrElse(ConnectionTarget.Unknown))
+    val current = Var(
+      w.connectionId
+        .flatMap(cId => connections.find(_.id == cId))
+        .getOrElse(ConnectionTarget.Unknown(isEol = w.eolAt.isDefined, massStatus = w.massStatus))
+    )
     val dropdown = OptionDropdown(
-      connections.prepended(ConnectionTarget.Unknown).toIndexedSeq,
+      connections
+        .prepended(ConnectionTarget.Unknown(isEol = w.eolAt.isDefined, massStatus = w.massStatus))
+        .toIndexedSeq,
       current,
       isDisabled = isEditingDisabled
     )
@@ -529,19 +547,24 @@ given DropdownItem[SignatureClassified] with
 
 given DropdownItem[ConnectionTarget] with
   def key(ct: ConnectionTarget): String = ct match
-    case ConnectionTarget.Unknown                  => "unknown"
-    case ConnectionTarget.Wormhole(id, _, _, _, _) => id.toString
+    case _: ConnectionTarget.Unknown  => "unknown"
+    case w: ConnectionTarget.Wormhole => w.id.toString
   def group(ct: ConnectionTarget): Option[String] = None
   def view(ct: ConnectionTarget): Element = ct match
-    case ConnectionTarget.Unknown => span(dataAttr("connection-type") := "Unknown", "Unknown")
-    case ConnectionTarget.Wormhole(id, _, toName, toSystem, connection) =>
+    case ConnectionTarget.Unknown(isEol, massStatus) =>
+      span(
+        dataAttr("connection-type") := "Unknown",
+        dataAttr("mass-status")     := massStatus.toString,
+        cls("wormhole-eol")         := isEol,
+        "Unknown"
+      )
+    case ConnectionTarget.Wormhole(id, _, toName, toSystem, isEol, _, massStatus) =>
       // TODO: this code duplicates the wormhole rendering code in the paste signature view
       span(
         cls                       := "wormhole-connection-option",
         dataAttr("connection-id") := id.toString,
-        cls("wormhole-eol") <-- connection.map(
-          _.exists(whcs => whcs.toSignature.exists(_.eolAt.nonEmpty) || whcs.fromSignature.exists(_.eolAt.nonEmpty))
-        ),
+        dataAttr("mass-status")   := massStatus.toString,
+        cls("wormhole-eol") <-- isEol,
         span(
           cls := "connection-system-name",
           child.text <-- toName.map(_.getOrElse(toSystem.name))

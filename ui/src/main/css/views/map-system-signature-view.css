@@ -152,11 +152,11 @@
         }
 
         & tr td:not(:first-of-type) {
-            padding-left: 2px;
+            padding-left: 4px;
         }
 
         & tr td:not(:last-of-type) {
-            padding-left: 2px;
+            padding-left: 4px;
         }
     }
 

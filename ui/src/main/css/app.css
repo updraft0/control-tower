@@ -235,6 +235,7 @@ mark.system-class, mark.system-online-chars {
     margin-left: 2px;
     margin-right: 2px;
     width: 1.3em;
+    text-align: center;
 }
 
 .system-class-h {
@@ -272,15 +273,6 @@ mark.system-online-chars {
 
 span.wormhole-connection-option {
     margin: 1px 0 1px 0;
-
-    /* TODO this is a mess - use @mixin wormhole-type-cell */
-}
-
-span.wormhole-connection-option.wormhole-eol {
-    & :first-child {
-        border-top: 2px solid $pink-dark;
-        border-bottom: 2px solid $pink-dark;
-    }
 }
 
 td.signature-type {
@@ -295,6 +287,12 @@ td.signature-target {
     & span[data-connection-type="Unknown"] {
         color: $red;
         text-decoration: $red-dark dotted underline;
+    }
+
+    & span.wormhole-eol {
+        /* FIXME duplication */
+        border-top: 2px solid $pink-dark;
+        border-bottom: 2px solid $pink-dark;
     }
 }
 
