@@ -576,9 +576,7 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
   ) =
     // TODO: signature updates cannot currently change connection ids so only a single system needs to be reloaded
     for
-      _ <-
-        if (uss.replaceAll) query.map.deleteMapSystemSignatures(mapId, uss.systemId, now, sessionId.characterId)
-        else ZIO.succeed(0)
+      _ <- query.map.deleteMapSystemSignaturesAll(mapId, uss.systemId, now, sessionId.characterId).when(uss.replaceAll)
       mapSystemId = (mapId, uss.systemId)
       mapSystem   = state.getSystem(uss.systemId).get
       _ <- ZIO.foreachDiscard(
@@ -586,10 +584,12 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
           .map(lookupExisting(mapSystem, _))
           .map((prevOpt, newSig) => toModelSignature(now, sessionId, mapSystemId, prevOpt, newSig))
       )(query.map.upsertMapSystemSignature)
+      // reload the whole system
       sys   <- loadSingleSystem(mapId, uss.systemId)
       conns <- MapQueries.getWormholeConnectionsWithSigsBySystemId(mapId, uss.systemId)
-    yield withState(state.updateOne(sys.sys.systemId, sys, conns, Nil))(nextState =>
-      nextState -> broadcast(nextState.systemSnapshot(sys.sys.systemId))
+      ranks <- MapQueries.getWormholeConnectionRanksForSystem(mapId, uss.systemId)
+    yield withState(state.updateOne(sys.sys.systemId, sys, conns, ranks))(s =>
+      s -> broadcast(s.systemSnapshot(sys.sys.systemId))
     )
 
   private def removeSystemAndConnection(
@@ -605,6 +605,8 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
     for
       // mark connections as removed
       _ <- query.map.deleteMapWormholeConnections(connectionIds, sessionId.characterId)
+      // remove signatures that have those connections
+      _ <- query.map.deleteSignaturesWithConnectionIds(connectionIds, sessionId.characterId)
       // remove the display of the system
       _ <- query.map.deleteMapSystemDisplay(mapId, rs.systemId)
       // recompute all the connection ranks
@@ -651,14 +653,19 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
       now: Instant,
       rss: MapRequest.RemoveSystemSignatures
   ) =
+    // TODO need to recompute state for all the connection ids :) <-- aka if the connection is being deleted,
+    //    remove the whole connection on both sides!
     for
+      connectionIds <- query.map.getSystemConnectionIdsInSignatures(mapId, rss.systemId, rss.signatures.map(_.toChunk))
+      _             <- query.map.deleteMapWormholeConnections(Chunk.fromIterable(connectionIds), sessionId.characterId)
       _ <- rss.signatures match
-        case None => query.map.deleteMapSystemSignatures(mapId, rss.systemId, now, sessionId.characterId)
-        case Some(ids) =>
-          ZIO.foreach(ids)(id => query.map.deleteMapSystemSignature(mapId, rss.systemId, id, sessionId.characterId))
+        case None      => query.map.deleteMapSystemSignaturesAll(mapId, rss.systemId, now, sessionId.characterId)
+        case Some(ids) => query.map.deleteMapSystemSignatures(mapId, rss.systemId, ids, sessionId.characterId)
+      // reload the whole system
       sys   <- loadSingleSystem(mapId, rss.systemId)
       conns <- MapQueries.getWormholeConnectionsWithSigsBySystemId(mapId, rss.systemId)
-    yield withState(state.updateOne(sys.sys.systemId, sys, conns, Nil))(s =>
+      ranks <- MapQueries.getWormholeConnectionRanksForSystem(mapId, rss.systemId)
+    yield withState(state.updateOne(sys.sys.systemId, sys, conns, ranks))(s =>
       s -> broadcast(s.systemSnapshot(sys.sys.systemId))
     )
 

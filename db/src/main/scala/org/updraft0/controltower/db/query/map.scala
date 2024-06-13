@@ -106,6 +106,36 @@ object map:
       .run(quote { mapSystem.filter(ms => ms.mapId == lift(mapId) && ms.systemId == lift(systemId)) })
       .map(_.headOption)
 
+  private inline def findWormholeMapSignatures(mapId: MapId, systemId: SystemId) =
+    quote(
+      mapSystemSignature
+        .filter(_.mapId == lift(mapId))
+        .filter(_.systemId == lift(systemId))
+        .filter(_.isDeleted == lift(false))
+        .filter(_.wormholeConnectionId.nonEmpty)
+    )
+
+  private inline def joinConnectionIds(inline mssq: Quoted[Query[MapSystemSignature]]) =
+    mssq
+      .join(mapWormholeConnection)
+      .on((mss, mwc) => mss.wormholeConnectionId.contains(mwc.id) && mwc.isDeleted == lift(false))
+      .map((_, mwc) => mwc.id)
+
+  def getSystemConnectionIdsInSignatures(
+      mapId: MapId,
+      systemId: SystemId,
+      sigIds: Option[Chunk[SigId]]
+  ): DbOperation[List[ConnectionId]] =
+    sigIds match
+      case Some(sigIds) =>
+        ctx.run(
+          joinConnectionIds(
+            findWormholeMapSignatures(mapId, systemId).filter(mss => liftQuery(sigIds).contains(mss.signatureId))
+          )
+        )
+      case None =>
+        ctx.run(joinConnectionIds(findWormholeMapSignatures(mapId, systemId)))
+
   // inserts
   def insertMapWormholeConnection(value: MapWormholeConnection): DbOperation[MapWormholeConnection] =
     ctx
@@ -304,32 +334,55 @@ object map:
       )
       .map(_.sum)
 
-  def deleteMapSystemSignatures(
+  def deleteSignaturesWithConnectionIds(ids: Chunk[ConnectionId], byCharacterId: CharacterId): DbOperation[Long] =
+    ctx
+      .run(
+        quote(
+          liftQuery(ids).foreach(id =>
+            mapSystemSignature
+              .filter(_.wormholeConnectionId.exists(_ == id))
+              .update(
+                _.isDeleted            -> lift(true),
+                _.updatedByCharacterId -> lift(byCharacterId),
+                _.updatedAt            -> unixepoch
+              )
+          )
+        )
+      )
+      .map(_.sum)
+
+  def deleteMapSystemSignaturesAll(
       mapId: MapId,
       systemId: SystemId,
       now: Instant,
       byCharacterId: CharacterId
   ): DbOperation[Long] =
     ctx.run(
-      mapSystemSignature
-        .filter(_.mapId == lift(mapId))
-        .filter(_.systemId == lift(systemId))
-        .update(_.isDeleted -> lift(true), _.updatedByCharacterId -> lift(byCharacterId), _.updatedAt -> lift(now))
+      quote(
+        mapSystemSignature
+          .filter(_.mapId == lift(mapId))
+          .filter(_.systemId == lift(systemId))
+          .update(_.isDeleted -> lift(true), _.updatedByCharacterId -> lift(byCharacterId), _.updatedAt -> lift(now))
+      )
     )
 
-  def deleteMapSystemSignature(
+  def deleteMapSystemSignatures(
       mapId: MapId,
       systemId: SystemId,
-      signatureId: SigId,
+      signatureIds: Chunk[SigId],
       byCharacterId: CharacterId
   ): DbOperation[Long] =
-    ctx.run(
-      mapSystemSignature
-        .filter(_.mapId == lift(mapId))
-        .filter(_.systemId == lift(systemId))
-        .filter(_.signatureId == lift(signatureId))
-        .update(_.isDeleted -> lift(true), _.updatedByCharacterId -> lift(byCharacterId), _.updatedAt -> unixepoch)
-    )
+    ctx
+      .run(
+        liftQuery(signatureIds).foreach(sigId =>
+          mapSystemSignature
+            .filter(_.mapId == lift(mapId))
+            .filter(_.systemId == lift(systemId))
+            .filter(_.signatureId == sigId)
+            .update(_.isDeleted -> lift(true), _.updatedByCharacterId -> lift(byCharacterId), _.updatedAt -> unixepoch)
+        )
+      )
+      .map(_.sum)
 
   def deleteMapSystemNote(id: Long, byCharacterId: CharacterId): DbOperation[Long] =
     ctx.run(
