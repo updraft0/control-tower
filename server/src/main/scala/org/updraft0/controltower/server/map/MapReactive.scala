@@ -678,7 +678,7 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
       else Chunk.empty
     ZIO.foldLeft(changes)((nextState, locationsUpdate)):
       case ((st, responses), asm: LocationUpdateAction.AddMapSystem)
-          if asm.adjacentTo.isEmpty && !st.hasSystem(asm.system) =>
+          if asm.adjacentTo.isEmpty && !st.hasSystem(asm.system) && !isKnownSpace(st, asm.system) =>
         addSystemFromLocation(mapId, st, responses, asm).orDie
       case ((st, responses), asm: LocationUpdateAction.AddMapSystem)
           if asm.adjacentTo.exists(fromSystemId =>
@@ -814,6 +814,9 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
     val noGate          = !state.hasGateBetween(fromSystemId, toSystemId)
     val isTarget        = state.refSystem(fromSystemId).zip(state.refSystem(toSystemId)).exists(isTargetForJumps)
     differentSystem && noGate && isTarget
+
+  private def isKnownSpace(state: MapState, systemId: SystemId) =
+    state.refSystem(systemId).exists(_.whClass.spaceType == SpaceType.Known)
 
   private[map] def isTargetForJumps(fromSystem: MapSolarSystem, toSystem: MapSolarSystem) =
     (fromSystem.whClass.spaceType, toSystem.whClass.spaceType) match

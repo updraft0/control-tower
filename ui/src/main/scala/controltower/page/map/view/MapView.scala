@@ -128,6 +128,7 @@ private class MapView(
           controller.selectedSystemId.signal,
           controller.allLocations.signal.map(_.getOrElse(constant.SystemId(systemId), Array.empty[CharacterLocation])),
           connectingSystem.current,
+          ws.isConnected,
           controller.mapSettings
         )
       },

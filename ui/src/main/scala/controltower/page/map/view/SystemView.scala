@@ -70,6 +70,7 @@ class SystemView(
     selectedSystem: Signal[Option[Long]],
     characters: Signal[Array[CharacterLocation]],
     connectingState: Var[MapNewConnectionState],
+    isConnected: Signal[Boolean],
     settings: Signal[MapSettings]
 )(using ctx: MapViewContext)
     extends ViewController:
@@ -87,8 +88,8 @@ class SystemView(
       val solarSystem = ctx.staticData.solarSystemMap(systemId)
 
       val canDrag = ctx.mapRole
-        .combineWith(system.map(_.system.isPinned))
-        .map((role, pinned) => !pinned && RoleController.canRepositionSystem(role))
+        .combineWith(system.map(_.system.isPinned), isConnected)
+        .map((role, pinned, connected) => !pinned && RoleController.canRepositionSystem(role) && connected)
 
       inDraggable(
         pos.systemPosition(systemId),
