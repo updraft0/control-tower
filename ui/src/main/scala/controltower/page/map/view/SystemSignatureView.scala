@@ -129,7 +129,8 @@ private inline def sigView(
                     time,
                     actions
                   ),
-                  clickCloses = false,
+                  Observer.empty[Unit],
+                  false,
                   cls := "system-paste-signatures"
                 )
               )
@@ -150,7 +151,8 @@ private inline def sigView(
                     static.wormholeTypes,
                     actions
                   ),
-                  clickCloses = true,
+                  Observer.empty[Unit],
+                  true,
                   cls := "system-add-signature"
                 )
               )
@@ -178,7 +180,8 @@ private inline def sigView(
                     static.wormholeTypes,
                     actions
                   ),
-                  clickCloses = true,
+                  Observer.empty[Unit],
+                  true,
                   cls := "system-add-signature"
                 )
               )

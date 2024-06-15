@@ -44,6 +44,7 @@ object Modal:
 
   def show(
       content: (Observer[Unit], Owner) => Element,
+      onCloseObs: Observer[Unit],
       clickCloses: Boolean,
       mods: Mod[ReactiveHtmlElement[dom.HTMLDialogElement]]*
   ): Unit =
@@ -59,6 +60,7 @@ object Modal:
     val detached = renderDetached(dialog, activateNow = true)
     dialog.amend(
       onClose --> { _ =>
+        onCloseObs.onNext(())
         owner.killSubscriptions()
         detached.deactivate()
         dom.document.body.removeChild(dialog.ref)
@@ -69,7 +71,13 @@ object Modal:
     )
     dialog.ref.showModal()
 
-  def showConfirmation(title: HtmlMod, description: HtmlMod, onOk: Observer[Unit], isDestructive: Boolean = false) =
+  def showConfirmation(
+      title: HtmlMod,
+      description: HtmlMod,
+      onOk: Observer[Unit],
+      isDestructive: Boolean = false,
+      onClose: Observer[Unit] = Observer.empty
+  ) =
     show(
       (closeMe, _) =>
         div(
@@ -101,6 +109,7 @@ object Modal:
             )
           )
         ),
+      onClose,
       clickCloses = false,
       cls := "confirm-dialog"
     )

@@ -51,7 +51,8 @@ class NavTopView(
             case scala.util.Success(Right(mapInfoWithPermissions)) =>
               Modal.show(
                 (closeMe, _) => EditMapView(meta.character, closeMe, Some(mapInfoWithPermissions)),
-                clickCloses = false,
+                Observer.empty[Unit],
+                false,
                 idAttr := "edit-map-dialog"
               )
             case other => org.scalajs.dom.console.error(s"Failed to get map permissions: $other")

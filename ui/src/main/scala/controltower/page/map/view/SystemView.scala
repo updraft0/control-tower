@@ -128,7 +128,8 @@ class SystemView(
               Observer({ case (_, mss: MapSystemSnapshot) =>
                 Modal.show(
                   (closeMe, owner) => systemRenameView(systemId, mss.system.name.getOrElse(""), ctx.actions, closeMe),
-                  clickCloses = true,
+                  Observer.empty[Unit],
+                  true,
                   cls := "system-rename-dialog"
                 )
               }),

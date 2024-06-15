@@ -45,7 +45,8 @@ object MapEditorPage:
             case scala.util.Success(Right(mapInfoWithPermissions)) =>
               Modal.show(
                 (closeMe, _) => EditMapView(char, closeMe, Some(mapInfoWithPermissions)),
-                clickCloses = false,
+                Observer.empty[Unit],
+                false,
                 idAttr := "edit-map-dialog"
               )
             case other => org.scalajs.dom.console.error(s"Failed to get map permissions: $other")

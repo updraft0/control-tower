@@ -33,7 +33,8 @@ class ToolbarView(
         onClick.stopPropagation --> (_ =>
           Modal.show(
             (closeMe, owner) => systemAddView(actions, closeMe, rds, positionController)(using owner),
-            clickCloses = true,
+            Observer.empty[Unit],
+            true,
             cls := "system-add-dialog"
           )
         )
@@ -43,7 +44,7 @@ class ToolbarView(
         "ti-trash",
         disableWhenNotSelectedAndRole(selected, mapRole, RoleController.canRemoveSystem, isConnected),
         onClick.stopPropagation.compose(_.sampleCollectSome(selected)) --> (system =>
-          removeSystemConfirm(system, actions)(using rds)
+          removeSystemConfirm(system, actions, Observer.empty)(using rds)
         )
       ),
       toolbarButtonS(
@@ -224,8 +225,8 @@ private def systemAddView(
     )
   )
 
-private[map] def removeSystemConfirm(system: MapSystemSnapshot, actions: WriteBus[MapAction])(using
-    rds: ReferenceDataStore
+private[map] def removeSystemConfirm(system: MapSystemSnapshot, actions: WriteBus[MapAction], onClose: Observer[Unit])(
+    using rds: ReferenceDataStore
 ) =
   Modal.showConfirmation(
     "Confirm removal",
@@ -239,5 +240,6 @@ private[map] def removeSystemConfirm(system: MapSystemSnapshot, actions: WriteBu
           )
     ),
     actions.contramap(_ => MapAction.Remove(system.system.systemId)),
-    isDestructive = true
+    isDestructive = true,
+    onClose = onClose
   )

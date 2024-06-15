@@ -20,7 +20,7 @@ import scala.language.implicitConversions
 // TODO: duplication
 given equalEventTarget[El <: org.scalajs.dom.Element]: CanEqual[org.scalajs.dom.EventTarget, El] = CanEqual.derived
 
-private class MapView(
+private final class MapView(
     viewId: Int,
     page: Page.Map,
     ct: ControlTowerBackend,
@@ -30,6 +30,8 @@ private class MapView(
 ) extends ViewController:
 
   private val mapTop                    = Var[Option[Element]](None)
+  private val inKeyHandler              = Var(false)
+  private val notInKeyHandler           = inKeyHandler.signal.map(!_)
   private var controller: MapController = _
 
   override def view: Element = div(
@@ -158,15 +160,12 @@ private class MapView(
 
     div(
       idAttr := "map-view-inner",
-
       // delete -> remove system
-
-      // TODO: make helpers for these
-      documentEvents(
-        _.onKeyDown
-          .filter(ev => !ev.repeat && ev.code == "Delete")
-      ).mapToUnit.compose(_.withCurrentValueOf(controller.selectedSystem)).filterNot(_.isEmpty).map(_.get) --> (
-        system => removeSystemConfirm(system, controller.actionsBus)(using rds)
+      modalKeyBinding(
+        "Delete",
+        ws.isConnected,
+        _.withCurrentValueOf(controller.selectedSystem).filterNot(_.isEmpty).map(_.get),
+        (system, onClose) => removeSystemConfirm(system, controller.actionsBus, onClose)(using rds)
       ),
       div(
         idAttr := "map-parent",
@@ -201,6 +200,18 @@ private class MapView(
         systemSignatureView.view
       )
     )
+
+  private def modalKeyBinding[B](
+      code: String,
+      isConnected: Signal[Boolean],
+      compose: EventStream[Unit] => EventStream[B],
+      action: (B, Observer[Unit]) => Unit
+  ) =
+    documentEvents(_.onKeyDown.filter(ev => !ev.repeat && ev.code == code)).mapToUnit
+      .compose(es => compose(es).filterWith(isConnected).filterWith(notInKeyHandler.signal)) --> { b =>
+      inKeyHandler.set(true)
+      action(b, Observer(_ => inKeyHandler.set(false)))
+    }
 
 object MapView:
   import org.updraft0.controltower.protocol.jsoncodec.given

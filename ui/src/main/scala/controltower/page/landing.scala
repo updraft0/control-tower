@@ -107,6 +107,7 @@ object LandingPage:
       onClick.preventDefault --> { _ =>
         Modal.show(
           (closeMe, _) => EditMapView(char, closeMe, None)(using ct),
+          onCloseObs = Observer.empty[Unit],
           clickCloses = false,
           idAttr := "edit-map-dialog"
         )
