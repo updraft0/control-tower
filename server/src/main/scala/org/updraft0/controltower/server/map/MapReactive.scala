@@ -8,8 +8,8 @@ import org.updraft0.controltower.db.model.{
   displayType
 }
 import org.updraft0.controltower.db.{model, query}
-import org.updraft0.controltower.server.Log
 import org.updraft0.controltower.server.db.*
+import org.updraft0.controltower.server.*
 import org.updraft0.controltower.server.tracking.{CharacterLocationState, LocationTracker, LocationUpdate}
 import org.updraft0.minireactive.*
 import zio.*
@@ -120,7 +120,7 @@ private[map] case class MapState(
           Some(
             prev.copy(
               display = None,
-              connections = Array.empty,
+              connections = Chunk.empty,
               signatures = prev.signatures.filterNot(_.wormholeConnectionId.exists(removedConnectionIds.contains))
             )
           )
@@ -491,7 +491,7 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
   ) =
     for
       // TODO: remove connection id from signature too!
-      _ <- query.map.deleteMapWormholeConnection(removeConn.connectionId, sessionId.characterId)
+      _ <- query.map.deleteMapWormholeConnection(mapId, removeConn.connectionId, sessionId.characterId)
       whcOpt <- MapQueries
         .getWormholeConnectionsWithSigs(mapId, Some(removeConn.connectionId), includeDeleted = true)
         .map(_.headOption)
@@ -572,8 +572,30 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
       now: Instant,
       uss: MapRequest.UpdateSystemSignatures
   ) =
-    // TODO: signature updates cannot currently change connection ids so only a single system needs to be reloaded
+    // when replacing all and the signatures being removed have connection ids, those connections need to be removed
+    // this is very similar to removeSystemSignatures()
+    val updateSigIds = uss.scanned.map(_.signatureId).toSet
+    val removedSignatures =
+      Option
+        .when(uss.replaceAll)(
+          state.getSystem(uss.systemId).map(_.signatures.filterNot(mss => updateSigIds.contains(mss.signatureId)))
+        )
+        .flatten
+        .getOrElse(Chunk.empty)
+    val removedConnectionIds = removedSignatures.flatMap(_.wormholeConnectionId.toChunk)
+    // gather all system ids those connections affect
+    val systemIdsToRefresh =
+      removedConnectionIds
+        .map(state.connections)
+        .toSet
+        .flatMap(whc => Set(whc.connection.toSystemId, whc.connection.fromSystemId))
     for
+      // delete the connections if any were found
+      _ <- query.map.deleteMapWormholeConnections(mapId, removedConnectionIds, sessionId.characterId)
+      // delete any signatures that map to those connection ids
+      _ <- query.map.deleteSignaturesWithConnectionIds(mapId, removedConnectionIds, sessionId.characterId)
+      deletedConnections <- query.map.getWormholeConnections(mapId, removedConnectionIds, isDeleted = true)
+      // delete signatures when replacing all
       _ <- query.map.deleteMapSystemSignaturesAll(mapId, uss.systemId, now, sessionId.characterId).when(uss.replaceAll)
       mapSystemId = (mapId, uss.systemId)
       mapSystem   = state.getSystem(uss.systemId).get
@@ -582,7 +604,15 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
           .map(lookupExisting(mapSystem, _))
           .map((prevOpt, newSig) => toModelSignature(now, sessionId, mapSystemId, prevOpt, newSig))
       )(query.map.upsertMapSystemSignature)
-      resp <- reloadSystemSnapshot(mapId, uss.systemId)(state)
+      // if some connections were found, will reload multiple systems
+      resp <-
+        if (systemIdsToRefresh.nonEmpty)
+          combineMany(
+            state,
+            Chunk(removeConnections(deletedConnections)) ++
+              systemIdsToRefresh.map(sId => reloadSystemSnapshot(mapId, sId))
+          )
+        else reloadSystemSnapshot(mapId, uss.systemId)(state)
     yield resp
 
   private def removeSystemAndConnection(
@@ -597,9 +627,9 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
       Chunk.from(connections.valuesIterator.map(_.connection.fromSystemId).filter(_ != rs.systemId))
     for
       // mark connections as removed
-      _ <- query.map.deleteMapWormholeConnections(connectionIds, sessionId.characterId)
+      _ <- query.map.deleteMapWormholeConnections(mapId, connectionIds, sessionId.characterId)
       // remove signatures that have those connections
-      _ <- query.map.deleteSignaturesWithConnectionIds(connectionIds, sessionId.characterId)
+      _ <- query.map.deleteSignaturesWithConnectionIds(mapId, connectionIds, sessionId.characterId)
       // remove the display of the system
       _ <- query.map.deleteMapSystemDisplay(mapId, rs.systemId)
       // recompute all the connection ranks
@@ -657,9 +687,9 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
           .flatMap(whc => Set(whc.connection.toSystemId, whc.connection.fromSystemId))
       )
       // delete the connections if any were found
-      _ <- query.map.deleteMapWormholeConnections(Chunk.fromIterable(connectionIds), sessionId.characterId)
+      _ <- query.map.deleteMapWormholeConnections(mapId, Chunk.fromIterable(connectionIds), sessionId.characterId)
       // delete any signatures that map to those connection ids
-      _ <- query.map.deleteSignaturesWithConnectionIds(Chunk.fromIterable(connectionIds), sessionId.characterId)
+      _ <- query.map.deleteSignaturesWithConnectionIds(mapId, Chunk.fromIterable(connectionIds), sessionId.characterId)
       deletedConnections <- query.map.getWormholeConnections(mapId, Chunk.fromIterable(connectionIds), isDeleted = true)
       // delete the signatures
       _ <- rss.signatures match
@@ -1006,24 +1036,22 @@ private inline def broadcastMany(values: MapResponse*): Chunk[Identified[MapResp
 private inline def withState[A](state: MapState)(f: MapState => A): A = f(state)
 
 private inline def updateConnectionById(
-    arr: Array[MapWormholeConnection],
+    arr: Chunk[MapWormholeConnection],
     whc: MapWormholeConnection
-): Array[MapWormholeConnection] =
+): Chunk[MapWormholeConnection] =
   arr.indexWhere(_.id == whc.id) match
-    case -1 => arr.appended(whc)
-    case idx =>
-      arr.update(idx, whc)
-      arr
+    case -1  => arr.appended(whc)
+    case idx => arr.updated(idx, whc)
 
 private inline def removeConnectionById(
-    arr: Array[MapWormholeConnection],
+    arr: Chunk[MapWormholeConnection],
     whc: MapWormholeConnection
 ) =
   arr.indexWhere(_.id == whc.id) match
     case -1  => arr
     case idx => arr.patch(idx, Nil, 1)
 
-private inline def removeSignatureById(arr: Array[MapSystemSignature], idOpt: Option[SigId]) =
+private inline def removeSignatureById(arr: Chunk[MapSystemSignature], idOpt: Option[SigId]) =
   idOpt
     .map(sigId =>
       arr.indexWhere(_.signatureId == sigId) match

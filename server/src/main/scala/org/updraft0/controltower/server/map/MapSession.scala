@@ -428,10 +428,10 @@ private def toProtoSystemSnapshot(value: MapSystemWithAll): protocol.MapSystemSn
   protocol.MapSystemSnapshot(
     system = toProtoSystem(value.sys, value.display),
     display = value.display.map(toProtoDisplay),
-    structures = value.structures.map(toProtoStructure),
-    notes = value.notes.map(toProtoNote),
-    signatures = value.signatures.map(toProtoSignature),
-    connections = value.connections.map(toProtoConnection)
+    structures = value.structures.map(toProtoStructure).toArray,
+    notes = value.notes.map(toProtoNote).toArray,
+    signatures = value.signatures.map(toProtoSignature).toArray,
+    connections = value.connections.map(toProtoConnection).toArray
   )
 
 private def toProtoSystem(value: model.MapSystem, displayData: Option[model.SystemDisplayData]): protocol.MapSystem =
@@ -589,7 +589,7 @@ private def toProtoConnectionWithSigs(
 ): protocol.MapWormholeConnectionWithSigs =
   protocol.MapWormholeConnectionWithSigs(
     connection = toProtoConnection(value.connection),
-    jumps = value.jumps.map(toProtoConnectionJump),
+    jumps = value.jumps.map(toProtoConnectionJump).toArray,
     fromSignature = value.fromSignature.flatMap(toProtoSignatureWormhole(_)),
     toSignature = value.toSignature.flatMap(toProtoSignatureWormhole(_)),
     rank = toProtoConnectionRank(rank)

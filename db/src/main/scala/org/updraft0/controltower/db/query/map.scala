@@ -323,20 +323,26 @@ object map:
         .delete
     )
 
-  def deleteMapWormholeConnection(id: ConnectionId, byCharacterId: CharacterId): DbOperation[Long] =
+  def deleteMapWormholeConnection(mapId: MapId, id: ConnectionId, byCharacterId: CharacterId): DbOperation[Long] =
     ctx.run(
       mapWormholeConnection
         .filter(_.id == lift(id))
+        .filter(_.mapId == lift(mapId))
         .update(_.isDeleted -> lift(true), _.updatedByCharacterId -> lift(byCharacterId), _.updatedAt -> unixepoch)
     )
 
-  def deleteMapWormholeConnections(ids: Chunk[ConnectionId], byCharacterId: CharacterId): DbOperation[Long] =
+  def deleteMapWormholeConnections(
+      mapId: MapId,
+      ids: Chunk[ConnectionId],
+      byCharacterId: CharacterId
+  ): DbOperation[Long] =
     ctx
       .run(
         quote(
           liftQuery(ids).foreach(id =>
             mapWormholeConnection
               .filter(_.id == id)
+              .filter(_.mapId == lift(mapId))
               .update(
                 _.isDeleted            -> lift(true),
                 _.updatedByCharacterId -> lift(byCharacterId),
@@ -347,12 +353,17 @@ object map:
       )
       .map(_.sum)
 
-  def deleteSignaturesWithConnectionIds(ids: Chunk[ConnectionId], byCharacterId: CharacterId): DbOperation[Long] =
+  def deleteSignaturesWithConnectionIds(
+      mapId: MapId,
+      ids: Chunk[ConnectionId],
+      byCharacterId: CharacterId
+  ): DbOperation[Long] =
     ctx
       .run(
         quote(
           liftQuery(ids).foreach(id =>
             mapSystemSignature
+              .filter(_.mapId == lift(mapId))
               .filter(_.wormholeConnectionId.exists(_ == id))
               .update(
                 _.isDeleted            -> lift(true),

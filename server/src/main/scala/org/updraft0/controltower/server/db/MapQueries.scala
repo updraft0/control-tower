@@ -22,7 +22,7 @@ case class MapWormholeConnectionRank(
 
 case class MapWormholeConnectionWithSigs(
     connection: model.MapWormholeConnection,
-    jumps: Array[model.MapWormholeConnectionJump],
+    jumps: Chunk[model.MapWormholeConnectionJump],
     fromSignature: Option[model.MapSystemSignature],
     toSignature: Option[model.MapSystemSignature]
 )
@@ -30,10 +30,10 @@ case class MapWormholeConnectionWithSigs(
 case class MapSystemWithAll(
     sys: model.MapSystem,
     display: Option[model.SystemDisplayData],
-    structures: Array[model.MapSystemStructure],
-    notes: Array[model.MapSystemNote],
-    signatures: Array[model.MapSystemSignature],
-    connections: Array[model.MapWormholeConnection]
+    structures: Chunk[model.MapSystemStructure],
+    notes: Chunk[model.MapSystemNote],
+    signatures: Chunk[model.MapSystemSignature],
+    connections: Chunk[model.MapWormholeConnection]
 )
 
 /** Queries for map information
@@ -381,7 +381,14 @@ object MapQueries:
       )
     }).map(
       _.map((mss, dis, structures, notes, signatures, connections) =>
-        MapSystemWithAll(mss, dis, structures.value, notes.value, signatures.value, connections.value)
+        MapSystemWithAll(
+          sys = mss,
+          display = dis,
+          structures = Chunk.fromArray(structures.value),
+          notes = Chunk.fromArray(notes.value),
+          signatures = Chunk.fromArray(signatures.value),
+          connections = Chunk.fromArray(connections.value)
+        )
       )
     )
 
@@ -440,7 +447,7 @@ object MapQueries:
           connection = whc,
           fromSignature = fromSig,
           toSignature = toSig,
-          jumps = jumps.value
+          jumps = Chunk.fromArray(jumps.value)
         )
       )
     )
@@ -465,7 +472,7 @@ object MapQueries:
           connection = whc,
           fromSignature = fromSig,
           toSignature = toSig,
-          jumps = jumps.value
+          jumps = Chunk.fromArray(jumps.value)
         )
       )
     )
@@ -490,7 +497,7 @@ object MapQueries:
           connection = whc,
           fromSignature = fromSig,
           toSignature = toSig,
-          jumps = jumps.value
+          jumps = Chunk.fromArray(jumps.value)
         )
       )
     )
