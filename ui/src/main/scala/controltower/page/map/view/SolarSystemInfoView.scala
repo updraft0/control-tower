@@ -3,7 +3,7 @@ package controltower.page.map.view
 import com.raquo.laminar.api.L.*
 import controltower.backend.{ESI, ThirdParty}
 import controltower.ui.ViewController
-import org.updraft0.controltower.constant.SpaceType
+import org.updraft0.controltower.constant.{SpaceType, WormholeClass}
 import org.updraft0.controltower.protocol.*
 
 case class SystemInfo(systemId: Long, name: Option[String])
@@ -95,16 +95,51 @@ private inline def solarSystemInfo(
 //            i(cls := "ti", cls := "ti-moon-filled"),
 //            s" ${solarSystem.planets.map(_.moonCount).sum}"
 //          )
-      solarSystem.wormholeStatics.map { static =>
-        val whType = wormholeTypes(static.typeId)
-        mark(
-          cls := "system-wormhole-static",
-          cls := s"system-wormhole-static-${static.name.toLowerCase}",
-          cls := s"system-class-${whType.targetClass.toString.toLowerCase}",
-          static.name,
-          i(cls := "ti", cls := "ti-arrow-narrow-right"),
-          whType.targetClass.toString
+      Option
+        .when(!solarSystem.systemClass.forall(_.isDrifter))(
+          solarSystem.wormholeStatics.flatMap(staticInfo(wormholeTypes, _)).toSeq
         )
-      }
+        .getOrElse(nodeSeq())
+    )
+  )
+
+private inline def staticInfo(wormholeTypes: Map[Long, WormholeType], static: WormholeStatic) =
+  val whType = wormholeTypes(static.typeId)
+  nodeSeq(
+    mark(
+      idAttr                   := s"static-${static.typeId}",
+      cls                      := "system-wormhole-static",
+      dataAttr("static-name")  := static.name,
+      dataAttr("static-class") := whType.targetClass.toString,
+      styleAttr                := s"anchor-name: --static-${static.typeId}",
+      // TODO - move away from this CSS class
+      cls := s"system-class-${whType.targetClass.toString.toLowerCase}",
+      static.name,
+      i(cls := "ti", cls := "ti-arrow-narrow-right"),
+      whType.targetClass.toString
+    ),
+    div(
+      cls := "tooltip",
+      cls := "wormhole-static-tooltip",
+      // FIXME - the anchor position polyfill is not dynamic and does not support vars - aka no Firefox or Safari
+      styleAttr := s"--anchor-var: --static-${static.typeId}",
+      h3(cls := "tooltip-title", whType.name),
+      table(
+        cls := "wormhole-static-info",
+        tbody(
+          tr(
+            td("Points"),
+            td(whType.stablePoints)
+          ),
+          tr(
+            td("Lifetime"),
+            td(s"${whType.maxStableTime / 60}h")
+          ),
+          tr(
+            td("Size"),
+            td(whType.massSize.toString)
+          )
+        )
+      )
     )
   )

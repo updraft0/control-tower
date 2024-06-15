@@ -43,6 +43,9 @@ case class WormholeType(
     else if (maxJumpMass >= 62_000_000) WormholeMassSize.M
     else WormholeMassSize.S
 
+  def stablePoints: Double = (maxStableMass / 10_000_000).toDouble / 10.0d
+  def jumpPoints: Double   = (maxJumpMass / 10_000_000).toDouble / 10.0d
+
 /** Signature group/name/wormhole class
   */
 case class SignatureInGroup(signatureGroup: SignatureGroup, name: String, targetClasses: Array[WormholeClass])

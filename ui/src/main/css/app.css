@@ -6,6 +6,7 @@
 
 /* controls */
 @import 'components/option-dropdown.css';
+@import 'components/tooltip.css';
 
 /* pages */
 @import 'views/landing-page.css';
@@ -15,6 +16,7 @@
 
 /* map views */
 @import 'views/nav-top-view.css';
+@import 'views/solar-system-info-view.css';
 @import 'views/map-system-signature-view.css';
 
 /* ok? */
@@ -427,11 +429,7 @@ mark.system-map-name {
     white-space: nowrap;
 }
 
-mark.system-wormhole-static {
-    background: inherit;
-    margin-left: 2px;
-    margin-right: 2px;
-}
+
 
 /* FIXME colors wrong here */
 .system-stance-hostile {

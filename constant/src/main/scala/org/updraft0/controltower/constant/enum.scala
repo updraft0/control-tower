@@ -37,6 +37,8 @@ enum WormholeClass(val value: Int, val spaceType: SpaceType) derives CanEqual:
   // pochven
   case Pochven extends WormholeClass(25, SpaceType.Pochven)
 
+  def isDrifter: Boolean = value > 13 && value < 19
+
 object WormholeClasses:
   lazy val ById = WormholeClass.values.map(c => c.value -> c).toMap
 

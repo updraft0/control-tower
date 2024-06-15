@@ -1,0 +1,25 @@
+.tooltip {
+    visibility: hidden;
+    position: absolute;
+    background-color: $gray-dark;
+
+    transition-delay: 200ms;
+    transition-property: visibility;
+
+    /* TODO standardise */
+    box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
+    border: 1px solid $gray-darker;
+    border-radius: 5px;
+
+    font-size: 0.8em;
+    color: $gray-lighter;
+    opacity: 90%;
+
+    & h3.tooltip-title {
+        color: $gray-light;
+        font-size: 1em;
+        margin-top: 0.1em;
+        margin-bottom: 0.2em;
+        border-bottom: 1px solid $gray-darker;
+    }
+}
