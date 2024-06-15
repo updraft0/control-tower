@@ -26,11 +26,11 @@ object ReactiveEntitySpec extends ZIOSpecDefault:
   override def spec =
     suite("counter reactive entity")(
       test("can respond to a sequence of get/increment messages"):
-          for
-            entity <- MiniReactive(CounterEntity, MiniReactiveConfig(16, Duration.Infinity))
-            inQ    <- entity.enqueue("test")
-            outQ   <- entity.subscribe("test")
-            _      <- ZStream(Get, Incr, Get, Incr, Incr, Get, Incr, Get).mapZIO(inQ.offer).runDrain.forkScoped
-            res    <- ZStream.fromQueue(outQ).take(4).runCollect
-          yield assertTrue(res == Chunk(0, 1, 3, 4).map(CounterReply.Current.apply))
+        for
+          entity <- MiniReactive(CounterEntity, MiniReactiveConfig(16, Duration.Infinity))
+          inQ    <- entity.enqueue("test")
+          outQ   <- entity.subscribe("test")
+          _      <- ZStream(Get, Incr, Get, Incr, Incr, Get, Incr, Get).mapZIO(inQ.offer).runDrain.forkScoped
+          res    <- ZStream.fromQueue(outQ).take(4).runCollect
+        yield assertTrue(res == Chunk(0, 1, 3, 4).map(CounterReply.Current.apply))
     )

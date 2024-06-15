@@ -63,6 +63,9 @@ object sde:
   def upsertRegion(region: Region): DbOperation[Long] =
     ctx.run(insert(schema.region, lift(region)).onConflictIgnore)
 
+  def upsertItemName(name: ItemName): DbOperation[Long] =
+    ctx.run(insert(schema.itemName, lift(name)).onConflictIgnore)
+
   // inserts
   def insertDogmaAttributeCategories(categories: Vector[DogmaAttributeCategory]): DbOperation[Long] =
     ctx.run(insertAll(schema.dogmaAttributeCategory, categories), BatchRows).map(_.sum)
@@ -130,7 +133,16 @@ object sde:
   // queries
 
   def getLatestVersion: DbOperation[Option[Version]] =
-    ctx.run(quote(quote(schema.version).sortBy(_.createdAt)(Ord.desc).take(1))).map(_.headOption)
+    ctx.run(quote(schema.version.sortBy(_.createdAt)(Ord.desc).take(1))).map(_.headOption)
+
+  def getRegions: DbOperation[List[Region]] =
+    ctx.run(quote(schema.region))
+
+  def getConstellations: DbOperation[List[Constellation]] =
+    ctx.run(quote(schema.constellation))
+
+  def getSolarSystem: DbOperation[List[SolarSystem]] =
+    ctx.run(quote(schema.solarSystem))
 
   // deletes
   def deleteConstellation: DbOperation[Long] =

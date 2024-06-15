@@ -68,8 +68,8 @@ object EsiClient:
 
   def apply(sttp: SttpClient): ZIO[Config, Throwable, EsiClient] =
     for config <- ZIO.service[Config]
-      // FIXME wait until improvements land in generic aliases in layers after ZIO 2.1.1
-      //      sttp   <- ZIO.service[SttpClient]
+    // FIXME wait until improvements land in generic aliases in layers after ZIO 2.1.1
+    //      sttp   <- ZIO.service[SttpClient]
     yield new EsiClient(config, zioLoggingBackend(sttp), SttpClientInterpreter())
 
   inline def withZIO[R, E, A](inline f: EsiClient => ZIO[R, E, A]): ZIO[R & EsiClient, E, A] =

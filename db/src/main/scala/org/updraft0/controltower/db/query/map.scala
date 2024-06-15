@@ -93,6 +93,19 @@ object map:
       .run(quote { mapWormholeConnection.filter(whc => whc.mapId == lift(mapId) && whc.id == lift(connectionId)) })
       .map(_.headOption)
 
+  def getWormholeConnections(
+      mapId: MapId,
+      connectionIds: Chunk[ConnectionId],
+      isDeleted: Boolean
+  ): DbOperation[List[MapWormholeConnection]] =
+    ctx.run(
+      quote(
+        mapWormholeConnection.filter(whc =>
+          whc.mapId == lift(mapId) && whc.isDeleted == lift(isDeleted) && liftQuery(connectionIds).contains(whc.id)
+        )
+      )
+    )
+
   def getWormholeSystemNames: DbOperation[Map[String, Long]] =
     ctx
       .run(quote(sde.schema.solarSystem.map(ss => ss.name -> ss.id)))
@@ -101,9 +114,9 @@ object map:
   def getWormholeTypeNames: DbOperation[List[(String, Long)]] =
     ctx.run(quote { sde.schema.itemType.filter(_.groupId == lift(WormholeGroupId)).map(it => it.name -> it.id) })
 
-  def getMapSystem(mapId: MapId, systemId: Long) =
+  def getMapSystem(mapId: MapId, systemId: Long): DbOperation[Option[MapSystem]] =
     ctx
-      .run(quote { mapSystem.filter(ms => ms.mapId == lift(mapId) && ms.systemId == lift(systemId)) })
+      .run(quote(mapSystem.filter(ms => ms.mapId == lift(mapId) && ms.systemId == lift(systemId))))
       .map(_.headOption)
 
   private inline def findWormholeMapSignatures(mapId: MapId, systemId: SystemId) =

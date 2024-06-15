@@ -25,8 +25,8 @@ final class ArrayRenderedVar[A: ClassTag] private (render: RenderT[A])(using Can
 
   private inline def removeOrUpdateFor(k: Long, v: Var[A]) =
     Observer[Option[A]]:
-        case None       => removeAt(k)
-        case Some(next) => updateAt(k, next)
+      case None       => removeAt(k)
+      case Some(next) => updateAt(k, next)
 
   // TODO: not very nice
   def itemsNow: Seq[A] = internalVar.now().toSeq.map(_._2).map(_.now())

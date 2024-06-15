@@ -53,6 +53,6 @@ object SdeClient:
 
   def apply(sttp: SttpClient): ZIO[Config, Throwable, SdeClient] =
     for config <- ZIO.service[Config]
-      // FIXME
+    // FIXME
 //      sttp   <- ZIO.service[SttpClient]
     yield apply(config.base, zioLoggingBackend(sttp), SttpClientInterpreter())

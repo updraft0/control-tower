@@ -594,7 +594,7 @@ private[view] def timeDiff(time: Observable[Instant], start: Instant) =
 private inline def displayDuration(d: Duration) =
   if (d.getSeconds < 60) s"${d.getSeconds.max(0)}s"
   else if (d.getSeconds < 60 * 60) s"${d.getSeconds / 60}m ${d.getSeconds % 60}s"
-  else s"${d.getSeconds / 3_600}h ${d.getSeconds                          % 3_600 / 60}m"
+  else s"${d.getSeconds / 3_600}h ${d.getSeconds % 3_600 / 60}m"
 
 private def scanClass(sigs: Array[MapSystemSignature]) =
   if (sigs.forall(!sigIsScanned(_, fakeScan = true))) "unscanned"

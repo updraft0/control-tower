@@ -21,24 +21,24 @@ object UsersSpec extends ZIOSpecDefault:
 
   def spec = suite("JWT auth token")(
     test("can be encrypted and decrypted"):
-        val meta = EsiTokenMeta(CharacterId(1234), "Name1", "abcdef", Instant.EPOCH)
-        val jwt  = JwtAuthResponse(JwtString(SampleTokenValue), 1L, "?", SampleRefresh)
+      val meta = EsiTokenMeta(CharacterId(1234), "Name1", "abcdef", Instant.EPOCH)
+      val jwt  = JwtAuthResponse(JwtString(SampleTokenValue), 1L, "?", SampleRefresh)
 
-        for
-          enc <- Users.encryptJwtResponse(meta, jwt)
-          dec <- Users.decryptAuthToken(enc)
-        yield assertTrue(
-          enc.characterId == CharacterId(1234L),
-          enc.expiresAt == meta.expiry,
-          enc.refreshToken == encrypt(
-            Base64.raw(enc.nonce),
-            SampleKey,
-            Base64.raw(SampleRefresh).toBytes
-          ).stringValue,
-          enc.token == encrypt(Base64.raw(enc.nonce), SampleKey, SampleTokenValue.getBytes).stringValue,
-          dec._1 == SampleTokenValue,
-          dec._2.stringValue == SampleRefresh
-        )
+      for
+        enc <- Users.encryptJwtResponse(meta, jwt)
+        dec <- Users.decryptAuthToken(enc)
+      yield assertTrue(
+        enc.characterId == CharacterId(1234L),
+        enc.expiresAt == meta.expiry,
+        enc.refreshToken == encrypt(
+          Base64.raw(enc.nonce),
+          SampleKey,
+          Base64.raw(SampleRefresh).toBytes
+        ).stringValue,
+        enc.token == encrypt(Base64.raw(enc.nonce), SampleKey, SampleTokenValue.getBytes).stringValue,
+        dec._1 == SampleTokenValue,
+        dec._2.stringValue == SampleRefresh
+      )
   ).provide(
     ZLayer(ZIO.attempt(new SecureRandom())),
     ZLayer(ZIO.attempt(TokenCrypto(new SecretKeySpec(SampleKey, "AES"))))
