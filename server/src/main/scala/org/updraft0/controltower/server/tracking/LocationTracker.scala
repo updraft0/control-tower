@@ -16,9 +16,11 @@ enum LocationTrackingRequest:
 
 enum CharacterLocationState derives CanEqual:
   case InSystem(
+      characterName: String,
       system: SystemId,
       prevSystem: Option[SystemId],
       shipTypeId: Int,
+      shipName: String,
       stationId: Option[Int],
       structureId: Option[Long],
       updatedAt: Instant
@@ -164,6 +166,7 @@ object LocationTracker:
         refreshLocation(esi, now, cs) @@ Log.CharacterId(cs.charId) @@ Log.BackgroundOperation("locationTracker")
       )
       next <- state.updateAndGet(ts => ts.copy(charState = res.foldLeft(ts.charState)((m, s) => updateOnRefresh(m, s))))
+      _    <- traceLogNext(next)
       locUpdate = LocationUpdate(next.charState.transform((_, s) => s.state))
       _ <- response.offer(locUpdate).when(next.charState.nonEmpty)
     yield ()
@@ -198,7 +201,7 @@ object LocationTracker:
                 ZIO.logTrace(s"Timed out during ESI call: ${t.error}").as(st) // ignore gateway timeouts
               case e =>
                 ZIO
-                  .logError(s"ESI error while refreshing character status, ignoring: ${e}")
+                  .logWarning(s"ESI error while refreshing character status, ignoring: ${e}")
                   .as(
                     st.copy(state = CharacterLocationState.ApiError, prevState = Some(prevState), updatedAt = now)
                   )
@@ -239,12 +242,37 @@ object LocationTracker:
           if (!online.online) CharacterLocationState.Offline
           else
             CharacterLocationState.InSystem(
-              location.solarSystemId,
-              prevSystemId,
-              ship.shipTypeId,
-              location.stationId,
-              location.structureId,
-              now
+              characterName = auth.characterName,
+              system = location.solarSystemId,
+              prevSystem = prevSystemId,
+              shipTypeId = ship.shipTypeId,
+              shipName = unicodeUnescape(ship.shipName),
+              stationId = location.stationId,
+              structureId = location.structureId,
+              updatedAt = now
             )
 
         CharacterState(charId, newState, Some(auth), now, Some(prevState))
+
+  private def traceLogNext(state: TrackerState) =
+    def byStateName(_c: CharacterId, state: CharacterState) =
+      state.state.productPrefix
+    def stateGroups() =
+      state.charState
+        .groupMap(byStateName)(_._1)
+        .map((s, ids) => s"$s[${ids.mkString(",")}]")
+        .mkString(";")
+
+    ZIO.logTrace(s"Location states: ${stateGroups()}")
+
+private val UnicodeRegex = """(\\u[a-f0-9]{4})""".r
+
+private def unicodeUnescape(s: String) =
+  UnicodeRegex.replaceSomeIn(
+    s.stripPrefix("u'").stripSuffix("'"),
+    { m =>
+      val literal   = m.group(0).stripPrefix("\\u")
+      val codePoint = Integer.parseInt(literal, 16)
+      Option.when(Character.isValidCodePoint(codePoint))(Character.toString(codePoint))
+    }
+  )

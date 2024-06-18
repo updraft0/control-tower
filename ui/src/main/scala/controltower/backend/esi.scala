@@ -22,10 +22,10 @@ object ESI:
       alt <-- idName.map(_._2)
     )
 
-  def typeIcon(id: Long, size: Int = 16) =
+  def typeIcon(id: Long, description: Option[String] = None, size: Int = 16) =
     img(
       src := uri"$imageBaseUrl/types/$id/icon".toString,
       cls := "type-icon",
       cls := s"type-icon-${size}-round",
-      alt := s"type $id"
+      alt := description.getOrElse(s"type $id")
     )

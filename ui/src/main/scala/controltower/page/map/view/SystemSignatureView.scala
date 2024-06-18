@@ -702,7 +702,7 @@ private def editSingleSignatureView(
     )
   )
 
-private def pasteSignaturesView(
+private[map] def pasteSignaturesView(
     mss: MapSystemSnapshot,
     solarSystem: SolarSystem,
     signatureGroups: Map[SignatureGroup, List[SignatureClassified]],

@@ -2,7 +2,7 @@ package controltower.page.map.view
 
 import com.raquo.laminar.api.L.*
 import controltower.ui.{ViewController, sequence}
-import org.updraft0.controltower.constant.{WormholeClass, SigId, ConnectionId}
+import org.updraft0.controltower.constant.{SigId, ConnectionId}
 import org.updraft0.controltower.protocol.{*, given}
 
 import java.time.Instant

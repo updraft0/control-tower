@@ -1,25 +1,46 @@
 .tooltip {
-    visibility: hidden;
     position: absolute;
     background-color: $gray-dark;
 
-    transition-delay: 200ms;
-    transition-property: visibility;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 200ms linear;
+
+    width: max-content;
+    height: max-content;
+
+    z-index: 1000;
 
     /* TODO standardise */
     box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
     border: 1px solid $gray-darker;
-    border-radius: 5px;
+    border-radius: 6px;
 
     font-size: 0.8em;
     color: $gray-lighter;
-    opacity: 90%;
 
     & h3.tooltip-title {
-        color: $gray-light;
+        color: $gray-lightest;
         font-size: 1em;
-        margin-top: 0.1em;
-        margin-bottom: 0.2em;
+        margin: 0.2em;
         border-bottom: 1px solid $gray-darker;
+    }
+}
+
+.tooltip-on-left {
+    /*left: anchor(var(--anchor-var) right);*/
+    position-anchor: var(--anchor-var);
+    inset-area: right span-bottom;
+    margin-left: 10px;
+}
+
+.tooltip-target-adjacent {
+    &:hover {
+        cursor: help;
+    }
+
+    &:hover + .tooltip {
+        visibility: visible;
+        opacity: 90%;
     }
 }

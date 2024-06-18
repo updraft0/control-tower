@@ -57,7 +57,7 @@ object CharacterAuthTracker:
       _ <- refreshPending(esi, state, hub).repeat(Schedule.fixed(PollInterval)).forkScoped
       // start the snapshot timer
       _ <- sendSnapshot(state, hub)
-        .repeat(Schedule.once.andThen(Schedule.fixed(SnapshotInterval)))
+        .repeat(Schedule.duration(10.seconds).andThen(Schedule.fixed(SnapshotInterval)))
         .forkScoped
     yield new CharacterAuthTracker:
       override def newLogin(auth: CharacterAuth): UIO[Unit] =

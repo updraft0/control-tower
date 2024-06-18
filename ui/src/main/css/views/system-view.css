@@ -1,0 +1,230 @@
+/* TODO move from app.css */
+
+.system {
+    display: flex;
+    flex-direction: row;
+
+    & div.status-lines {
+        display: inline-block;
+        width: 100%;
+    }
+
+    /* FIXME colors wrong here */
+    &.system-stance-hostile {
+        border: 2px solid $red;
+    }
+
+    & div.status-lines {
+        /*border-right: 1px solid $gray;*/
+    }
+
+    &.system-stance-friendly {
+        border: 2px solid $blue;
+    }
+
+    &.system-stance-unknown {
+        border: 2px solid $gray-light;
+    }
+
+    &.system-occupied {
+        border: 2px solid $orange;
+    }
+
+    & mark {
+        background: transparent;
+    }
+
+
+    /* TODO more system classes */
+    & mark.system-online-chars {
+        color: $green-dark;
+        min-width: 0.8em;
+        text-align: center;
+        padding-right: 3px;
+    }
+
+    & mark.system-online-chars, mark.system-wormhole-static {
+        background: inherit;
+        /*width: 1.5em;*/
+    }
+    & mark.system-class {
+        padding-right: 2px;
+        padding-left: 2px;
+    }
+
+
+    & mark.system-scan-status {
+        width: 0;
+
+        /*&[data-scan-status="Unscanned"] {*/
+        /*    background-color: $red;*/
+        /*}*/
+        /*&[data-scan-status="PartiallyScanned"] {*/
+        /*    background-color: $orange;*/
+        /*}*/
+        /*&[data-scan-status="FullyScanned"] {*/
+        /*    background-color: $green;*/
+        /*}*/
+        /*&[data-scan-status="FullyScannedStale"] {*/
+        /*    background-color: $orange;*/
+        /*}*/
+
+        &:after {
+            color: $gray-light;
+            position: absolute;
+            content: "";
+            width: 0;
+            height: 0;
+
+            left: 0;
+            top: 21px;
+            border-bottom: 15px solid transparent;
+            border-right: 15px solid transparent;
+        }
+
+        &[data-scan-status="FullyScanned"]:after  {
+            border-bottom-color: $teal-dark;
+        }
+        &[data-scan-status="FullyScannedStale"]:after  {
+            border-bottom-color: $orange-dark;
+        }
+        &[data-scan-status="PartiallyScanned"]:after  {
+            border-bottom-color: $orange;
+        }
+        &[data-scan-status="Unscanned"]:after  {
+            border-bottom-color: $red-dark;
+        }
+    }
+
+    & mark.system-group-indicator {
+        /* this gives enough space for the ribbon */
+        width: 0.9em;
+    }
+
+    & mark.system-group-indicator[data-intel-group="Unknown"] {
+        display: none;
+    }
+
+    & mark.system-group-indicator:before {
+        content: "";
+        position: absolute;
+        font-size: 0.9em;
+        width: 1em;
+        height: 1em;
+        left: 125px;
+        top: 0;
+        color: $yellow;
+
+        z-index: 2;
+    }
+
+    & mark.system-group-indicator[data-intel-group="HQ"]:before {
+        content: "\f72d"; /* queen symbol */
+    }
+
+    & mark.system-group-indicator[data-intel-group="HQ"]:after {
+        border-top-color: $indigo-dark;
+    }
+
+    & mark.system-group-indicator[data-intel-group="Farm"]:before {
+        content: "\f3a5"; /* baguette symbol */
+        color: $yellow-dark;
+    }
+
+    & mark.system-group-indicator[data-intel-group="Farm"]:after {
+        border-top-color: $teal-darker;
+    }
+
+    & mark.system-group-indicator[data-intel-group="Staging"]:before {
+        content: "\f71b"; /* atom symbol */
+        color: $orange-light;
+    }
+
+    & mark.system-group-indicator[data-intel-group="Staging"]:after {
+        border-top-color: $teal-darker;
+    }
+
+    & mark.system-group-indicator[data-intel-group="Unknown"]:after {
+        display: none;
+    }
+
+    & mark.system-group-indicator[data-intel-group="Unknown"]:before {
+        display: none;
+    }
+
+    & mark.system-group-indicator:after {
+        content: "";
+        position: absolute;
+
+        width: 0;
+        height: 0;
+        border-top: 22px solid transparent;
+        border-left: 22px solid transparent;
+
+        /* FIMXE this is hacky and produces a 1 pixel gap */
+        left: 116px;
+        top: -2px;
+        color: $yellow-dark;
+        z-index: 1;
+    }
+
+
+    & .system-status-line {
+        display: flex;
+        min-width: 100%;
+        overflow: hidden;
+        padding-left: 2px;
+        padding-right: 2px;
+
+
+        & :last-child {
+            margin-right: 0.3em;
+        }
+
+        & mark {
+            margin-right: 1px;
+            background: inherit;
+
+            &.system-effect {
+                margin-top: 2px;
+            }
+
+            &.system-name, &.system-map-name {
+                margin-right: auto;
+            }
+
+            &.system-wormhole-static {
+                margin-left: 2px;
+            }
+        }
+    }
+
+    & .wormhole-static-tooltip {
+        & table.wormhole-static-info {
+            & tr td:nth-child(even) {
+                text-align: left;
+                font-weight: bold;
+            }
+        }
+    }
+
+
+    /* online locations tooltip */
+    & .online-chars-tooltip table {
+        & thead th {
+            color: $gray-lightest;
+        }
+
+        & tbody {
+            & td.ship-points {
+                text-align: right;
+            }
+        }
+
+        & .character-image, & .type-icon {
+            height: 16px;
+            width: 16px;
+        }
+    }
+}
+

@@ -60,11 +60,21 @@ object auth:
   private inline def insert[T](inline entity: Quoted[EntityQuery[T]], inline value: T): Insert[T] =
     quote(entity.insertValue(value))
 
-  def getAllAuthTokens(): DbOperation[List[(UserCharacter, CharacterAuthToken)]] =
-    ctx.run(schema.userCharacter.join(characterAuthToken).on((uc, cat) => uc.characterId == cat.characterId))
+  def getAllAuthTokens(): DbOperation[List[(AuthCharacter, UserCharacter, CharacterAuthToken)]] =
+    ctx.run(quote {
+      for
+        c  <- character
+        uc <- userCharacter.filter(_.characterId == c.id)
+        ac <- characterAuthToken.filter(_.characterId == uc.characterId)
+      yield (c, uc, ac)
+    })
 
-  def getUserForCharacter(characterId: CharacterId): DbOperation[Option[UserCharacter]] =
-    ctx.run(schema.userCharacter.filter(_.characterId == lift(characterId))).map(_.headOption)
+  def getUserForCharacter(characterId: CharacterId): DbOperation[Option[(AuthCharacter, UserCharacter)]] =
+    ctx
+      .run(
+        quote(character.filter(_.id == lift(characterId)).join(userCharacter).on((ac, uc) => ac.id == uc.characterId))
+      )
+      .map(_.headOption)
 
   def upsertCharacter(char: AuthCharacter): DbOperation[Long] =
     ctx.run(

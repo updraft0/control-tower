@@ -608,7 +608,9 @@ private def toProtoCharacterLocation(
 ): protocol.CharacterLocation =
   protocol.CharacterLocation(
     characterId = characterId,
+    characterName = inSystem.characterName,
     shipTypeId = inSystem.shipTypeId,
+    shipName = inSystem.shipName,
     structureId = inSystem.structureId,
     stationId = inSystem.stationId,
     updatedAt = inSystem.updatedAt

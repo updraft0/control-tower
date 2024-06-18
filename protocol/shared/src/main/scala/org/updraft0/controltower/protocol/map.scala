@@ -118,6 +118,9 @@ enum WormholeK162Type derives CanEqual:
 enum IntelStance derives CanEqual:
   case Unknown, Friendly, Hostile
 
+enum IntelGroup derives CanEqual:
+  case Unknown, HQ, Farm, Staging
+
 enum MapDisplayType derives CanEqual:
   case Manual
 
@@ -132,7 +135,9 @@ extension (sd: SystemDisplayData)
 
 case class CharacterLocation(
     characterId: CharacterId,
+    characterName: String,
     shipTypeId: Long,
+    shipName: String,
     structureId: Option[Long],
     stationId: Option[Int],
     updatedAt: Instant

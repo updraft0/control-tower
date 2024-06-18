@@ -17,8 +17,9 @@ import zio.*
 import java.time.Instant
 import java.util.UUID
 
-type MapEnv   = javax.sql.DataSource & LocationTracker & MapPermissionTracker
-type SystemId = Long // TODO opaque type
+type MapEnv     = javax.sql.DataSource & LocationTracker & MapPermissionTracker
+type SystemId   = Long // TODO opaque type
+type ShipTypeId = Int
 
 private[map] case class MapSolarSystem(
     systemId: SystemId,
@@ -36,7 +37,10 @@ private[map] case class MapState(
     connections: Map[ConnectionId, MapWormholeConnectionWithSigs],
     connectionRanks: Map[ConnectionId, MapWormholeConnectionRank],
     locations: Map[CharacterId, MapLocationState],
-    locationsOnline: Map[CharacterId, SystemId], // manual cache of location systems - used to prevent too many updates
+    locationsOnline: Map[
+      CharacterId,
+      (SystemId, ShipTypeId)
+    ], // manual cache of location systems - used to prevent too many updates
     ref: MapRef
 ):
   // TODO this should be loaded from DB
@@ -871,7 +875,9 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
     state.copy(locationsOnline =
       state.locations
         .filter((_, mls) => mls.locationInfo.isDefined && mls.online)
-        .transform((_, mls) => mls.locationInfo.get.system.value)
+        .transform: (_, mls) =>
+          val locationInfo = mls.locationInfo.get
+          locationInfo.system.value -> locationInfo.shipTypeId
     )
 
   private def isPotentialWormholeJump(state: MapState, fromSystemId: SystemId, toSystemId: SystemId) =

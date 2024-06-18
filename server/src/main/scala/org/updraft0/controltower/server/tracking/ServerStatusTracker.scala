@@ -24,7 +24,7 @@ object ServerStatusTracker:
       _ <- doRefresh(ref)
       // fork in background
       _ <- (doRefresh(ref)
-        .repeat(Schedule.once.andThen(Schedule.fixed(PollInterval)))
+        .repeat(Schedule.fixed(PollInterval))
         .ignoreLogged @@ Log.BackgroundOperation("statusTracker")).forkScoped
     yield new ServerStatusTracker:
       override def status: UIO[Either[EsiError, ServerStatusResponse]] = ref.get
@@ -32,4 +32,8 @@ object ServerStatusTracker:
   private def doRefresh(ref: Ref[Either[EsiError, ServerStatusResponse]]) =
     ZIO
       .serviceWithZIO[EsiClient](_.getServerStatus(()).either)
+      .tap {
+        case Left(esiError) => ZIO.logWarning(s"Server status check returned failure: ${esiError}")
+        case Right(status)  => ZIO.logTrace(s"Server status: ${status}")
+      }
       .flatMap(ref.set(_))

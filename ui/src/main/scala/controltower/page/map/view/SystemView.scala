@@ -2,6 +2,7 @@ package controltower.page.map.view
 
 import com.raquo.laminar.api.L.*
 import controltower.Constant
+import controltower.backend.ESI
 import controltower.component.Modal
 import controltower.page.map.{Coord, MapAction, PositionController, RoleController}
 import controltower.ui.{ViewController, onEnterPress}
@@ -26,6 +27,8 @@ enum SystemScanStatus derives CanEqual:
 case class SystemStaticData(
     solarSystemMap: MapView[SystemId, SolarSystem],
     wormholeTypes: Map[Long, WormholeType],
+    starTypes: Map[Long, StarType],
+    shipTypes: Map[Long, ShipType],
     signatureByClassAndGroup: Map[WormholeClass, Map[SignatureGroup, List[SignatureClassified]]]
 )
 
@@ -35,6 +38,8 @@ object SystemStaticData:
     new SystemStaticData(
       solarSystemMap,
       wormholeTypes = ref.wormholeTypes.map(wt => wt.typeId -> wt).toMap,
+      starTypes = ref.starTypes.map(st => st.typeId -> st).toMap,
+      shipTypes = ref.shipTypes.map(st => st.typeId -> st).toMap,
       signatureByClassAndGroup = computeSignatures(ref)
     )
 
@@ -64,10 +69,10 @@ object SystemStaticData:
 /** Display a single system on the map and interact with it
   */
 class SystemView(
-    systemId: Long,
+    systemId: SystemId,
     system: Signal[MapSystemSnapshot],
     pos: PositionController,
-    selectedSystem: Signal[Option[Long]],
+    selectedSystem: Signal[Option[SystemId]],
     characters: Signal[Array[CharacterLocation]],
     connectingState: Var[MapNewConnectionState],
     isConnected: Signal[Boolean],
@@ -100,17 +105,16 @@ class SystemView(
             cls := "system-status-line",
             systemClass(solarSystem),
             systemMapName(system, solarSystem),
-            systemShattered(solarSystem),
+            // systemShattered(solarSystem), TODO remove?
+            systemOnlineChars(systemId, characters, ctx.staticData.shipTypes),
             systemEffect(solarSystem),
             systemIsPinned(system.map(_.system)),
-            // do not display scan status for kspace
-            if (solarSystem.systemClass.exists(_.spaceType == SpaceType.Known)) emptyNode
-            else systemScanStatus(system.map(_.signatures), settings, ctx.now)
+            systemIntelGroupIndicator(system)
           )
 
           val secondLine = div(
             cls := "system-status-line",
-            systemOnlineChars(characters),
+            systemClass(solarSystem, hide = true),
             systemName(solarSystem),
             systemWhStatics(solarSystem, ctx.staticData.wormholeTypes)
           )
@@ -159,8 +163,15 @@ class SystemView(
             onPointerUp.preventDefault.stopPropagation.mapTo(MapNewConnectionState.Stopped) --> connectingState,
             onPointerCancel.preventDefault.stopPropagation.mapTo(MapNewConnectionState.Stopped) --> connectingState,
             intelStance(system),
-            firstLine,
-            secondLine
+            div(
+              cls := "status-lines",
+              firstLine,
+              secondLine
+            ),
+            // do not display scan status for kspace
+            if (solarSystem.systemClass.exists(_.spaceType == SpaceType.Known))
+              mark(cls := "system-scan-status", nbsp)
+            else systemScanStatus(system.map(_.signatures), settings, ctx.now)
           )
         }
       )
@@ -182,11 +193,62 @@ private inline def systemClass(ss: SolarSystem, hide: Boolean = false) =
     systemClassString(systemClass)
   )
 
-private inline def systemOnlineChars(chars: Signal[Array[CharacterLocation]]) =
-  mark(
-    cls := "system-online-chars",
-    visibility <-- chars.map(arr => if (arr.isEmpty) "hidden" else ""),
-    text <-- chars.map(_.length.toString)
+private inline def systemOnlineChars(
+    systemId: SystemId,
+    chars: Signal[Array[CharacterLocation]],
+    shipTypes: Map[Long, ShipType]
+) =
+  nodeSeq(
+    mark(
+      cls       := "system-online-chars",
+      cls       := "tooltip-target-adjacent",
+      styleAttr := s"anchor-name: --online-${systemId}",
+      display <-- chars.map(arr => if (arr.isEmpty) "none" else ""),
+      text <-- chars.map(_.length.toString)
+    ),
+    div(
+      cls       := "tooltip",
+      cls       := "tooltip-on-left",
+      cls       := "online-chars-tooltip",
+      styleAttr := s"--anchor-var: --online-${systemId}",
+      h3(cls := "tooltip-title", "Pilots"),
+      table(
+        thead(
+          th(cls := "character-image"),
+          th(cls := "character-name", "Char"),
+          th(cls := "ship-image"),
+          th(cls := "ship-type"),
+          th(cls := "ship-name", "Ship"),
+          th(
+            cls := "ship-points",
+            child.text <-- chars
+              .map(_.foldLeft(0L)((s, cl) => shipTypes(cl.shipTypeId).mass))
+              .map(pointsFromMass)
+              .map(p => s"∑ $p")
+          ),
+          th("")
+        ),
+        tbody(
+          children <-- chars.map(_.toList).split(_.characterId)(renderLocationRow(shipTypes))
+        )
+      )
+    )
+  )
+
+private[map] inline def renderLocationRow(
+    shipTypes: Map[Long, ShipType]
+)(charId: CharacterId, location: CharacterLocation, sig: Signal[CharacterLocation]) =
+  tr(
+    td(cls := "character-image", ESI.characterImage(charId, location.characterName, size = CharacterImageSize)),
+    td(cls := "character-name", location.characterName),
+    td(cls := "ship-image", child <-- sig.map(cl => ESI.typeIcon(cl.shipTypeId))),
+    td(cls := "ship-type", child.text <-- sig.map(cl => shipTypes(cl.shipTypeId).name)),
+    td(cls := "ship-name", child.text <-- sig.map(cl => cl.shipName)),
+    td(cls := "ship-points", child.text <-- sig.map(cl => pointsFromMass(shipTypes(cl.shipTypeId).mass).toString)),
+    td(
+      cls := "status",
+      i(cls := "ti", cls <-- sig.map(cl => if (cl.structureId.isDefined || cl.stationId.isDefined) "ti-home" else ""))
+    )
   )
 
 private inline def systemName(ss: SolarSystem) =
@@ -196,15 +258,21 @@ private inline def systemName(ss: SolarSystem) =
   )
 
 private inline def systemEffect(ss: SolarSystem) =
-  ss.effect
-    .map { we =>
+  ss.effect.toSeq
+    .flatMap { we =>
       val effect = WormholeEffects.ById(we.typeId)
-      mark(
-        cls := "system-effect",
-        cls := s"system-effect-${effect.toString.toLowerCase}",
-        cls := "ti",
-        cls := "ti-square-filled"
+      nodeSeq(
+        mark(
+          cls       := "system-effect",
+          cls       := s"system-effect-${effect.toString.toLowerCase}",
+          cls       := "tooltip-target-adjacent",
+          styleAttr := s"anchor-name: --effect-${ss.id}-${effect.typeId}",
+          cls       := "ti",
+          cls       := "ti-square-filled"
+        ),
+        effectTooltip(ss.systemClass.get, effect, s"effect-${ss.id}-${effect.typeId}")
       )
+
     }
 
 private inline def systemShattered(ss: SolarSystem) =
@@ -239,15 +307,12 @@ private inline def systemScanStatus(
       case _                       => SystemScanStatus.Unscanned
   mark(
     cls := "system-scan-status",
-    dataAttr("scan-status") <-- scanStatus.map(_.toString),
-    cls := "ti",
-    cls <-- scanStatus
-      .map:
-        case SystemScanStatus.Unscanned         => "ti-alert-circle-filled"
-        case SystemScanStatus.PartiallyScanned  => "ti-alert-circle-filled"
-        case SystemScanStatus.FullyScanned      => "ti-square-rounded-check-filled"
-        case SystemScanStatus.FullyScannedStale => "ti-bell-z-filled"
+    dataAttr("scan-status") <-- scanStatus.map(_.toString)
   )
+
+private inline def systemIntelGroupIndicator(s: Signal[MapSystemSnapshot]) =
+  // TODO - add support for intel groups
+  mark(cls := "ti", cls := "system-group-indicator", dataAttr("intel-group") := IntelGroup.Unknown.toString)
 
 private inline def systemIsPinned(s: Signal[MapSystem]) =
   mark(
@@ -261,15 +326,22 @@ private inline def systemIsPinned(s: Signal[MapSystem]) =
   )
 
 private inline def systemWhStatics(ss: SolarSystem, wormholeTypes: Map[Long, WormholeType]) =
-  ss.wormholeStatics.map { static =>
-    val tpe = wormholeTypes(static.typeId)
-    mark(
-      cls := "system-wormhole-static",
-      cls := s"system-wormhole-static-${static.name.toLowerCase}",
-      cls := s"system-class-${tpe.targetClass.toString.toLowerCase}",
-      tpe.targetClass.toString
+  ss.wormholeStatics.flatMap: static =>
+    val whType = wormholeTypes(static.typeId)
+    nodeSeq(
+      mark(
+        cls                      := "system-wormhole-static",
+        dataAttr("static-name")  := static.name,
+        dataAttr("static-class") := whType.targetClass.toString,
+        styleAttr                := s"anchor-name: --static-${ss.id}-${whType.typeId}",
+        cls                      := "tooltip-target-adjacent",
+        // TODO remove these
+        cls := s"system-wormhole-static-${static.name.toLowerCase}",
+        cls := s"system-class-${whType.targetClass.toString.toLowerCase}",
+        whType.targetClass.toString
+      ),
+      staticTooltip(whType, s"static-${ss.id}-${whType.typeId}")
     )
-  }
 
 private def systemRenameView(systemId: Long, name: String, actions: WriteBus[MapAction], closeMe: Observer[Unit]) =
   val nameVar = Var(name)
@@ -303,8 +375,7 @@ private[view] inline def systemNameInput(nameVar: Var[String], mods: Modifier[In
   )
 
 private[view] inline def systemClassString(cls: WormholeClass) =
-  cls match
-    case WormholeClass.Pochven     => "P"
-    case WormholeClass.Thera       => "T"
-    case other if other.value > 10 => s"C${other.value}"
-    case other                     => other.toString
+  cls.tag
+
+private inline def pointsFromMass(mass: Long) =
+  (mass / 10_000_000).toDouble / 10.0d

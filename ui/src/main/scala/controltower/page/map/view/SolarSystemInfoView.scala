@@ -3,7 +3,7 @@ package controltower.page.map.view
 import com.raquo.laminar.api.L.*
 import controltower.backend.{ESI, ThirdParty}
 import controltower.ui.ViewController
-import org.updraft0.controltower.constant.{SpaceType, WormholeClass}
+import org.updraft0.controltower.constant.{SpaceType, WormholeClass, WormholeEffect}
 import org.updraft0.controltower.protocol.*
 
 case class SystemInfo(systemId: Long, name: Option[String])
@@ -20,7 +20,12 @@ class SolarSystemInfoView(staticData: SystemStaticData, selectedSystem: Observab
       cls    := "left-sidebar-view",
       table(children <-- selectedSystem.map {
         case Some(info) if staticData.solarSystemMap.contains(info.systemId) =>
-          solarSystemInfo(staticData.solarSystemMap(info.systemId), info.name, staticData.wormholeTypes)
+          solarSystemInfo(
+            staticData.solarSystemMap(info.systemId),
+            info.name,
+            staticData.wormholeTypes,
+            staticData.starTypes
+          )
         case _ => nodeSeq(tr("select a system"))
       })
     )
@@ -30,7 +35,8 @@ private val IgnoredSpaceTypes = Set(SpaceType.Known, SpaceType.Pochven)
 private inline def solarSystemInfo(
     solarSystem: SolarSystem,
     name: Option[String],
-    wormholeTypes: Map[Long, WormholeType]
+    wormholeTypes: Map[Long, WormholeType],
+    starTypes: Map[Long, StarType]
 ) =
   nodeSeq(
     tr(
@@ -73,21 +79,18 @@ private inline def solarSystemInfo(
         .map(starTypeId =>
           mark(
             cls := "system-star",
-            ESI.typeIcon(starTypeId)
+            ESI
+              .typeIcon(starTypeId, description = Some(starTypes(starTypeId).name))
+              .amend(
+                cls := "star-type"
+              )
           )
         ),
-      solarSystem.effect
-        .map(effect =>
-          mark(
-            cls := "system-effect",
-            cls := s"system-effect-${effect.toString.toLowerCase}",
-            i(cls := "ti", cls := "ti-square-filled")
-          )
-        ),
+      solarSystem.effect.map(effectInfo(solarSystem.systemClass.get, _)),
       mark(
         cls := "system-planets",
         i(cls := "ti", cls := "ti-globe"),
-        s" ${solarSystem.planets.size}"
+        s" ${solarSystem.planets.length}"
       ),
       // TODO add system moons (requires a query change on backend)
 //          mark(
@@ -95,12 +98,20 @@ private inline def solarSystemInfo(
 //            i(cls := "ti", cls := "ti-moon-filled"),
 //            s" ${solarSystem.planets.map(_.moonCount).sum}"
 //          )
-      Option
-        .when(!solarSystem.systemClass.forall(_.isDrifter))(
-          solarSystem.wormholeStatics.flatMap(staticInfo(wormholeTypes, _)).toSeq
-        )
-        .getOrElse(nodeSeq())
+
+      solarSystem.wormholeStatics.take(4).flatMap(staticInfo(wormholeTypes, _)).toSeq
     )
+  )
+
+private inline def effectInfo(wormholeClass: WormholeClass, effect: WormholeEffect) =
+  nodeSeq(
+    mark(
+      cls       := "system-effect",
+      cls       := "tooltip-target-adjacent",
+      styleAttr := s"anchor-name: --system-effect-${effect.typeId}",
+      i(cls := "ti", cls := "ti-square-filled", cls := s"system-effect-${effect.toString.toLowerCase}")
+    ),
+    effectTooltip(wormholeClass, effect, s"system-effect-${effect.typeId}")
   )
 
 private inline def staticInfo(wormholeTypes: Map[Long, WormholeType], static: WormholeStatic) =
@@ -111,6 +122,7 @@ private inline def staticInfo(wormholeTypes: Map[Long, WormholeType], static: Wo
       cls                      := "system-wormhole-static",
       dataAttr("static-name")  := static.name,
       dataAttr("static-class") := whType.targetClass.toString,
+      cls                      := "tooltip-target-adjacent",
       styleAttr                := s"anchor-name: --static-${static.typeId}",
       // TODO - move away from this CSS class
       cls := s"system-class-${whType.targetClass.toString.toLowerCase}",
@@ -118,28 +130,42 @@ private inline def staticInfo(wormholeTypes: Map[Long, WormholeType], static: Wo
       i(cls := "ti", cls := "ti-arrow-narrow-right"),
       whType.targetClass.toString
     ),
-    div(
-      cls := "tooltip",
-      cls := "wormhole-static-tooltip",
-      // FIXME - the anchor position polyfill is not dynamic and does not support vars - aka no Firefox or Safari
-      styleAttr := s"--anchor-var: --static-${static.typeId}",
-      h3(cls := "tooltip-title", whType.name),
-      table(
-        cls := "wormhole-static-info",
-        tbody(
-          tr(
-            td("Points"),
-            td(whType.stablePoints)
-          ),
-          tr(
-            td("Lifetime"),
-            td(s"${whType.maxStableTime / 60}h")
-          ),
-          tr(
-            td("Size"),
-            td(whType.massSize.toString)
-          )
+    staticTooltip(whType, s"static-${static.typeId}")
+  )
+
+private[map] def staticTooltip(whType: WormholeType, anchor: String, anchorCls: String = "tooltip-on-left") =
+  div(
+    cls := "tooltip",
+    cls := anchorCls,
+    cls := "wormhole-static-tooltip",
+    // FIXME - the anchor position polyfill is not dynamic and does not support vars - aka no Firefox or Safari
+    styleAttr := s"--anchor-var: --${anchor}",
+    h3(cls := "tooltip-title", whType.name),
+    table(
+      cls := "wormhole-static-info",
+      tbody(
+        tr(
+          td("Points"),
+          td(whType.stablePoints)
+        ),
+        tr(
+          td("Lifetime"),
+          td(s"${whType.maxStableTime / 60}h")
+        ),
+        tr(
+          td("Size"),
+          td(whType.massSize.toString)
         )
       )
     )
+  )
+
+private[map] def effectTooltip(whClass: WormholeClass, effect: WormholeEffect, anchor: String) =
+  div(
+    cls       := "tooltip",
+    cls       := "tooltip-on-left",
+    cls       := "system-effect-tooltip",
+    styleAttr := s"--anchor-var: --${anchor}",
+    h3(cls := "tooltip-title", s"${whClass.toString} ${effect.toString}")
+    // TODO render effects!
   )

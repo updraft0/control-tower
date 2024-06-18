@@ -1,29 +1,22 @@
 /* TODO - move styles over from app.css */
 
-mark.system-wormhole-static {
-    background: inherit;
-    margin-left: 2px;
-    margin-right: 2px;
-
-
-    &:hover {
-        cursor: help;
+.solar-system-info-view {
+    & mark.system-planets {
+        max-height: 1.5em;
     }
 
-    &:hover + .tooltip {
-        visibility: visible;
+    & mark.system-wormhole-static {
+        margin-left: 2px;
+        margin-right: 2px;
     }
-}
 
-.wormhole-static-tooltip {
-    left: anchor(var(--anchor-var) right);
-    margin-left: 0.5em;
-    z-index: 1000;
-
-    & table.wormhole-static-info {
-        & tr td:nth-child(even) {
-            text-align: left;
-            font-weight: bold;
+    & .wormhole-static-tooltip {
+        & table.wormhole-static-info {
+            & tr td:nth-child(even) {
+                text-align: left;
+                font-weight: bold;
+            }
         }
     }
 }
+

@@ -18,6 +18,7 @@
 @import 'views/nav-top-view.css';
 @import 'views/solar-system-info-view.css';
 @import 'views/map-system-signature-view.css';
+@import 'views/system-view.css';
 
 /* ok? */
 
@@ -145,12 +146,7 @@ $box-height:    40px;
 }
 
 #map-parent {
-    /*flex: unset; !* TODO not sure ? *!*/
-    /*width: 70%;*/
-    /*width: 500px;*/
-    min-height: 60vh;
-    height: 60vh;
-    /*height: 500px;*/
+    min-height: max(800px, 60vh);
     overflow: auto;
     box-sizing: content-box;
     /* material design corners - TODO need to templatise this */
@@ -232,13 +228,6 @@ $box-height:    40px;
     /*box-shadow: 0px 1px 4px rgba(0, 0, 0, 0.16), 0px 0px 0px 3px rgba(51, 51, 51,1);*/
 }
 
-mark.system-class, mark.system-online-chars {
-    background: inherit;
-    margin-left: 2px;
-    margin-right: 2px;
-    width: 1.3em;
-    text-align: center;
-}
 
 .system-class-h {
     color: $green;
@@ -268,10 +257,6 @@ mark.system-class, mark.system-online-chars {
     color: $teal;
 }
 
-/* TODO more system classes */
-mark.system-online-chars {
-    color: $green-dark;
-}
 
 span.wormhole-connection-option {
     margin: 1px 0 1px 0;
@@ -313,36 +298,12 @@ mark.system-effect {
 
 }
 
-.system-status-line mark {
-    margin-right: 1px;
-    background: inherit;
-}
-
-.system-status-line mark.system-effect {
-    margin-top: 2px;
-}
-
-
 mark.system-pin-status {
     margin-top: 2px;
     color: $gray-lighter;
 }
 
-mark.system-scan-status {
-    margin-top: 2px;
 
-    &[data-scan-status="Unscanned"] {
-        color: $red-dark;
-    }
-
-    &[data-scan-status="FullyScanned"] {
-        color: $green-dark;
-    }
-
-    &[data-scan-status="FullyScannedStale"], &[data-scan-status="PartiallyScanned"] {
-        color: $orange-dark;
-    }
-}
 
 mark.system-shattered {
     margin-top: 2px;
@@ -431,32 +392,6 @@ mark.system-map-name {
 
 
 
-/* FIXME colors wrong here */
-.system-stance-hostile {
-    border: 2px solid $red;
-}
-
-.system-stance-friendly {
-    border: 2px solid $blue;
-}
-
-.system-stance-unknown {
-    border: 2px solid $gray-light;
-}
-
-.system-occupied {
-    border: 2px solid $orange;
-}
-
-.system-status-line {
-    display: flex;
-    min-width: 100%;
-}
-
-.system-status-line > :last-child {
-    margin-right: 2px;
-}
-
 /* solar system info */
 .left-sidebar-view {
     background-color: $gray-darker;
@@ -493,6 +428,9 @@ span.solar-system-name-default {
     color: $gray-light;
 }
 
+mark.system-class {
+    background-color: inherit;
+}
 
 tr.solar-system-name > a:first-of-type {
     margin-left: auto;
@@ -535,10 +473,6 @@ tr.solar-system-properties mark:first-of-type {
 
 tr.solar-system-properties mark.system-planets {
     margin-right: auto;
-}
-
-tr.solar-system-properties mark.system-class {
-    width: fit-content;
 }
 
 mark.system-planets {

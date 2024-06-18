@@ -19,6 +19,7 @@ import java.util.UUID
 case class CharacterAuth(
     userId: UserId,
     characterId: CharacterId,
+    characterName: String,
     token: JwtString,
     refreshToken: Base64,
     expiry: Instant
@@ -63,8 +64,10 @@ object Users:
   def loadAll: ZIO[Env, Throwable, Chunk[CharacterAuth]] =
     for
       allTokens <- auth.getAllAuthTokens()
-      authTokens <- ZIO.foreach(allTokens)((uc, ecat) =>
-        decryptAuthToken(ecat).map((t, r) => CharacterAuth(uc.userId, uc.characterId, JwtString(t), r, ecat.expiresAt))
+      authTokens <- ZIO.foreach(allTokens)((c, uc, ecat) =>
+        decryptAuthToken(ecat).map((t, r) =>
+          CharacterAuth(uc.userId, uc.characterId, c.name, JwtString(t), r, ecat.expiresAt)
+        )
       )
     yield Chunk.fromIterable(authTokens)
 
@@ -90,7 +93,14 @@ object Users:
       _      <- newUserSession(userId, sessionId).flatMap(auth.insertUserSession)
       token  <- encryptJwtResponse(tokenMeta, jwt)
       _      <- auth.upsertAuthToken(token)
-    yield CharacterAuth(userId, tokenMeta.characterId, jwt.accessToken, Base64.raw(jwt.refreshToken), tokenMeta.expiry)
+    yield CharacterAuth(
+      userId,
+      tokenMeta.characterId,
+      char.name,
+      jwt.accessToken,
+      Base64.raw(jwt.refreshToken),
+      tokenMeta.expiry
+    )
 
   private def newSession(
       jwt: JwtAuthResponse,
@@ -105,7 +115,14 @@ object Users:
       _     <- auth.upsertCharacter(char)
       token <- encryptJwtResponse(tokenMeta, jwt)
       _     <- auth.upsertAuthToken(token)
-    yield CharacterAuth(user.id, tokenMeta.characterId, jwt.accessToken, Base64.raw(jwt.refreshToken), tokenMeta.expiry)
+    yield CharacterAuth(
+      user.id,
+      tokenMeta.characterId,
+      char.name,
+      jwt.accessToken,
+      Base64.raw(jwt.refreshToken),
+      tokenMeta.expiry
+    )
 
   private def addCharacterToUser(
       jwt: JwtAuthResponse,
@@ -122,7 +139,14 @@ object Users:
       _     <- auth.upsertCharacter(char)
       token <- encryptJwtResponse(tokenMeta, jwt)
       _     <- auth.upsertAuthToken(token)
-    yield CharacterAuth(user.id, tokenMeta.characterId, jwt.accessToken, Base64.raw(jwt.refreshToken), tokenMeta.expiry)
+    yield CharacterAuth(
+      user.id,
+      tokenMeta.characterId,
+      char.name,
+      jwt.accessToken,
+      Base64.raw(jwt.refreshToken),
+      tokenMeta.expiry
+    )
 
   private def updateRefreshToken(
       jwt: JwtAuthResponse,
@@ -138,7 +162,14 @@ object Users:
       _     <- auth.upsertCharacter(char)
       token <- encryptJwtResponse(tokenMeta, jwt)
       _     <- auth.upsertAuthToken(token)
-    yield CharacterAuth(userId, tokenMeta.characterId, jwt.accessToken, Base64.raw(jwt.refreshToken), tokenMeta.expiry)
+    yield CharacterAuth(
+      userId,
+      tokenMeta.characterId,
+      char.name,
+      jwt.accessToken,
+      Base64.raw(jwt.refreshToken),
+      tokenMeta.expiry
+    )
 
   private def refreshTokenMinimal(jwt: JwtAuthResponse, tokenMeta: EsiTokenMeta) =
     for
@@ -146,9 +177,11 @@ object Users:
       _       <- auth.upsertAuthToken(token)
       userOpt <- auth.getUserForCharacter(token.characterId)
       _       <- ZIO.fail(new RuntimeException("Character has no user")).unless(userOpt.isDefined)
+      (c, user) = userOpt.get
     yield CharacterAuth(
-      userOpt.get.userId,
+      user.userId,
       tokenMeta.characterId,
+      c.name,
       jwt.accessToken,
       Base64.raw(jwt.refreshToken),
       tokenMeta.expiry

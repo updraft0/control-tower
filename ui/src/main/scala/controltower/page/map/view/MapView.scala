@@ -4,6 +4,7 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.{ReactiveElement, ReactiveHtmlElement}
 import controltower.Page
 import controltower.backend.ControlTowerBackend
+import controltower.component.Modal
 import controltower.db.ReferenceDataStore
 import controltower.page.map.*
 import controltower.ui.*
@@ -160,12 +161,49 @@ private final class MapView(
 
     div(
       idAttr := "map-view-inner",
+      // A -> add system
+      modalKeyBinding(
+        "KeyA",
+        controller.mapRole.map(RoleController.canAddSystem).combineWith(ws.isConnected).map(_ && _),
+        identity,
+        (_, onClose) =>
+          Modal.show(
+            (closeMe, owner) => systemAddView(controller.actionsBus, closeMe, rds, controller.pos)(using owner),
+            onClose,
+            true,
+            cls := "system-add-dialog"
+          )
+      ),
       // delete -> remove system
       modalKeyBinding(
         "Delete",
-        ws.isConnected,
+        controller.mapRole.map(RoleController.canRemoveSystem).combineWith(ws.isConnected).map(_ && _),
         _.withCurrentValueOf(controller.selectedSystem).filterNot(_.isEmpty).map(_.get),
         (system, onClose) => removeSystemConfirm(system, controller.actionsBus, onClose)(using rds)
+      ),
+      // P -> paste system signatures
+      modalKeyBinding(
+        "KeyP",
+        controller.mapRole.map(RoleController.canEditSignatures).combineWith(ws.isConnected).map(_ && _),
+        _.withCurrentValueOf(controller.selectedSystem).filterNot(_.isEmpty).map(_.get),
+        { (system, onClose) =>
+          val solarSystem = static.solarSystemMap(system.system.systemId)
+          Modal.show(
+            pasteSignaturesView(
+              system,
+              solarSystem,
+              solarSystem.systemClass
+                .flatMap(whc => static.signatureByClassAndGroup.get(whc))
+                .getOrElse(Map.empty),
+              static,
+              time,
+              controller.actionsBus
+            ),
+            onClose,
+            false,
+            cls := "system-paste-signatures"
+          )
+        }
       ),
       div(
         idAttr := "map-parent",
@@ -207,7 +245,7 @@ private final class MapView(
       compose: EventStream[Unit] => EventStream[B],
       action: (B, Observer[Unit]) => Unit
   ) =
-    documentEvents(_.onKeyDown.filter(ev => !ev.repeat && ev.code == code)).mapToUnit
+    documentEvents(_.onKeyDown.filter(ev => !ev.repeat && ev.code == code).preventDefault).mapToUnit
       .compose(es => compose(es).filterWith(isConnected).filterWith(notInKeyHandler.signal)) --> { b =>
       inKeyHandler.set(true)
       action(b, Observer(_ => inKeyHandler.set(false)))
