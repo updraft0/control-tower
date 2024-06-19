@@ -270,9 +270,6 @@ private final class MapView(
             svg.overflow := "visible",
             children.command <-- connectionNodes,
             connectionInProgress.view
-          ),
-          controller.bulkSelectedSystemIds.signal --> (sss =>
-            org.scalajs.dom.console.log(s"ids selected: ${sss.mkString(",")}")
           )
         )
       ),
