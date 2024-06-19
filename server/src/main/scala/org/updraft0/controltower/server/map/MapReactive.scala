@@ -267,6 +267,7 @@ enum MapRequest derives CanEqual:
   case UpdateSystemSignatures(systemId: SystemId, replaceAll: Boolean, scanned: List[NewMapSystemSignature])
   case RenameSystem(systemId: SystemId, name: Option[String])
   case RemoveSystem(systemId: SystemId)
+  case RemoveSystems(systemIds: Chunk[SystemId])
   case RemoveSystemSignatures(systemId: SystemId, signatures: Option[NonEmptyChunk[SigId]])
   case RemoveSystemConnection(connectionId: ConnectionId)
   // internals
@@ -387,7 +388,17 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
                 )
               case Identified(Some(sid), rs: MapRequest.RemoveSystem) =>
                 whenSystemExists(rs.systemId, state)(
-                  identified(sid, "removeFromDisplay", removeSystemAndConnection(mapId, state, sid, rs))
+                  identified(sid, "removeFromDisplay", removeSystemAndConnection(mapId, state, sid, rs.systemId))
+                )
+              case Identified(Some(sid), rss: MapRequest.RemoveSystems) =>
+                // TODO this could be optimized further
+                foldLeft(
+                  state,
+                  rss.systemIds,
+                  (systemId, state) =>
+                    whenSystemExists(systemId, state)(
+                      identified(sid, "removeFromDisplay", removeSystemAndConnection(mapId, state, sid, systemId))
+                    )
                 )
               case Identified(Some(sid), rsc: MapRequest.RemoveSystemConnection) =>
                 identified(sid, "removeSystemConnection", removeSystemConnection(mapId, state, sid, rsc))
@@ -623,26 +634,26 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
       mapId: MapId,
       state: MapState,
       sessionId: MapSessionId,
-      rs: MapRequest.RemoveSystem
+      systemId: SystemId
   ) =
-    val connections   = state.connectionsForSystem(rs.systemId)
+    val connections   = state.connectionsForSystem(systemId)
     val connectionIds = Chunk.from(connections.valuesIterator.map(_.connection.id))
-    val otherSystemIds = Chunk.from(connections.valuesIterator.map(_.connection.toSystemId).filter(_ != rs.systemId)) ++
-      Chunk.from(connections.valuesIterator.map(_.connection.fromSystemId).filter(_ != rs.systemId))
+    val otherSystemIds = Chunk.from(connections.valuesIterator.map(_.connection.toSystemId).filter(_ != systemId)) ++
+      Chunk.from(connections.valuesIterator.map(_.connection.fromSystemId).filter(_ != systemId))
     for
       // mark connections as removed
       _ <- query.map.deleteMapWormholeConnections(mapId, connectionIds, sessionId.characterId)
       // remove signatures that have those connections
       _ <- query.map.deleteSignaturesWithConnectionIds(mapId, connectionIds, sessionId.characterId)
       // remove the display of the system
-      _ <- query.map.deleteMapSystemDisplay(mapId, rs.systemId)
+      _ <- query.map.deleteMapSystemDisplay(mapId, systemId)
       // recompute all the connection ranks
       connectionRanks <- MapQueries.getWormholeConnectionRanksAll(mapId)
       // load all the affected connections with sigs
       connectionsWithSigs <- MapQueries.getWormholeConnectionsWithSigsBySystemIds(mapId, otherSystemIds)
     yield withState(
       state.removeSystem(
-        rs.systemId,
+        systemId,
         connectionIds,
         otherSystemIds,
         connectionRanks,
@@ -651,7 +662,7 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
     )(nextState =>
       nextState -> broadcast(
         MapResponse.SystemRemoved(
-          state.systems(rs.systemId),
+          state.systems(systemId),
           connectionIds,
           connectionsWithSigs.map(whcs => whcs.connection.id -> whcs).toMap,
           connectionRanks = nextState.connectionRanks
@@ -1065,6 +1076,14 @@ private inline def removeSignatureById(arr: Chunk[MapSystemSignature], idOpt: Op
         case idx => arr.patch(idx, Nil, 1)
     )
     .getOrElse(arr)
+
+private def foldLeft[A](
+    initial: MapState,
+    xs: Chunk[A],
+    f: (A, MapState) => ZIO[MapEnv, Throwable, (MapState, Chunk[Identified[MapResponse]])]
+) =
+  ZIO.foldLeft(xs)((initial, Chunk.empty[Identified[MapResponse]])):
+    case ((prev, responses), a) => f(a, prev).map((s, r) => (s, responses ++ r))
 
 private def combineMany(
     initial: MapState,

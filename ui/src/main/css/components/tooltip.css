@@ -1,6 +1,6 @@
 .tooltip {
     position: absolute;
-    background-color: $gray-dark;
+    background-color: $gray;
 
     visibility: hidden;
     opacity: 0;
@@ -23,7 +23,7 @@
         color: $gray-lightest;
         font-size: 1em;
         margin: 0.2em;
-        border-bottom: 1px solid $gray-darker;
+        border-bottom: 1px solid $gray-dark;
     }
 }
 
@@ -41,6 +41,6 @@
 
     &:hover + .tooltip {
         visibility: visible;
-        opacity: 90%;
+        opacity: 0.95;
     }
 }

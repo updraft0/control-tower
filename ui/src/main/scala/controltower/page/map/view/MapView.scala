@@ -11,6 +11,7 @@ import controltower.ui.*
 import io.laminext.websocket.*
 import org.updraft0.controltower.constant
 import org.updraft0.controltower.protocol.*
+import org.scalajs.dom.KeyboardEvent
 
 import java.time.Instant
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -129,6 +130,7 @@ private final class MapView(
           mssV.signal,
           controller.pos,
           controller.selectedSystemId.signal,
+          controller.bulkSelectedSystemIds.signal,
           controller.allLocations.signal.map(_.getOrElse(constant.SystemId(systemId), Array.empty[CharacterLocation])),
           connectingSystem.current,
           ws.isConnected,
@@ -165,7 +167,7 @@ private final class MapView(
       modalKeyBinding(
         "KeyA",
         controller.mapRole.map(RoleController.canAddSystem).combineWith(ws.isConnected).map(_ && _),
-        identity,
+        _.map(ev => (ev, ())),
         (_, onClose) =>
           Modal.show(
             (closeMe, owner) => systemAddView(controller.actionsBus, closeMe, rds, controller.pos)(using owner),
@@ -178,14 +180,26 @@ private final class MapView(
       modalKeyBinding(
         "Delete",
         controller.mapRole.map(RoleController.canRemoveSystem).combineWith(ws.isConnected).map(_ && _),
-        _.withCurrentValueOf(controller.selectedSystem).filterNot(_.isEmpty).map(_.get),
+        _.filterWith(controller.bulkSelectedSystemIds, _.isEmpty)
+          .filterWith(controller.selectedSystem, _.isDefined)
+          .withCurrentValueOf(controller.selectedSystem)
+          .map((ev, opt) => (ev, opt.get)),
         (system, onClose) => removeSystemConfirm(system, controller.actionsBus, onClose)(using rds)
+      ),
+      // delete -> remove multiple systems
+      modalKeyBinding(
+        "Delete",
+        controller.mapRole.map(RoleController.canRemoveSystem).combineWith(ws.isConnected).map(_ && _),
+        _.filterWith(controller.bulkSelectedSystemIds, _.nonEmpty).withCurrentValueOf(controller.bulkSelectedSystemIds),
+        (systemIds, onClose) => removeMultipleSystems(systemIds, controller.actionsBus, onClose)(using rds)
       ),
       // P -> paste system signatures
       modalKeyBinding(
         "KeyP",
         controller.mapRole.map(RoleController.canEditSignatures).combineWith(ws.isConnected).map(_ && _),
-        _.withCurrentValueOf(controller.selectedSystem).filterNot(_.isEmpty).map(_.get),
+        _.filterWith(controller.selectedSystem, _.isDefined)
+          .withCurrentValueOf(controller.selectedSystem)
+          .map((ev, opt) => (ev, opt.get)),
         { (system, onClose) =>
           val solarSystem = static.solarSystemMap(system.system.systemId)
           Modal.show(
@@ -205,21 +219,49 @@ private final class MapView(
           )
         }
       ),
+      // R -> rename system
+      modalKeyBinding(
+        "KeyR",
+        controller.mapRole.map(RoleController.canRenameSystem).combineWith(ws.isConnected).map(_ && _),
+        _.filterWith(controller.selectedSystem, _.isDefined)
+          .withCurrentValueOf(controller.selectedSystem)
+          .map((ev, opt) => (ev, opt.get)),
+        (system, onClose) =>
+          Modal.show(
+            (closeMe, owner) =>
+              systemRenameView(
+                system.system.systemId,
+                system.system.name.getOrElse(""),
+                controller.actionsBus,
+                closeMe
+              ),
+            onClose,
+            true,
+            cls := "system-rename-dialog"
+          )
+      ),
       div(
         idAttr := "map-parent",
         cls    := "grid",
         cls    := "g-20px",
+        toolbarView.view,
         inContext(self =>
-          onClick.stopPropagation.compose(_.withCurrentValueOf(mapCtx.userPreferences)) --> ((ev, prefs) =>
+          onPointerUp.compose(_.withCurrentValueOf(mapCtx.userPreferences)) --> ((ev, prefs) =>
+            // TODO: unsure about the checks against self.ref - should always be true?
+
             // note: this click handler cleans up any selection
             if (prefs.clickResetsSelection && ev.currentTarget == self.ref)
               Var.set(controller.selectedSystemId -> None, controller.selectedConnectionId -> None)
+
+            if (ev.currentTarget == self.ref)
+              // always clean up the multiple system selection
+              controller.bulkSelectedSystemIds.set(Array.empty)
           )
         ),
-        toolbarView.view,
         div(
           idAttr := "map-inner",
           children.command <-- systemNodes,
+          SelectionView(controller.selectedSystemId.signal, controller.bulkSelectedSystemIds.writer, systemNodes).view,
           svg.svg(
             svg.cls      := "connection-container",
             svg.style    := "position: absolute; left: 0px; top: 0px;",
@@ -228,6 +270,9 @@ private final class MapView(
             svg.overflow := "visible",
             children.command <-- connectionNodes,
             connectionInProgress.view
+          ),
+          controller.bulkSelectedSystemIds.signal --> (sss =>
+            org.scalajs.dom.console.log(s"ids selected: ${sss.mkString(",")}")
           )
         )
       ),
@@ -241,12 +286,15 @@ private final class MapView(
 
   private def modalKeyBinding[B](
       code: String,
-      isConnected: Signal[Boolean],
-      compose: EventStream[Unit] => EventStream[B],
+      shouldEnable: Signal[Boolean],
+      compose: EventStream[KeyboardEvent] => EventStream[(KeyboardEvent, B)],
       action: (B, Observer[Unit]) => Unit
   ) =
-    documentEvents(_.onKeyDown.filter(ev => !ev.repeat && ev.code == code).preventDefault).mapToUnit
-      .compose(es => compose(es).filterWith(isConnected).filterWith(notInKeyHandler.signal)) --> { b =>
+    documentEvents(
+      _.onKeyDown
+        .filter(ev => !ev.repeat && ev.code == code && !ev.ctrlKey && !ev.shiftKey && !ev.metaKey)
+    ).compose(es => compose(es).filterWith(shouldEnable).filterWith(notInKeyHandler.signal)) --> { (ev, b) =>
+      ev.preventDefault()
       inKeyHandler.set(true)
       action(b, Observer(_ => inKeyHandler.set(false)))
     }

@@ -39,8 +39,9 @@ class MapController(rds: ReferenceDataStore, val clock: Signal[Instant])(using O
   val allConnections = HVar[Map[ConnectionId, MapWormholeConnectionWithSigs]](Map.empty)
   val allLocations   = HVar[Map[SystemId, Array[CharacterLocation]]](Map.empty)
 
-  val selectedSystemId     = Var[Option[Long]](None)
-  val selectedConnectionId = Var[Option[ConnectionId]](None)
+  val selectedSystemId      = Var[Option[Long]](None)
+  val bulkSelectedSystemIds = Var[Array[SystemId]](Array.empty[SystemId])
+  val selectedConnectionId  = Var[Option[ConnectionId]](None)
 
   val lastError = Var[Option[String]](None)
 
@@ -136,6 +137,8 @@ class MapController(rds: ReferenceDataStore, val clock: Signal[Instant])(using O
           )
         case (MapAction.Remove(systemId), _) =>
           Some(MapRequest.RemoveSystem(systemId))
+        case (MapAction.RemoveMultiple(systemIds), _) =>
+          Some(MapRequest.RemoveSystems(systemIds))
         case (MapAction.RemoveConnection(connectionId), _) =>
           Some(MapRequest.RemoveSystemConnection(connectionId))
         case (MapAction.RemoveSignatures(systemId, sigIds), _) =>
@@ -151,6 +154,13 @@ class MapController(rds: ReferenceDataStore, val clock: Signal[Instant])(using O
           Var.set(
             (selectedSystemId, systemIdOpt),
             (selectedConnectionId, None)
+          )
+          None
+        case (MapAction.ToggleBulkSelection(systemId), _) =>
+          bulkSelectedSystemIds.update(arr =>
+            arr.indexOf(SystemId(systemId)) match
+              case -1  => arr.appended(SystemId(systemId))
+              case idx => arr.filterNot(_ == SystemId(systemId))
           )
           None
         case (MapAction.TogglePinned(systemId), allSystems) =>

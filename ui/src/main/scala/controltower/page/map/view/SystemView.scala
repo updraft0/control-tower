@@ -6,6 +6,7 @@ import controltower.backend.ESI
 import controltower.component.Modal
 import controltower.page.map.{Coord, MapAction, PositionController, RoleController}
 import controltower.ui.{ViewController, onEnterPress}
+import org.updraft0.controltower.constant
 import org.updraft0.controltower.constant.{SystemId => _, *}
 import org.updraft0.controltower.protocol.*
 
@@ -72,7 +73,8 @@ class SystemView(
     systemId: SystemId,
     system: Signal[MapSystemSnapshot],
     pos: PositionController,
-    selectedSystem: Signal[Option[SystemId]],
+    selectedSystem: Signal[Option[Long]],
+    bulkSelectedSystems: Signal[Array[constant.SystemId]],
     characters: Signal[Array[CharacterLocation]],
     connectingState: Var[MapNewConnectionState],
     isConnected: Signal[Boolean],
@@ -123,12 +125,28 @@ class SystemView(
             idAttr := s"system-$systemId",
             cls    := "system",
             cls("system-selected") <-- selectedSystem.map(_.exists(_ == systemId)),
+            cls("system-selected-bulk") <-- bulkSelectedSystems.map(_.exists(_.value == systemId)),
             // FIXME: this is also fired when we drag the element so selection is always changing
-            onClick.preventDefault.stopPropagation.mapToUnit --> ctx.actions.contramap(_ =>
-              MapAction.Select(Some(systemId))
-            ),
-            onDblClick.preventDefault.stopPropagation
-              .compose(_.sample(ctx.mapRole).filter(RoleController.canRenameSystem).withCurrentValueOf(system)) -->
+            onClick
+              .filter(ev => !ev.ctrlKey && !ev.shiftKey && !ev.metaKey)
+              .preventDefault
+              .stopPropagation
+              .mapToUnit --> ctx.actions.contramap(_ => MapAction.Select(Some(systemId))),
+            onClick
+              .filter(ev => ev.ctrlKey && !ev.shiftKey && !ev.metaKey)
+              .preventDefault
+              .stopPropagation
+              .mapToUnit --> ctx.actions.contramap(_ => MapAction.ToggleBulkSelection(systemId)),
+            onDblClick
+              .filter(ev => !ev.ctrlKey && !ev.shiftKey && !ev.metaKey)
+              .preventDefault
+              .stopPropagation
+              .compose(
+                _.filterWith(isConnected)
+                  .sample(ctx.mapRole)
+                  .filter(RoleController.canRenameSystem)
+                  .withCurrentValueOf(system)
+              ) -->
               Observer({ case (_, mss: MapSystemSnapshot) =>
                 Modal.show(
                   (closeMe, owner) => systemRenameView(systemId, mss.system.name.getOrElse(""), ctx.actions, closeMe),

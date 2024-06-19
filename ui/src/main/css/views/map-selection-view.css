@@ -1,0 +1,7 @@
+div.selection-rectangle {
+    position: absolute;
+    z-index: 20;
+    background-color: $orange-dark;
+    opacity: 0.4;
+    border: 1px dashed $gray-lighter;
+}

@@ -18,6 +18,7 @@
 @import 'views/nav-top-view.css';
 @import 'views/solar-system-info-view.css';
 @import 'views/map-system-signature-view.css';
+@import 'views/map-selection-view.css';
 @import 'views/system-view.css';
 
 /* ok? */
@@ -226,6 +227,10 @@ $box-height:    40px;
     box-shadow: 0px 0px 5px 0px rgba($orange,0.7) inset;
     /*box-shadow: 2px 2px 2px 2px rgba($teal, .45), 1px 1px 1px 1px rgba($teal, .45);*/
     /*box-shadow: 0px 1px 4px rgba(0, 0, 0, 0.16), 0px 0px 0px 3px rgba(51, 51, 51,1);*/
+}
+
+.system-selected-bulk {
+    background-color: $red-darkest;
 }
 
 

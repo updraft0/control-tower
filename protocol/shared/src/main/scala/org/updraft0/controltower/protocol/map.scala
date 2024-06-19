@@ -300,9 +300,13 @@ enum MapRequest derives CanEqual:
       name: Option[NewSystemName] = None // TODO: weirdly cannot nest Option[Option[_]]
   )
 
-  /** Remove a system from the map (this only deletes display data and clears the pinned status)
+  /** Remove a system from the map
     */
   case RemoveSystem(systemId: SystemId)
+
+  /** Remove multiple systems from the map
+    */
+  case RemoveSystems(systemIds: Array[SystemId])
 
   /** Remove a connection from the map
     */

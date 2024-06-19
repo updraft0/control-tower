@@ -237,6 +237,8 @@ object MapSession:
       )
     case protocol.MapRequest.RemoveSystem(systemId) =>
       ctx.mapQ.offer(Identified(Some(ctx.sessionId), MapRequest.RemoveSystem(systemId)))
+    case protocol.MapRequest.RemoveSystems(systemIds) =>
+      ctx.mapQ.offer(Identified(Some(ctx.sessionId), MapRequest.RemoveSystems(Chunk.fromArray(systemIds))))
     // signatures
     case addSig: protocol.MapRequest.AddSystemSignature =>
       ctx.mapQ.offer(

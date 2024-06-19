@@ -31,6 +31,10 @@ enum MapAction:
     */
   case Remove(systemId: SystemId) extends MapAction with SingleSystemAction
 
+  /** Remove a system from the map
+    */
+  case RemoveMultiple(systemIds: Array[SystemId]) extends MapAction
+
   /** Remove a single connection from the map
     */
   case RemoveConnection(connectionId: ConnectionId) extends MapAction
@@ -42,6 +46,10 @@ enum MapAction:
   /** Select a system
     */
   case Select(systemId: Option[SystemId])
+
+  /** Toggle bulk selection for a system
+    */
+  case ToggleBulkSelection(systemId: SystemId)
 
   /** Toggle whether a system is pinned on the map
     */
