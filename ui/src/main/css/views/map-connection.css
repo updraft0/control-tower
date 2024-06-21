@@ -23,6 +23,7 @@ svg g.wormhole-connection {
         fill: $gray-lightest;
         stroke: none;
         font-size: 0.6em;
+        font-weight: bold;
     }
 
     &:hover {
