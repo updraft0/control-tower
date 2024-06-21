@@ -138,6 +138,8 @@ class MapController(rds: ReferenceDataStore, val clock: Signal[Instant])(using O
         case (MapAction.Remove(systemId), _) =>
           Some(MapRequest.RemoveSystem(systemId))
         case (MapAction.RemoveMultiple(systemIds), _) =>
+          // reset selection
+          bulkSelectedSystemIds.set(Array.empty)
           Some(MapRequest.RemoveSystems(systemIds))
         case (MapAction.RemoveConnection(connectionId), _) =>
           Some(MapRequest.RemoveSystemConnection(connectionId))
@@ -232,17 +234,25 @@ class MapController(rds: ReferenceDataStore, val clock: Signal[Instant])(using O
             }
             .onComplete(_ => doUpdate())
         else doUpdate()
-      case MapMessage.SystemRemoved(removedSystem, removedConnectionIds, updatedConnections) =>
-        val systemId = removedSystem.system.systemId
+      case MapMessage.SystemsRemoved(removedSystemIds, removedConnectionIds, updatedSystems, updatedConnections) =>
         Var.update(
-          allSystems.current -> ((map: Map[Long, MapSystemSnapshot]) => map.updated(systemId, removedSystem)),
-          selectedSystemId   -> ((sOpt: Option[Long]) => sOpt.filterNot(_ == systemId)),
-          pos.systemDisplayData(systemId) -> ((_: Option[SystemDisplayData]) => None),
+          allSystems.current -> ((map: Map[Long, MapSystemSnapshot]) =>
+            updatedSystems.foldLeft(map.removedAll(removedSystemIds)) { case (st, mss) =>
+              st.updated(mss.system.systemId, mss)
+            }
+          ),
+          selectedSystemId      -> ((sOpt: Option[Long]) => sOpt.filterNot(removedSystemIds.contains)),
+          bulkSelectedSystemIds -> ((selection: Array[SystemId]) => selection.filterNot(removedSystemIds.contains)),
           allConnections.current -> ((conns: Map[ConnectionId, MapWormholeConnectionWithSigs]) =>
             updatedConnections.foldLeft(conns.removedAll(removedConnectionIds)) { case (conns, (cid, whc)) =>
               conns.updated(cid, whc)
             }
           )
+        )
+        Var.update(
+          removedSystemIds.toSeq.map(systemId =>
+            pos.systemDisplayData(systemId) -> ((_: Option[SystemDisplayData]) => None)
+          )*
         )
       case MapMessage.SystemSnapshot(systemId, system, connections) =>
         inline def doUpdate(@unused solarSystem: SolarSystem) =

@@ -238,7 +238,11 @@ object MapSession:
     case protocol.MapRequest.RemoveSystem(systemId) =>
       ctx.mapQ.offer(Identified(Some(ctx.sessionId), MapRequest.RemoveSystem(systemId)))
     case protocol.MapRequest.RemoveSystems(systemIds) =>
-      ctx.mapQ.offer(Identified(Some(ctx.sessionId), MapRequest.RemoveSystems(Chunk.fromArray(systemIds))))
+      NonEmptyChunk
+        .fromChunk(Chunk.fromArray(systemIds))
+        .fold(ZIO.unit)(systemIds =>
+          ctx.mapQ.offer(Identified(Some(ctx.sessionId), MapRequest.RemoveSystems(systemIds)))
+        )
     // signatures
     case addSig: protocol.MapRequest.AddSystemSignature =>
       ctx.mapQ.offer(
@@ -315,13 +319,21 @@ private def toProto(msg: MapResponse): Option[protocol.MapMessage] = msg match
     )
   case MapResponse.SystemDisplayUpdate(systemId, name, displayData) =>
     Some(protocol.MapMessage.SystemDisplayUpdate(systemId, name, toProtoDisplay(displayData)))
-  case MapResponse.SystemRemoved(removedSystem, removedConnectionIds, connections, connectionRanks) =>
+  case MapResponse.SystemsRemoved(
+        removedSystemIds,
+        removedConnectionIds,
+        updatedSystems,
+        updatedConnections,
+        updatedConnectionRanks
+      ) =>
     Some(
-      protocol.MapMessage.SystemRemoved(
-        removedSystem = toProtoSystemSnapshot(removedSystem),
+      protocol.MapMessage.SystemsRemoved(
+        removedSystemIds = removedSystemIds.toArray,
         removedConnectionIds = removedConnectionIds.toArray,
-        connections =
-          connections.view.mapValues(c => toProtoConnectionWithSigs(c, connectionRanks(c.connection.id))).toMap
+        updatedSystems = updatedSystems.map(toProtoSystemSnapshot).toArray,
+        updatedConnections = updatedConnections.view
+          .mapValues(c => toProtoConnectionWithSigs(c, updatedConnectionRanks(c.connection.id)))
+          .toMap
       )
     )
   case MapResponse.CharacterLocations(locationMap) =>

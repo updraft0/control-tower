@@ -81,7 +81,7 @@ private def extractAndValidateJwt(r: JwtAuthResponse): ZIO[Config, EsiError, (Jw
     characterId <- ZIO
       .attempt(esiInfo.sub.stripPrefix(CharacterSubjectPrefix).toLong)
       .mapError(e => EsiError.ValidationError(s"Cannot get character id: ${e}"))
-    _ <- ZIO.logDebug("validated jwt") // TODO: add aspects for character id
+    _ <- ZIO.logTrace("validated jwt")
   yield (r, EsiTokenMeta(CharacterId(characterId), esiInfo.name, esiInfo.owner, Instant.ofEpochSecond(esiInfo.exp)))
 
 private def validateEsiInfo(esiInfo: JwtEsiInfo, loginHost: String): IO[EsiError, Unit] =

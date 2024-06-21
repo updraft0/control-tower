@@ -323,6 +323,13 @@ object map:
         .delete
     )
 
+  def deleteMapSystemDisplays(mapId: MapId, systemIds: Chunk[SystemId]): DbOperation[Long] =
+    ctx.run(
+      mapSystemDisplay
+        .filter(msd => msd.mapId == lift(mapId) && liftQuery(systemIds).contains(msd.systemId))
+        .delete
+    )
+
   def deleteMapWormholeConnection(mapId: MapId, id: ConnectionId, byCharacterId: CharacterId): DbOperation[Long] =
     ctx.run(
       mapWormholeConnection

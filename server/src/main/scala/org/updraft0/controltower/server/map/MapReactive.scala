@@ -71,6 +71,9 @@ private[map] case class MapState(
 
   def connectionsForSystem(id: SystemId): Map[ConnectionId, MapWormholeConnectionWithSigs] =
     systems(id).connections.map(c => c.id -> connections(c.id)).toMap
+  def connectionsForSystems(ids: Chunk[SystemId]): Chunk[MapWormholeConnection] =
+    ids.foldLeft(Chunk.empty)((s, sId) => s ++ systems.get(sId).map(_.connections).getOrElse(Chunk.empty))
+
   def connectionRanksForSystem(id: SystemId): Map[ConnectionId, MapWormholeConnectionRank] =
     systems(id).connections.map(c => c.id -> connectionRanks(c.id)).toMap
 
@@ -110,27 +113,18 @@ private[map] case class MapState(
       }
     )
 
-  def removeSystem(
-      removedSystemId: model.SystemId,
+  def removeSystems(
+      removedSystemIds: Chunk[model.SystemId],
       removedConnectionIds: Chunk[ConnectionId],
-      otherSystemIds: Chunk[model.SystemId],
+      refreshedSystemIds: Chunk[model.SystemId],
       connectionRanks: List[MapWormholeConnectionRank],
       connectionsWithSigs: List[MapWormholeConnectionWithSigs]
   ): MapState =
     this.copy(
-      systems = otherSystemIds.foldLeft(this.systems.updatedWith(removedSystemId) {
-        case None => None
-        case Some(prev) =>
-          Some(
-            prev.copy(
-              display = None,
-              connections = Chunk.empty,
-              signatures = prev.signatures.filterNot(_.wormholeConnectionId.exists(removedConnectionIds.contains))
-            )
-          )
-      })((ss, nextSystemId) =>
-        ss.updatedWith(nextSystemId) {
-          case None => None
+      systems = refreshedSystemIds.foldLeft(this.systems.removedAll(removedSystemIds))((ss, refreshedSystemId) =>
+        ss.updatedWith(refreshedSystemId) {
+          case None =>
+            throw new IllegalStateException(s"System ${refreshedSystemId} was refreshed but not present in state")
           case Some(prev) =>
             Some(
               prev.copy(
@@ -267,7 +261,7 @@ enum MapRequest derives CanEqual:
   case UpdateSystemSignatures(systemId: SystemId, replaceAll: Boolean, scanned: List[NewMapSystemSignature])
   case RenameSystem(systemId: SystemId, name: Option[String])
   case RemoveSystem(systemId: SystemId)
-  case RemoveSystems(systemIds: Chunk[SystemId])
+  case RemoveSystems(systemIds: NonEmptyChunk[SystemId])
   case RemoveSystemSignatures(systemId: SystemId, signatures: Option[NonEmptyChunk[SigId]])
   case RemoveSystemConnection(connectionId: ConnectionId)
   // internals
@@ -294,11 +288,12 @@ enum MapResponse:
       connectionRanks: Map[ConnectionId, MapWormholeConnectionRank]
   )
   case SystemDisplayUpdate(systemId: SystemId, name: Option[String], displayData: model.SystemDisplayData)
-  case SystemRemoved(
-      removedSystem: MapSystemWithAll,
+  case SystemsRemoved(
+      removedSystemIds: Chunk[SystemId],
       removedConnectionIds: Chunk[ConnectionId],
-      connections: Map[ConnectionId, MapWormholeConnectionWithSigs],
-      connectionRanks: Map[ConnectionId, MapWormholeConnectionRank]
+      updatedSystems: Chunk[MapSystemWithAll],
+      updatedConnections: Map[ConnectionId, MapWormholeConnectionWithSigs],
+      updatedConnectionRanks: Map[ConnectionId, MapWormholeConnectionRank]
   )
   case CharacterLocations(locations: Map[CharacterId, CharacterLocationState.InSystem])
 
@@ -388,18 +383,22 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
                 )
               case Identified(Some(sid), rs: MapRequest.RemoveSystem) =>
                 whenSystemExists(rs.systemId, state)(
-                  identified(sid, "removeFromDisplay", removeSystemAndConnection(mapId, state, sid, rs.systemId))
+                  identified(
+                    sid,
+                    "removeFromDisplay",
+                    removeSystemsAndConnections(mapId, state, sid, NonEmptyChunk(rs.systemId))
+                  )
                 )
               case Identified(Some(sid), rss: MapRequest.RemoveSystems) =>
-                // TODO this could be optimized further
-                foldLeft(
-                  state,
-                  rss.systemIds,
-                  (systemId, state) =>
-                    whenSystemExists(systemId, state)(
-                      identified(sid, "removeFromDisplay", removeSystemAndConnection(mapId, state, sid, systemId))
+                NonEmptyChunk
+                  .fromChunk(rss.systemIds.filter(state.hasSystem))
+                  .fold(ZIO.logDebug("no-op removing systems that do not exist").as(state -> Chunk.empty))(systemIds =>
+                    identified(
+                      sid,
+                      "removeMultipleFromDisplay",
+                      removeSystemsAndConnections(mapId, state, sid, systemIds)
                     )
-                )
+                  )
               case Identified(Some(sid), rsc: MapRequest.RemoveSystemConnection) =>
                 identified(sid, "removeSystemConnection", removeSystemConnection(mapId, state, sid, rsc))
               case Identified(Some(sid), rss: MapRequest.RemoveSystemSignatures) =>
@@ -630,42 +629,50 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
         else reloadSystemSnapshot(mapId, uss.systemId)(state)
     yield resp
 
-  private def removeSystemAndConnection(
+  private def removeSystemsAndConnections(
       mapId: MapId,
       state: MapState,
       sessionId: MapSessionId,
-      systemId: SystemId
+      systemIds: NonEmptyChunk[SystemId]
   ) =
-    val connections   = state.connectionsForSystem(systemId)
-    val connectionIds = Chunk.from(connections.valuesIterator.map(_.connection.id))
-    val otherSystemIds = Chunk.from(connections.valuesIterator.map(_.connection.toSystemId).filter(_ != systemId)) ++
-      Chunk.from(connections.valuesIterator.map(_.connection.fromSystemId).filter(_ != systemId))
+    val connections   = state.connectionsForSystems(systemIds.toChunk)
+    val connectionIds = connections.map(_.id).sorted.dedupe
+    val refreshedSystemIds = connections
+      .flatMap(c => Chunk(c.toSystemId, c.fromSystemId).filterNot(sId => systemIds.contains(sId)))
+      .sorted
+      .dedupe
     for
+      // trace log
+      _ <- ZIO.logTrace(
+        s"Removing multiple systems [${systemIds.mkString(",")}], caused ${connectionIds.size} connection removals and ${refreshedSystemIds.size} system updates"
+      )
       // mark connections as removed
-      _ <- query.map.deleteMapWormholeConnections(mapId, connectionIds, sessionId.characterId)
+      _                  <- query.map.deleteMapWormholeConnections(mapId, connectionIds, sessionId.characterId)
+      deletedConnections <- query.map.getWormholeConnections(mapId, connectionIds, isDeleted = true)
       // remove signatures that have those connections
       _ <- query.map.deleteSignaturesWithConnectionIds(mapId, connectionIds, sessionId.characterId)
       // remove the display of the system
-      _ <- query.map.deleteMapSystemDisplay(mapId, systemId)
+      _ <- query.map.deleteMapSystemDisplays(mapId, systemIds.toChunk)
       // recompute all the connection ranks
       connectionRanks <- MapQueries.getWormholeConnectionRanksAll(mapId)
-      // load all the affected connections with sigs
-      connectionsWithSigs <- MapQueries.getWormholeConnectionsWithSigsBySystemIds(mapId, otherSystemIds)
+      // load all the refreshed connections with sigs
+      connectionsWithSigs <- MapQueries.getWormholeConnectionsWithSigsBySystemIds(mapId, refreshedSystemIds)
     yield withState(
-      state.removeSystem(
-        systemId,
+      state.removeSystems(
+        systemIds.toChunk,
         connectionIds,
-        otherSystemIds,
+        refreshedSystemIds,
         connectionRanks,
         connectionsWithSigs
       )
     )(nextState =>
       nextState -> broadcast(
-        MapResponse.SystemRemoved(
-          state.systems(systemId),
-          connectionIds,
-          connectionsWithSigs.map(whcs => whcs.connection.id -> whcs).toMap,
-          connectionRanks = nextState.connectionRanks
+        MapResponse.SystemsRemoved(
+          removedSystemIds = systemIds.toChunk,
+          removedConnectionIds = connectionIds,
+          updatedSystems = refreshedSystemIds.map(nextState.systems),
+          updatedConnections = connectionsWithSigs.map(whcs => whcs.connection.id -> whcs).toMap,
+          updatedConnectionRanks = nextState.connectionRanks
         )
       )
     )

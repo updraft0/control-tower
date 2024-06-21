@@ -251,7 +251,7 @@ object MapQueries:
       (for
         map <- mapModel.filter(_.id == lift(mapId))
         sys <- mapSystem.join(ms => ms.mapId == map.id && lift(systemId).forall(_ == ms.systemId))
-        dis <- mapSystemDisplay.leftJoin(sd =>
+        dis <- mapSystemDisplay.join(sd =>
           sd.systemId == sys.systemId && sd.mapId == sys.mapId && sd.displayType == map.displayType
         )
         mss <- mapSystemStructure.leftJoin(ss => ss.systemId == sys.systemId && ss.mapId == sys.mapId && !ss.isDeleted)
@@ -260,11 +260,11 @@ object MapQueries:
         mhc <- mapWormholeConnection.leftJoin(whc =>
           whc.mapId == map.id && (whc.fromSystemId == sys.systemId || whc.toSystemId == sys.systemId) && !whc.isDeleted
         )
-      yield (sys, dis.map(_.data), mss, msn, msi, mhc)).groupByMap((ms, _, _, _, _, _) => (ms))(
+      yield (sys, dis.data, mss, msn, msi, mhc)).groupByMap((ms, _, _, _, _, _) => (ms))(
         (ms, dis, mss, msn, msi, mhc) =>
           (
             ms,
-            dis,
+            Some(dis),
             jsonGroupArrayFilterNullDistinct[model.MapSystemStructure](
               jsonObject11(
                 "mapId",

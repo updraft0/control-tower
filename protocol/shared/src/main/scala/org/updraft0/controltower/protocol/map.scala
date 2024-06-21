@@ -312,10 +312,6 @@ enum MapRequest derives CanEqual:
     */
   case RemoveSystemConnection(connectionId: ConnectionId)
 
-// TODO: have a think about connections and when they get cleaned up (delete connection *and* delete signature?)
-// TODO: enforce the level of permissions that a user can have! (and document that)
-// TODO: move to opaque types
-
 enum MapMessage:
   case CharacterLocations(locations: Map[constant.SystemId, Array[CharacterLocation]])
   case ConnectionSnapshot(connection: MapWormholeConnectionWithSigs)
@@ -333,10 +329,11 @@ enum MapMessage:
       connections: Map[ConnectionId, MapWormholeConnectionWithSigs]
   )
   case SystemDisplayUpdate(systemId: SystemId, name: Option[String], displayData: SystemDisplayData)
-  case SystemRemoved(
-      removedSystem: MapSystemSnapshot,
+  case SystemsRemoved(
+      removedSystemIds: Array[SystemId],
       removedConnectionIds: Array[ConnectionId],
-      connections: Map[ConnectionId, MapWormholeConnectionWithSigs]
+      updatedSystems: Array[MapSystemSnapshot],
+      updatedConnections: Map[ConnectionId, MapWormholeConnectionWithSigs]
   )
   case ServerStatus(status: MapServerStatus)
 
