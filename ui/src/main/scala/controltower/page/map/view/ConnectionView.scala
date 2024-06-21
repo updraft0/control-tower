@@ -116,6 +116,12 @@ class ConnectionInProgressView(
 
   override def view = g(
     cls := "connection-in-progress",
+    onMountBind(ctx =>
+      cls("stopped") <-- state.signal(using ctx.owner).map {
+        case MapNewConnectionState.Stopped => true
+        case _                             => false
+      },
+    ),
     cls := "wormhole-connection",
     children <-- state.rawSignal
       .map {

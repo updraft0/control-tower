@@ -19,6 +19,10 @@ svg path.connector-path {
 svg g.wormhole-connection {
     pointer-events: bounding-box;
 
+    &.stopped {
+        display: none;
+    }
+
     & text.connection-size {
         fill: $gray-lightest;
         stroke: none;
