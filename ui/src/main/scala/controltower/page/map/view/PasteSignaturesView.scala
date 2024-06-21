@@ -2,7 +2,7 @@ package controltower.page.map.view
 
 import com.raquo.laminar.api.L.*
 import controltower.ui.{ViewController, sequence}
-import org.updraft0.controltower.constant.{SigId, ConnectionId}
+import org.updraft0.controltower.constant.{SigId, ConnectionId, UnknownOrUnset}
 import org.updraft0.controltower.protocol.{*, given}
 
 import java.time.Instant
@@ -202,7 +202,7 @@ class PasteSignaturesView(
     case _: NewSystemSignature.Unknown => ""
     case s: NewSystemSignature.Site    => span(cls := "site-name", s.name.getOrElse(""))
     case w: NewSystemSignature.Wormhole =>
-      wormholeTypeCell(w.connectionType, w.isEol, w.massStatus, w.massSize, w.connectionId, static)
+      wormholeTypeCell(w.connectionType, w.isEol, w.massStatus, w.massSize, w.connectionId.asOption, static)
 
   private inline def nameOf(s: MapSystemSignature): HtmlMod = s match
     case _: MapSystemSignature.Unknown => ""
@@ -262,7 +262,7 @@ private def signatureFrom(sigId: SigId, group: SignatureGroup, line: ParsedLine,
         connectionType = WormholeConnectionType.Unknown,
         massStatus = WormholeMassStatus.Unknown /* FIXME */,
         massSize = WormholeMassSize.Unknown,
-        connectionId = None
+        connectionId = UnknownOrUnset.Unknown()
       )
     case _ => NewSystemSignature.Site(sigId, now, group, Option.when(!line.name.isBlank)(line.name))
 
@@ -377,7 +377,7 @@ extension (v: MapSystemSignature)
           w.connectionType,
           w.massStatus,
           w.massSize,
-          w.connectionId
+          UnknownOrUnset(w.connectionId)
         )
   def asNewFromUpdate(u: NewSystemSignature): NewSystemSignature =
     (v, u) match

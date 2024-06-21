@@ -14,7 +14,7 @@ class Selectable[K](current: Var[Set[K]]):
     case SelectAction.Unselect(key) => current.update(s => s - key)
   }
 
-  val signal: Signal[Set[K]] = current.signal
+  val signal: Signal[Set[K]] = current.signal.debugWithName("selected")
 
   def clear(): Unit                           = current.update(_ => Set.empty)
   def isSelected(key: K): Observable[Boolean] = current.signal.map(_.contains(key))

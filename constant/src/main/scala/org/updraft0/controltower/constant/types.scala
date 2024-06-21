@@ -142,3 +142,27 @@ object UserId:
   given CanEqual[UserId, UserId] = CanEqual.derived
 
   extension (inline v: UserId) inline def value: Long = v
+
+/** Models partial updates more precisely than Option[A] can
+  */
+enum UnknownOrUnset[A]:
+  case Unknown()
+  case Unset()
+  case Known(value: A)
+
+  inline def asOption: Option[A] =
+    this match
+      case Known(value) => Some(value)
+      case _            => None
+
+  inline def updateWith(update: UnknownOrUnset[A]) =
+    (this, update) match
+      case (_, _: Unknown[A]) => this
+      case _                  => update
+
+object UnknownOrUnset:
+  inline def apply[A](value: A): UnknownOrUnset[A] = UnknownOrUnset.Known(value)
+  inline def apply[A](option: Option[A]): UnknownOrUnset[A] =
+    option match
+      case Some(value) => UnknownOrUnset.Known(value)
+      case None        => UnknownOrUnset.Unset()

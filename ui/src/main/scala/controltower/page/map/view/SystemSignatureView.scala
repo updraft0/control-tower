@@ -5,20 +5,13 @@ import controltower.backend.ESI
 import controltower.component.*
 import controltower.page.map.{MapAction, RoleController}
 import controltower.ui.*
-import org.updraft0.controltower.constant.ConnectionId
+import org.updraft0.controltower.constant.{ConnectionId, UnknownOrUnset}
 import org.updraft0.controltower.protocol.*
 
 import java.time.{Duration, Instant}
 
 // TODO: move to magic constants
-val CharacterImageSize        = 32
-private val SignatureIdLength = 7
-
-// TODO: move SigId validation to protocol
-private val SigIdNamePrefix        = "^[A-Za-z]{1,3}".r
-private val SigIdNameDashPrefix    = "^[A-Za-z]{3}-".r
-private val SigIdNameDashNumPrefix = "^[A-Za-z]{3}-[0-9]{1,3}$".r
-private val SigIdRegexFull         = "^[A-Za-z]{3}-[0-9]{3}$".r
+val CharacterImageSize = 32
 
 enum SignatureFilter derives CanEqual:
   case All, Wormhole, Combat, Indy, Hacking, Unscanned
@@ -36,8 +29,8 @@ enum ConnectionTarget derives CanEqual:
       toSystemName: Signal[Option[String]],
       toSolarSystem: SolarSystem,
       isEol: Signal[Boolean],
-      connection: Signal[Option[MapWormholeConnectionWithSigs]],
-      massStatus: WormholeMassStatus
+      connection: Signal[MapWormholeConnectionWithSigs],
+      sigId: Option[SigId]
   ) extends ConnectionTarget
 
 class SystemSignatureView(
@@ -60,15 +53,17 @@ class SystemSignatureView(
       cls    := "left-sidebar-view",
       hideIfEmptyOpt(selected),
       table(
-        children <-- selected.map {
-          case Some(selected) => sigView(selected, filter, staticData, settings, mapRole, time, isConnected, actions)
-          case None           => nodeSeq()
-        }
+        children <-- selected.splitOption(
+          (mss, system) =>
+            sigView(mss.system.systemId, system, filter, staticData, settings, mapRole, time, isConnected, actions),
+          nodeSeq()
+        )
       )
     )
 
 private inline def sigView(
-    mss: MapSystemSnapshot,
+    systemId: SystemId,
+    system: Signal[MapSystemSnapshot],
     currentFilter: Var[SignatureFilter],
     static: SystemStaticData,
     settings: Signal[MapSettings],
@@ -77,8 +72,36 @@ private inline def sigView(
     isConnected: Signal[Boolean],
     actions: WriteBus[MapAction]
 )(using mapCtx: MapViewContext) =
-  val solarSystem  = static.solarSystemMap(mss.system.systemId)
-  val selectedSigs = Selectable[SigId]()
+  val solarSystem = system.map(mss => static.solarSystemMap(mss.system.systemId))
+  val selected    = Selectable[SigId]()
+
+  val signatures           = system.map(mss => mss.signatures.toList)
+  val signatureScanPercent = signatures.map(sigs => s"${scanPercent(sigs, true).toInt}%")
+  val canEdit              = isConnected.combineWith(mapRole.map(RoleController.canEditSignatures(_))).map(_ && _)
+
+  given SystemStaticData = static
+
+  val connectionTargets = system.map: mss =>
+    mss.connections.map: whc =>
+      val targetId = if (whc.fromSystemId == systemId) whc.toSystemId else whc.fromSystemId
+      val connection =
+        mapCtx.connection(whc.id).map(_.getOrElse(throw new IllegalStateException("BUG: Connection id not found!")))
+      ConnectionTarget.Wormhole(
+        id = whc.id,
+        toSystemId = targetId,
+        toSystemName = mapCtx.systemName(targetId),
+        toSolarSystem = static.solarSystemMap(targetId),
+        connection = connection,
+        isEol = connection.map(whcs =>
+          whcs.toSignature.exists(_.eolAt.nonEmpty) || whcs.fromSignature.exists(_.eolAt.nonEmpty)
+        ),
+        sigId = mss.signatures
+          .find {
+            case w: MapSystemSignature.Wormhole => w.connectionId.contains(whc.id)
+            case _                              => false
+          }
+          .map(_.id)
+      )
 
   nodeSeq(
     thead(
@@ -90,7 +113,8 @@ private inline def sigView(
             cls := "signature-toolbar",
             span("Signatures"),
             select(
-              cls := "signature-filter",
+              idAttr := "system-signature-filter",
+              cls    := "signature-filter",
               modSeq(SignatureFilter.values.map(_.selectOption).toSeq),
               controlled(
                 value <-- currentFilter.signal.map(_.toString),
@@ -100,9 +124,9 @@ private inline def sigView(
             span(
               cls := "signature-selection",
               i(cls := "ti", cls := "ti-filter"),
-              child.text <-- currentFilter.signal.map(filter =>
-                s"${mss.signatures.count(isVisibleWithFilter(filter, _))}/${mss.signatures.size}"
-              )
+              child.text <-- signatures
+                .combineWith(currentFilter.signal)
+                .map((sigs, filter) => s"${sigs.count(isVisibleWithFilter(filter, _))}/${sigs.length}")
             ),
             // TODO not sure this is necessary!
 //            button(
@@ -116,23 +140,24 @@ private inline def sigView(
               typ    := "button",
               cls    := "ti",
               cls    := "ti-clipboard-plus",
-              disabled <-- mapRole.map(!RoleController.canEditSignatures(_)).combineWith(isConnected).map(_ || !_),
-              onClick.stopPropagation.mapToUnit --> (_ =>
-                Modal.show(
-                  pasteSignaturesView(
-                    mss,
-                    solarSystem,
-                    solarSystem.systemClass
-                      .flatMap(whc => static.signatureByClassAndGroup.get(whc))
-                      .getOrElse(Map.empty),
-                    static,
-                    time,
-                    actions
-                  ),
-                  Observer.empty[Unit],
-                  false,
-                  cls := "system-paste-signatures"
-                )
+              disabled <-- canEdit.map(!_),
+              onClick.stopPropagation.mapToUnit.compose(_.withCurrentValueOf(system, solarSystem)) --> (
+                (mss, solarSystem) =>
+                  Modal.show(
+                    pasteSignaturesView(
+                      mss,
+                      solarSystem,
+                      solarSystem.systemClass
+                        .flatMap(whc => static.signatureByClassAndGroup.get(whc))
+                        .getOrElse(Map.empty),
+                      static,
+                      time,
+                      actions
+                    ),
+                    Observer.empty[Unit],
+                    false,
+                    cls := "system-paste-signatures"
+                  )
               )
             ),
             button(
@@ -140,8 +165,8 @@ private inline def sigView(
               typ    := "button",
               cls    := "ti",
               cls    := "ti-plus",
-              disabled <-- mapRole.map(!RoleController.canEditSignatures(_)).combineWith(isConnected).map(_ || !_),
-              onClick.stopPropagation.mapToUnit --> (_ =>
+              disabled <-- canEdit.map(!_),
+              onClick.stopPropagation.mapToUnit.compose(_.withCurrentValueOf(solarSystem)) --> (solarSystem =>
                 Modal.show(
                   addSingleSignatureView(
                     solarSystem,
@@ -149,7 +174,8 @@ private inline def sigView(
                       .flatMap(whc => static.signatureByClassAndGroup.get(whc))
                       .getOrElse(Map.empty),
                     static.wormholeTypes,
-                    actions
+                    actions,
+                    canEdit
                   ),
                   Observer.empty[Unit],
                   true,
@@ -160,25 +186,22 @@ private inline def sigView(
             button(
               idAttr := "sig-edit-signature",
               typ    := "button",
-              disabled <-- Signal
-                .combine(
-                  selectedSigs.signal.map(_.size != 1),
-                  mapRole.map(!RoleController.canEditSignatures(_)),
-                  isConnected
-                )
-                .mapN(_ || _ || !_),
+              disabled <-- canEdit.combineWith(selected.signal).map(!_ || _.size != 1),
               cls := "ti",
               cls := "ti-pencil",
-              onClick.stopPropagation.mapToUnit.compose(_.withCurrentValueOf(selectedSigs.signal)) --> (selected =>
+              onClick.stopPropagation.mapToUnit.compose(
+                _.withCurrentValueOf(selected.signal, signatures, solarSystem)
+              ) --> ((selected, signatures, solarSystem) =>
                 Modal.show(
                   editSingleSignatureView(
                     solarSystem,
-                    mss.signatures.find(_.id == selected.head).get,
+                    signatures.find(_.id == selected.head).get,
                     solarSystem.systemClass
                       .flatMap(whc => static.signatureByClassAndGroup.get(whc))
                       .getOrElse(Map.empty),
                     static.wormholeTypes,
-                    actions
+                    actions,
+                    canEdit
                   ),
                   Observer.empty[Unit],
                   true,
@@ -189,22 +212,17 @@ private inline def sigView(
             button(
               idAttr := "sig-remove-selected",
               typ    := "button",
-              disabled <-- Signal
-                .combine(
-                  selectedSigs.signal.map(_.isEmpty),
-                  mapRole.map(!RoleController.canEditSignatures(_)),
-                  isConnected
-                )
-                .mapN(_ || _ || !_),
+              disabled <-- canEdit.combineWith(selected.signal).map(!_ || _.isEmpty),
               cls := "sig-destructive",
               cls := "ti",
               cls := "ti-eraser",
-              onClick.stopPropagation.mapToUnit.compose(_.withCurrentValueOf(selectedSigs.signal)) --> (selected =>
-                Modal.showConfirmation(
-                  s"Remove ${selected.size} signatures?",
-                  s"Confirm removal of signatures ${selected.mkString(", ")} in ${solarSystem.name}?",
-                  Observer(_ => actions.onNext(MapAction.RemoveSignatures(solarSystem.id, selected)))
-                )
+              onClick.stopPropagation.mapToUnit.compose(_.withCurrentValueOf(selected.signal, solarSystem)) --> (
+                (selected, solarSystem) =>
+                  Modal.showConfirmation(
+                    s"Remove ${selected.size} signatures?",
+                    s"Confirm removal of signatures ${selected.mkString(", ")} in ${solarSystem.name}?",
+                    Observer(_ => actions.onNext(MapAction.RemoveSignatures(solarSystem.id, selected)))
+                  )
               )
             ),
             button(
@@ -213,12 +231,8 @@ private inline def sigView(
               cls    := "sig-destructive",
               cls    := "ti",
               cls    := "ti-clear-all",
-              disabled <-- mapRole
-                .map(!RoleController.canEditSignatures(_))
-                .combineWith(isConnected)
-                .map(_ || !_)
-                .map(v => v || mss.signatures.isEmpty),
-              onClick.stopPropagation.mapToUnit --> (_ =>
+              disabled <-- canEdit.combineWith(signatures).map(!_ || _.isEmpty),
+              onClick.stopPropagation.mapToUnit.compose(_.withCurrentValueOf(solarSystem)) --> (solarSystem =>
                 Modal.showConfirmation(
                   "Remove all signatures?",
                   s"Clear all signatures in ${solarSystem.name}?",
@@ -232,12 +246,12 @@ private inline def sigView(
             div(
               cls := "system-scan-progress",
               div(
-                cls   := "system-scan-progress-bar",
-                cls   := scanClass(mss.signatures),
-                width := s"${scanPercent(mss.signatures, true).toInt}%"
+                cls := "system-scan-progress-bar",
+                cls <-- signatures.map(scanClass),
+                width <-- signatureScanPercent
               )
             ),
-            mark(cls := "system-scan-percent", s"${scanPercent(mss.signatures, false).toInt}%")
+            mark(cls := "system-scan-percent", child.text <-- signatureScanPercent)
           )
         )
       ),
@@ -252,64 +266,46 @@ private inline def sigView(
       )
     ),
     tbody(
-      mss.signatures.map(sig =>
+      children <-- signatures.split(_.id)((sigId, _, sig) =>
         signatureRow(
+          sigId,
+          sig,
+          connectionTargets,
           time,
           currentFilter.signal,
           settings,
-          selectedSigs,
-          actions.contramap(nss => MapAction.UpdateSignatures(solarSystem.id, false, Array(nss))),
-          sig,
-          mss.connections.map { whc =>
-            val targetId = if (whc.fromSystemId == solarSystem.id) whc.toSystemId else whc.fromSystemId
-            ConnectionTarget.Wormhole(
-              id = whc.id,
-              toSystemId = targetId,
-              toSystemName = mapCtx.systemName(targetId),
-              toSolarSystem = static.solarSystemMap(targetId),
-              connection = mapCtx.connection(whc.id),
-              isEol = mapCtx
-                .connection(whc.id)
-                .map(
-                  _.exists(whcs =>
-                    whcs.toSignature.exists(_.eolAt.nonEmpty) || whcs.fromSignature.exists(_.eolAt.nonEmpty)
-                  )
-                ),
-              massStatus = sig match
-                case w: MapSystemSignature.Wormhole => w.massStatus
-                case _                              => WormholeMassStatus.Unknown
-            )
-          },
+          selected,
+          actions.contramap(nss => MapAction.UpdateSignatures(systemId, false, Array(nss))),
           solarSystem,
-          static,
-          isEditingDisabled = mapRole.map(!RoleController.canEditSignatures(_)).combineWith(isConnected).map(_ || !_)
-        )
+          canEdit
+        )(using static)
       )
     )
   )
 
 private def signatureRow(
+    sigId: SigId,
+    sig: Signal[MapSystemSignature],
+    connections: Signal[Array[ConnectionTarget.Wormhole]],
     time: Signal[Instant],
     filter: Signal[SignatureFilter],
     settings: Signal[MapSettings],
     selectedSigs: Selectable[SigId],
     onSigChange: Observer[NewSystemSignature],
-    sig: MapSystemSignature,
-    connections: Array[ConnectionTarget.Wormhole],
-    solarSystem: SolarSystem,
-    static: SystemStaticData,
-    isEditingDisabled: Observable[Boolean]
-) =
-  val toggleSelected = selectedSigs.toggle(sig.id)
-  val isSelected     = selectedSigs.isSelected(sig.id)
-  val onSelect       = onClick.stopPropagation.filter(_.ctrlKey).mapToUnit --> toggleSelected
+    solarSystem: Signal[SolarSystem],
+    canEdit: Signal[Boolean]
+)(using static: SystemStaticData) =
+  val isSelected = selectedSigs.isSelected(sigId)
+
+  val signaturesByGroup =
+    solarSystem.map(_.systemClass.map(whc => static.signatureByClassAndGroup(whc)).getOrElse(Map.empty))
 
   def signatureGroupCell(s: MapSystemSignature) =
     val group = Var(s.signatureGroup)
     val dropdown = OptionDropdown(
       SignatureGroup.values.toSeq.filterNot(s.signatureGroup != SignatureGroup.Unknown && _ == SignatureGroup.Unknown),
       group,
-      isDisabled = isEditingDisabled
+      isDisabled = canEdit.map(!_)
     )
     td(
       cls := "signature-group",
@@ -320,8 +316,9 @@ private def signatureRow(
       )
     )
 
-  def siteTypeCell(s: MapSystemSignature.Site) =
+  def siteTypeCell(s: MapSystemSignature.Site, signatureGroups: Map[SignatureGroup, List[SignatureClassified]]) =
     // TODO: cannot revert back to Unknown either
+    // FIXME: use UknownOrUnset
     val sigType = Var(
       SignatureClassified.Other(
         s.name match
@@ -330,10 +327,8 @@ private def signatureRow(
           case None        => "Unknown"
       )
     )
-    val signaturesInGroup =
-      solarSystem.systemClass.flatMap(whc => static.signatureByClassAndGroup(whc).get(s.group)).toList.flatten
 
-    val dropdown = OptionDropdown(signaturesInGroup, sigType, isDisabled = isEditingDisabled)
+    val dropdown = OptionDropdown(signatureGroups.getOrElse(s.group, Nil), sigType, isDisabled = canEdit.map(!_))
 
     td(
       cls := "signature-type",
@@ -345,99 +340,79 @@ private def signatureRow(
       }
     )
 
-  def wormholeSelect(w: MapSystemSignature.Wormhole) =
-    val possibleWormholeTypes = wormholeTypesList(
-      solarSystem,
-      solarSystem.systemClass
-        .flatMap(whc => static.signatureByClassAndGroup.get(whc))
-        .getOrElse(Map.empty),
-      static.wormholeTypes
-    )
-    val wormholeType       = Var(possibleWormholeTypes.find(_.connectionType == w.connectionType).get)
-    given SystemStaticData = static
-
-    val dropdown = OptionDropdown(possibleWormholeTypes, wormholeType, isDisabled = isEditingDisabled)
-
-    td(
-      cls := "signature-type",
-      cls := "editable",
-      dropdown.view,
-      wormholeType.signal.changes --> Observer[WormholeSelectInfo](wsi => {
-        if (wsi.connectionType != w.connectionType)
-          onSigChange.onNext(changeWormholeConnectionType(wsi.connectionType, w))
-      })
-    )
-
-  def wormholeTargetSelect(w: MapSystemSignature.Wormhole) =
-    // TODO: current approach prevents filtering out connections that are already targeted - rethink
+  def wormholeTargetSelect(w: MapSystemSignature.Wormhole, targets: Array[ConnectionTarget.Wormhole]) =
+    val default = ConnectionTarget.Unknown(isEol = w.eolAt.isDefined, massStatus = w.massStatus)
     val current = Var(
-      w.connectionId
-        .flatMap(cId => connections.find(_.id == cId))
-        .getOrElse(ConnectionTarget.Unknown(isEol = w.eolAt.isDefined, massStatus = w.massStatus))
+      targets
+        .find(_.idOpt.zip(w.connectionId).exists(_ == _))
+        .getOrElse(default)
     )
-    val dropdown = OptionDropdown(
-      connections
-        .prepended(ConnectionTarget.Unknown(isEol = w.eolAt.isDefined, massStatus = w.massStatus))
-        .toIndexedSeq,
+    val dropdown = OptionDropdown[ConnectionTarget](
+      targets.view
+        .filter(_.sigId.forall(_ == sigId))
+        .toIndexedSeq
+        .prepended(default),
       current,
-      isDisabled = isEditingDisabled
+      isDisabled = canEdit.map(!_)
     )
     td(
       cls := "signature-target",
       cls := "editable",
       dropdown.view,
-      current.signal.changes --> Observer[ConnectionTarget](ct => {
-        if (ct.idOpt != w.connectionId) onSigChange.onNext(changeWormholeConnectionId(ct.idOpt, w))
-      })
+      current.signal.changes --> Observer[ConnectionTarget]: ct =>
+        if (ct.idOpt != w.connectionId)
+          onSigChange.onNext(changeWormholeConnectionId(ct.idOpt, w))
     )
 
   val signatureUpdatedTd = td(
     cls := "signature-updated",
-    cls("signature-stale") <-- time.withCurrentValueOf(settings).map((now, settings) => sigIsStale(sig, settings, now)),
-    timeDiff(time, sig.updatedAt)
+    cls("signature-stale") <-- time
+      .withCurrentValueOf(settings, sig)
+      .map((now, settings, sig) => sigIsStale(sig, settings, now)),
+    child.text <-- time.withCurrentValueOf(sig).map((now, sig) => timeDiffString(now, sig.updatedAt))
   )
   val signatureUpdatedByTd = td(
     cls := "updated-by-img",
-    ESI.characterImage(sig.updatedByCharacterId, "updatedBy", size = CharacterImageSize)
+    child <-- sig.map(s => ESI.characterImage(s.updatedByCharacterId, "updatedBy", size = CharacterImageSize))
   )
 
-  sig match
-    case u: MapSystemSignature.Unknown =>
-      tr(
-        onSelect,
-        cls("selected") <-- isSelected,
-        display <-- filter.map(isVisibleWithFilter(_, u)).map(toDisplayValue),
-        td(cls := "signature-id", u.id.convert.take(3)),
-        signatureGroupCell(u),
-        td(cls := "signature-type"),
-        td(cls := "signature-target"),
-        signatureUpdatedTd,
-        signatureUpdatedByTd
-      )
-    case s: MapSystemSignature.Site =>
-      tr(
-        onSelect,
-        cls("selected") <-- isSelected,
-        display <-- filter.map(isVisibleWithFilter(_, s)).map(toDisplayValue),
-        td(cls := "signature-id", s.id.convert.take(3)),
-        signatureGroupCell(s),
-        siteTypeCell(s),
-        td(cls := "signature-target"),
-        signatureUpdatedTd,
-        signatureUpdatedByTd
-      )
-    case w: MapSystemSignature.Wormhole =>
-      tr(
-        onSelect,
-        cls("selected") <-- isSelected,
-        display <-- filter.map(isVisibleWithFilter(_, w)).map(toDisplayValue),
-        td(cls := "signature-id", w.id.convert.take(3)),
-        signatureGroupCell(w),
-        wormholeSelect(w),
-        wormholeTargetSelect(w),
-        signatureUpdatedTd,
-        signatureUpdatedByTd
-      )
+  tr(
+    onClick.filter(_.ctrlKey).stopPropagation.mapToUnit --> selectedSigs.toggle(sigId),
+    cls("selected") <-- isSelected,
+    display <-- sig.combineWith(filter).map((s, f) => isVisibleWithFilter(f, s)).map(toDisplayValue),
+    td(cls := "signature-id", sigId.convert.take(3)),
+    child <-- sig.map(signatureGroupCell),
+    child <-- sig
+      .withCurrentValueOf(solarSystem, signaturesByGroup)
+      .map: (s, solarSystem, groups) =>
+        s match
+          case u: MapSystemSignature.Unknown =>
+            td(cls := "signature-type")
+          case s: MapSystemSignature.Site =>
+            siteTypeCell(s, groups)
+          case w: MapSystemSignature.Wormhole =>
+            wormholeSelect(
+              w.connectionType,
+              solarSystem,
+              groups,
+              canEdit,
+              Observer[WormholeSelectInfo]: wsi =>
+                if (wsi.connectionType != w.connectionType)
+                  onSigChange.onNext(changeWormholeConnectionType(wsi.connectionType, w))
+            )
+    ,
+    child <-- sig
+      .combineWith(connections)
+      .map: (s, connectionTargets) =>
+        s match
+          case w: MapSystemSignature.Wormhole =>
+            wormholeTargetSelect(w, connectionTargets)
+          case _ =>
+            td(cls := "signature-target")
+    ,
+    signatureUpdatedTd,
+    signatureUpdatedByTd
+  )
 
 private def isVisibleWithFilter(filter: SignatureFilter, sig: MapSystemSignature) = (filter, sig) match
   case (SignatureFilter.Unscanned, sig)                     => !sigIsScanned(sig, fakeScan = true)
@@ -476,7 +451,7 @@ private def changeSignatureGroup(newGroup: SignatureGroup, prev: MapSystemSignat
         connectionType = WormholeConnectionType.Unknown,
         massStatus = WormholeMassStatus.Unknown,
         massSize = WormholeMassSize.Unknown,
-        connectionId = None
+        connectionId = UnknownOrUnset.Unset()
       )
     case (SignatureGroup.Wormhole, s: MapSystemSignature.Site) =>
       NewSystemSignature.Wormhole(
@@ -486,7 +461,7 @@ private def changeSignatureGroup(newGroup: SignatureGroup, prev: MapSystemSignat
         connectionType = WormholeConnectionType.Unknown,
         massStatus = WormholeMassStatus.Unknown,
         massSize = WormholeMassSize.Unknown,
-        connectionId = None
+        connectionId = UnknownOrUnset.Unset()
       )
     case (SignatureGroup.Wormhole, w: MapSystemSignature.Wormhole) =>
       NewSystemSignature.Wormhole(
@@ -496,7 +471,7 @@ private def changeSignatureGroup(newGroup: SignatureGroup, prev: MapSystemSignat
         connectionType = w.connectionType,
         massStatus = w.massStatus,
         massSize = w.massSize,
-        connectionId = w.connectionId
+        connectionId = UnknownOrUnset(w.connectionId)
       )
     case (_, w: MapSystemSignature.Wormhole) => NewSystemSignature.Site(w.id, w.createdAt, newGroup, name = Some(""))
     case (_, u: MapSystemSignature.Unknown)  => NewSystemSignature.Site(u.id, u.createdAt, newGroup, name = Some(""))
@@ -521,7 +496,7 @@ private def changeWormholeConnectionType(
     connectionType = newType,
     massStatus = prev.massStatus,
     massSize = prev.massSize,
-    connectionId = prev.connectionId
+    connectionId = UnknownOrUnset(prev.connectionId)
   )
 
 private def changeWormholeConnectionId(
@@ -535,7 +510,7 @@ private def changeWormholeConnectionId(
     connectionType = prev.connectionType,
     massStatus = prev.massStatus,
     massSize = prev.massSize,
-    connectionId = newId
+    connectionId = UnknownOrUnset(newId)
   )
 
 given DropdownItem[SignatureGroup] with
@@ -561,12 +536,13 @@ given DropdownItem[ConnectionTarget] with
         cls("wormhole-eol")         := isEol,
         "Unknown"
       )
-    case ConnectionTarget.Wormhole(id, _, toName, toSystem, isEol, _, massStatus) =>
+    case ConnectionTarget.Wormhole(id, _, toName, toSystem, isEol, connection, _) =>
       // TODO: this code duplicates the wormhole rendering code in the paste signature view
       span(
         cls                       := "wormhole-connection-option",
         dataAttr("connection-id") := id.toString,
-        dataAttr("mass-status")   := massStatus.toString,
+        dataAttr("mass-status") <-- connection.map(getWormholeMassStatus).map(_.toString),
+        dataAttr("mass-size") <-- connection.map(getWormholeMassSize).map(_.toString),
         cls("wormhole-eol") <-- isEol,
         span(
           cls := "connection-system-name",
@@ -592,19 +568,22 @@ given (using static: SystemStaticData): DropdownItem[WormholeSelectInfo] with
 private def toDisplayValue(res: Boolean) = if (res) "" else "none"
 
 private[view] def timeDiff(time: Observable[Instant], start: Instant) =
-  child.text <-- time.map(now => Duration.between(start, now)).map(displayDuration(_))
+  child.text <-- time.map(now => timeDiffString(now, start))
+
+private[view] def timeDiffString(now: Instant, start: Instant) =
+  displayDuration(Duration.between(start, now))
 
 private inline def displayDuration(d: Duration) =
   if (d.getSeconds < 60) s"${d.getSeconds.max(0)}s"
   else if (d.getSeconds < 60 * 60) s"${d.getSeconds / 60}m ${d.getSeconds % 60}s"
   else s"${d.getSeconds / 3_600}h ${d.getSeconds % 3_600 / 60}m"
 
-private def scanClass(sigs: Array[MapSystemSignature]) =
+private def scanClass(sigs: List[MapSystemSignature]) =
   if (sigs.forall(!sigIsScanned(_, fakeScan = true))) "unscanned"
   else if (sigs.exists(!sigIsScanned(_, fakeScan = true))) "partially-scanned"
   else "fully-scanned"
 
-private[map] def scanPercent(sigs: Array[MapSystemSignature], fullOnEmpty: Boolean): Double =
+private[map] def scanPercent(sigs: Iterable[MapSystemSignature], fullOnEmpty: Boolean): Double =
   val needsScanning = sigs.count(sigNeedsScanning)
   val scanned       = sigs.count(sigIsScanned(_))
 
@@ -640,11 +619,12 @@ private def addSingleSignatureView(
     solarSystem: SolarSystem,
     signatureGroups: Map[SignatureGroup, List[SignatureClassified]],
     wormholeTypes: Map[Long, WormholeType],
-    actions: WriteBus[MapAction]
+    actions: WriteBus[MapAction],
+    canEdit: Signal[Boolean]
 )(
     closeMe: Observer[Unit],
     owner: Owner
-) =
+)(using SystemStaticData) =
   val validationError = Var(Option.empty[String])
   val addEdit = AddEditSignatureView(
     solarSystem,
@@ -655,13 +635,14 @@ private def addSingleSignatureView(
     actions.contramap { nss =>
       closeMe.onNext(())
       MapAction.AddSignature(solarSystem.id, nss)
-    }
+    },
+    canEdit
   )
 
   div(
     cls := "system-add-signature-view",
     cls := "dialog-view",
-    div(cls := "dialog-header", "Add signature"),
+    h2(cls := "dialog-header", "Add signature"),
     addEdit.view,
     div(
       cls := "add-signature-line",
@@ -675,8 +656,9 @@ private def editSingleSignatureView(
     sig: MapSystemSignature,
     signatureGroups: Map[SignatureGroup, List[SignatureClassified]],
     wormholeTypes: Map[Long, WormholeType],
-    actions: WriteBus[MapAction]
-)(closeMe: Observer[Unit], owner: Owner) =
+    actions: WriteBus[MapAction],
+    canEdit: Signal[Boolean]
+)(closeMe: Observer[Unit], owner: Owner)(using SystemStaticData) =
   val validationError = Var(Option.empty[String])
   val addEdit = AddEditSignatureView(
     solarSystem,
@@ -687,13 +669,14 @@ private def editSingleSignatureView(
     actions.contramap { nss =>
       closeMe.onNext(())
       MapAction.UpdateSignatures(solarSystem.id, false, Array(nss))
-    }
+    },
+    canEdit
   )
 
   div(
     cls := "system-edit-signature-view",
     cls := "dialog-view",
-    div(cls := "dialog-header", "Edit signature"),
+    h2(cls := "dialog-header", "Edit signature"),
     addEdit.view,
     div(
       cls := "add-signature-line",
@@ -717,7 +700,7 @@ private[map] def pasteSignaturesView(
   div(
     cls := "system-paste-signatures-view",
     cls := "dialog-view",
-    h2(cls := "dialog-header", "Paste system signatures"),
+    h2(cls := "dialog-header", s"Paste system signatures [${mss.system.name.getOrElse(solarSystem.name)}]"),
     addAll.view,
     div(
       cls := "add-signature-line",
@@ -747,3 +730,57 @@ private[map] def pasteSignaturesView(
       )
     )
   )
+
+private[view] def wormholeSelect(
+    connectionType: WormholeConnectionType,
+    solarSystem: SolarSystem,
+    signatureGroups: Map[SignatureGroup, List[SignatureClassified]],
+    canEdit: Signal[Boolean],
+    observer: Observer[WormholeSelectInfo],
+    useTd: Boolean = true
+)(using static: SystemStaticData) =
+  val possibleWormholeTypes = wormholeTypesList(
+    solarSystem,
+    signatureGroups,
+    static.wormholeTypes
+  )
+  val wormholeType = Var(possibleWormholeTypes.find(_.connectionType == connectionType).get)
+  val dropdown     = OptionDropdown(possibleWormholeTypes, wormholeType, isDisabled = canEdit.map(!_))
+
+  if (useTd)
+    td(
+      cls := "signature-type",
+      cls := "editable",
+      dropdown.view,
+      wormholeType.signal.changes --> observer
+    )
+  else
+    div(
+      cls := "signature-type",
+      cls := "editable",
+      dropdown.view,
+      wormholeType.signal.changes --> observer
+    )
+
+private[view] inline def getWormholeMassStatus(connection: MapWormholeConnectionWithSigs) =
+  getFromBoth(connection, _.massStatus, WormholeMassStatus.Unknown)
+
+private[view] inline def getWormholeMassSize(connection: MapWormholeConnectionWithSigs) =
+  getFromBoth(connection, _.massSize, WormholeMassSize.Unknown)
+
+private inline def getFromBoth[A](
+    connection: MapWormholeConnectionWithSigs,
+    f: MapSystemSignature.Wormhole => A,
+    default: A
+)(using CanEqual[A, A]): A =
+  (connection.fromSignature, connection.toSignature) match
+    case (Some(from), Some(to)) =>
+      val (fromA, toA) = (f(from), f(to))
+      if (fromA != toA)
+        throw new IllegalStateException(
+          s"BUG: connection with sigs attribute did not equal on both signatures [$toA != $fromA]"
+        )
+      fromA
+    case (None, Some(to))   => f(to)
+    case (Some(from), None) => f(from)
+    case (None, None)       => default

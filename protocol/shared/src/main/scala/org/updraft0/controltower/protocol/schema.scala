@@ -14,6 +14,8 @@ object schema:
   given connectionMapSchema[V: Schema]: Schema[Map[ConnectionId, V]] = Schema.schemaForMap[ConnectionId, V](_.toString)
   given systemMapSchema[V: Schema]: Schema[Map[SystemId, V]]         = Schema.schemaForMap[SystemId, V](_.toString)
 
+  given unknownOrUnsetSchema[A: Schema]: Schema[UnknownOrUnset[A]] = Schema.derived
+
   // opaque
   given Schema[CharacterId]   = Schema(SInteger()).format("int64")
   given Schema[CorporationId] = Schema(SInteger()).format("int64")
@@ -112,6 +114,8 @@ object jsoncodec:
   given JsonCodec[UserId]        = JsonCodec.long.asInstanceOf[JsonCodec[UserId]]
   given JsonCodec[MapId]         = JsonCodec.long.asInstanceOf[JsonCodec[MapId]]
   given JsonCodec[ConnectionId]  = JsonCodec.long.asInstanceOf[JsonCodec[ConnectionId]]
+
+  given unknownOrUnsetCodec[A: JsonCodec]: JsonCodec[UnknownOrUnset[A]] = JsonCodec.derived
 
   // auth
 

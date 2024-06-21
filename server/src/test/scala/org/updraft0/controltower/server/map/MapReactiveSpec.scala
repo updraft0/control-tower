@@ -406,7 +406,7 @@ object MapReactiveSpec extends ZIOSpecDefault:
                 SignatureGroup.Wormhole,
                 wormholeTypeId = Some(34140),
                 wormholeMassSize = WormholeMassSize.S,
-                wormholeConnectionId = Some(oneConnectionId)
+                wormholeConnectionId = UnknownOrUnset(oneConnectionId)
               )
             ) // -> SystemSnapshot(Id2)
           )
@@ -424,7 +424,7 @@ object MapReactiveSpec extends ZIOSpecDefault:
                 SignatureGroup.Wormhole,
                 wormholeTypeId = None,
                 wormholeMassSize = WormholeMassSize.S,
-                wormholeConnectionId = Some(oneConnectionId)
+                wormholeConnectionId = UnknownOrUnset(oneConnectionId)
               )
             ) // -> SystemSnapshot(Id5)
           )

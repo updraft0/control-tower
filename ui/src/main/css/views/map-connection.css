@@ -1,0 +1,86 @@
+/* Connectors */
+path {
+    shape-rendering: geometricPrecision;
+}
+
+svg circle.connector-end {
+    fill: $gray;
+    stroke: $gray-light;
+    stroke-width: 2px;
+}
+
+svg path.connector-path {
+    fill: none;
+    stroke: $gray;
+    stroke-width: 4px;
+    fill-opacity: 0.8;
+}
+
+svg g.wormhole-connection {
+    pointer-events: bounding-box;
+
+    &:hover {
+        z-index: 95;
+        filter: drop-shadow(-3px 3px 4px rgba(0,0,0, 0.3));
+
+        & path.connector-path-outline {
+            stroke: $gray-lightest;
+        }
+    }
+
+    &.eol {
+        & path.connector-path-outline {
+            stroke: $pink;
+        }
+
+        &:hover {
+            & path.connector-path-outline {
+                stroke: $pink-dark;
+            }
+        }
+    }
+
+    &[data-mass-status="Critical"] {
+        & path.connector-path {
+            stroke: $red;
+        }
+    }
+
+    &[data-mass-status="Reduced"] {
+        & path.connector-path {
+            stroke: $orange;
+        }
+    }
+
+    &[data-mass-size="S"] {
+        & path.connector-path-outline {
+            stroke-dasharray: 10 5;
+        }
+    }
+
+    &[data-mass-size="M"] {
+        & path.connector-path-outline {
+            stroke-dasharray: 10 10;
+        }
+    }
+
+    &[data-mass-size="XL"] {
+        & path.connector-path-outline {
+            stroke: $teal-dark;
+            stroke-width: 10px;
+        }
+    }
+
+    &.selected {
+        /* $orange :mind_blown: see https://codepen.io/sosuke/pen/Pjoqqp */
+        filter: drop-shadow(0px 0px 3px #ffb);
+        /*filter: invert(62%) sepia(79%) saturate(2838%) hue-rotate(3deg) brightness(96%) contrast(90%);*/
+    }
+}
+
+svg path.connector-path-outline {
+    pointer-events: visibleStroke;
+    fill: none;
+    stroke: $gray-lighter;
+    stroke-width: 7px;
+}

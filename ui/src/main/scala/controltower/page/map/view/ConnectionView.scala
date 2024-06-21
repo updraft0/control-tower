@@ -25,11 +25,9 @@ class ConnectionView(
     systemViewSize: Coord
 ) extends ViewController:
   import svg.*
+  import ConnectionView.dataAttr
 
-  // TODO: eol status
-  // TODO: mass status
   // TODO: direction
-  // TODO: size
 
   private val fromSystemCoord      = pos.systemPosition(fromSystemId)
   private val toSystemCoord        = pos.systemPosition(toSystemId)
@@ -37,8 +35,13 @@ class ConnectionView(
 
   override def view =
     g(
-      cls                                      := "wormhole-connection",
-      ConnectionView.dataAttr("connection-id") := s"$id",
+      cls                       := "wormhole-connection",
+      dataAttr("connection-id") := s"$id",
+      dataAttr("mass-size") <-- conn.map(getWormholeMassSize).map(_.toString),
+      dataAttr("mass-status") <-- conn.map(getWormholeMassStatus).map(_.toString),
+      cls("eol") <-- conn.map(whc =>
+        whc.toSignature.exists(_.eolAt.isDefined) || whc.fromSignature.exists(_.eolAt.isDefined)
+      ),
       cls("selected") <-- selectedConnection.signal.map(_.exists(_ == id)),
       onClick.stopImmediatePropagation.compose(_.mapToUnit.withCurrentValueOf(selectedConnection).map {
         case Some(`id`) => None

@@ -69,7 +69,6 @@ final class ArrayRenderedVar[A: ClassTag] private (render: RenderT[A])(using Can
 
   private def doUpdate(arr: mutable.ArraySeq[(Long, Var[A], Element)], idx: Int, next: A) =
     val (k, v, prevEl) = arr(idx)
-    org.scalajs.dom.console.log(s"Updating: ${next}")
     v.set(next)
     // note - do not need to do anything with the element - it is not getting replaced
     arr

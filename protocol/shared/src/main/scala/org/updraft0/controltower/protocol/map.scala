@@ -222,7 +222,7 @@ enum NewSystemSignature(val id: SigId, val createdAt: Instant):
       connectionType: WormholeConnectionType,
       massStatus: WormholeMassStatus,
       massSize: WormholeMassSize,
-      connectionId: Option[ConnectionId]
+      connectionId: UnknownOrUnset[ConnectionId]
   ) extends NewSystemSignature(id, createdAt)
 
   def signatureGroup: SignatureGroup = this match

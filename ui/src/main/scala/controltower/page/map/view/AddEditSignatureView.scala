@@ -2,7 +2,7 @@ package controltower.page.map.view
 
 import com.raquo.laminar.api.L.*
 import controltower.ui.*
-import org.updraft0.controltower.constant.WormholeClass
+import org.updraft0.controltower.constant.{UnknownOrUnset, WormholeClass}
 import org.updraft0.controltower.protocol.*
 import java.time.Instant
 
@@ -15,6 +15,7 @@ private case class WormholeSelectInfo(
 ) derives CanEqual
 
 private object SignatureId:
+  // TODO: move to constants
   val MaxLength = 7
 
   private val SigIdNamePrefix        = "^[A-Za-z]{1,3}".r
@@ -38,8 +39,10 @@ class AddEditSignatureView(
     wormholeTypes: Map[Long, WormholeType],
     existing: Option[MapSystemSignature],
     validationError: Var[Option[String]],
-    onAdd: Observer[NewSystemSignature]
-) extends ViewController:
+    onAdd: Observer[NewSystemSignature],
+    canEdit: Signal[Boolean]
+)(using SystemStaticData)
+    extends ViewController:
 
   override def view =
     val signatureId = Var(existing.map(_.id.convert).getOrElse(""))
@@ -58,12 +61,28 @@ class AddEditSignatureView(
         .getOrElse(WormholeConnectionType.Unknown)
     )
 
-    val possibleWormholeTypes = wormholeTypesList(solarSystem, signatureGroups, wormholeTypes)
-
     val wormholeIsEol = Var(existing.exists {
       case w: MapSystemSignature.Wormhole => w.eolAt.isDefined
       case _                              => false
     })
+
+    val wormholeMassStatus = Var(
+      existing
+        .map {
+          case w: MapSystemSignature.Wormhole => w.massStatus
+          case _                              => WormholeMassStatus.Unknown
+        }
+        .getOrElse(WormholeMassStatus.Unknown)
+    )
+
+    val wormholeMassSize = Var(
+      existing
+        .map {
+          case w: MapSystemSignature.Wormhole => w.massSize
+          case _                              => WormholeMassSize.Unknown
+        }
+        .getOrElse(WormholeMassSize.Unknown)
+    )
 
     div(
       cls := "add-edit-signature-view",
@@ -72,7 +91,7 @@ class AddEditSignatureView(
         input(
           typ         := "text",
           cls         := "signature-id",
-          maxLength   := SignatureIdLength,
+          maxLength   := SignatureId.MaxLength,
           placeholder := "ABC-123",
           disabled    := existing.isDefined,
           controlled(
@@ -92,35 +111,56 @@ class AddEditSignatureView(
       div(
         cls := "add-signature-line",
         // FIXME - the default selections don't work right now :/
-        child <-- signatureGroup.signal.map {
-          case SignatureGroup.Unknown  => emptyNode
-          case SignatureGroup.Relic    => selectSite(SignatureGroup.Relic, relicSignatureType, signatureGroups)
-          case SignatureGroup.Data     => selectSite(SignatureGroup.Data, dataSignatureType, signatureGroups)
-          case SignatureGroup.Combat   => selectSite(SignatureGroup.Combat, combatSignatureType, signatureGroups)
-          case SignatureGroup.Ore      => selectSite(SignatureGroup.Ore, oreSignatureType, signatureGroups)
-          case SignatureGroup.Gas      => selectSite(SignatureGroup.Gas, gasSignatureType, signatureGroups)
-          case SignatureGroup.Ghost    => selectSite(SignatureGroup.Ghost, ghostSignatureType, signatureGroups)
+        child <-- signatureGroup.signal.flatMapSwitch:
+          case SignatureGroup.Unknown => Val(emptyNode)
+          case SignatureGroup.Relic   => Val(selectSite(SignatureGroup.Relic, relicSignatureType, signatureGroups))
+          case SignatureGroup.Data    => Val(selectSite(SignatureGroup.Data, dataSignatureType, signatureGroups))
+          case SignatureGroup.Combat  => Val(selectSite(SignatureGroup.Combat, combatSignatureType, signatureGroups))
+          case SignatureGroup.Ore     => Val(selectSite(SignatureGroup.Ore, oreSignatureType, signatureGroups))
+          case SignatureGroup.Gas     => Val(selectSite(SignatureGroup.Gas, gasSignatureType, signatureGroups))
+          case SignatureGroup.Ghost   => Val(selectSite(SignatureGroup.Ghost, ghostSignatureType, signatureGroups))
           case SignatureGroup.Wormhole =>
-            // FIXME - render the wormholes that are possible better
-            div(
-              select(
-                cls := "wormhole-type",
-                possibleWormholeTypes.map(wsi =>
-                  option(value := wsi.key, selected := wsi.connectionType == wormholeType.now(), wsi.name)
+            wormholeType.signal.map: wct =>
+              div(
+                cls := "add-signature-line",
+                wormholeSelect(
+                  wct,
+                  solarSystem,
+                  signatureGroups,
+                  canEdit,
+                  wormholeType.writer.contramap(_.connectionType),
+                  useTd = false
                 ),
-                onInput.mapToValue.map(i => possibleWormholeTypes.find(_.key == i).get.connectionType) --> wormholeType
-              ),
-              label(
-                "EOL?",
-                input(
-                  cls := "wormhole-is-eol",
-                  tpe := "checkbox",
-                  checked <-- wormholeIsEol,
-                  onInput.mapToChecked --> wormholeIsEol
+                label(
+                  "EOL?",
+                  input(
+                    cls := "wormhole-is-eol",
+                    tpe := "checkbox",
+                    checked <-- wormholeIsEol,
+                    onInput.mapToChecked --> wormholeIsEol
+                  )
+                ),
+                select(
+                  cls := "wormhole-mass-status",
+                  WormholeMassStatus.values
+                    .map(ms =>
+                      if (wormholeMassStatus.now() == ms) ms.selectOption.amend(selected := true)
+                      else ms.selectOption
+                    )
+                    .toSeq,
+                  onInput.mapToValue.map(WormholeMassStatus.valueOf) --> wormholeMassStatus
+                ),
+                select(
+                  cls := "wormhole-mass-size",
+                  WormholeMassSize.values
+                    .map(ms =>
+                      if (wormholeMassSize.now() == ms) ms.selectOption.amend(selected := true)
+                      else ms.selectOption
+                    )
+                    .toSeq,
+                  onInput.mapToValue.map(WormholeMassSize.valueOf) --> wormholeMassSize
                 )
               )
-            )
-        }
       ),
       button(
         tpe := "button",
@@ -142,9 +182,9 @@ class AddEditSignatureView(
                   createdAt = now,
                   isEol = wormholeIsEol.now(),
                   connectionType = connectionType,
-                  massStatus = WormholeMassStatus.Unknown /* FIXME */,
-                  massSize = WormholeMassSize.Unknown /* FIXME */,
-                  connectionId = None
+                  massStatus = wormholeMassStatus.now(),
+                  massSize = wormholeMassSize.now(),
+                  connectionId = UnknownOrUnset.Unknown()
                 )
               )
             case (true, sigId, otherGroup) =>

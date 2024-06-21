@@ -279,7 +279,11 @@
 }
 
 dialog.system-add-signature {
-    width: 300px; /* FIXME */
+    width: max-content;
+    height: max-content;
+    min-width: 30vw;
+    min-height: 20vh;
+    overflow: clip;
 
     & div.add-signature-line {
         display: flex;
@@ -317,6 +321,35 @@ dialog.system-add-signature {
     & input.wormhole-type {
         width: 3em;
         text-align: center;
+    }
+
+    /* FIXME duplication from the main view */
+    & div.signature-type {
+        & .option-dropdown {
+            font-size: 0.8rem;
+            width: 11em;
+            & .selected-value div {
+                /* FIXME major hack */
+                display: inline-flex;
+            }
+        }
+
+        white-space: nowrap;
+
+        @mixin wormhole-type-cell;
+
+        & ul.select-dropdown {
+            max-height: 20em;
+        }
+
+        & span[data-signature-type="Unknown"] {
+            color: $red;
+        }
+
+        & li span[data-signature-type="Unknown"] {
+            color: inherit;
+        }
+
     }
 }
 

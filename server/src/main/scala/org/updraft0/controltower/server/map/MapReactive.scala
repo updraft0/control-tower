@@ -208,7 +208,7 @@ case class NewMapSystemSignature(
     wormholeMassSize: model.WormholeMassSize = model.WormholeMassSize.Unknown,
     wormholeMassStatus: model.WormholeMassStatus = model.WormholeMassStatus.Unknown,
     wormholeK162Type: Option[model.WormholeK162Type] = None,
-    wormholeConnectionId: Option[ConnectionId] = None
+    wormholeConnectionId: UnknownOrUnset[ConnectionId] = UnknownOrUnset.Unknown()
 )
 
 private[map] case class MapLocationState(
@@ -530,7 +530,7 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
         newModelSignature(now, sessionId, (mapId, addSig.systemId), addSig.signature)
       )
       sys <- loadSingleSystem(mapId, addSig.systemId)
-      connOpt <- addSig.signature.wormholeConnectionId
+      connOpt <- addSig.signature.wormholeConnectionId.asOption
         .map(whcId => loadSingleConnection(mapId, whcId).map(Some(_)))
         .getOrElse(ZIO.none)
     yield withState(state.updateOne(sys.sys.systemId, sys, connOpt.toList, Nil))(state =>
@@ -997,7 +997,7 @@ private def newModelSignature(
     wormholeMassSize = Option.when(newSig.signatureGroup == model.SignatureGroup.Wormhole)(newSig.wormholeMassSize),
     wormholeMassStatus = Option.when(newSig.signatureGroup == model.SignatureGroup.Wormhole)(newSig.wormholeMassStatus),
     wormholeK162Type = newSig.wormholeK162Type,
-    wormholeConnectionId = newSig.wormholeConnectionId,
+    wormholeConnectionId = newSig.wormholeConnectionId.asOption,
     createdAt = now,
     createdByCharacterId = sessionId.characterId,
     updatedAt = now,
@@ -1043,7 +1043,7 @@ private def mergeModelSignature(
       wormholeK162Type =
         if (k162Changed) newSig.wormholeK162Type
         else newSig.wormholeK162Type.orElse(prev.wormholeK162Type),
-      wormholeConnectionId = newSig.wormholeConnectionId.orElse(prev.wormholeConnectionId),
+      wormholeConnectionId = UnknownOrUnset(prev.wormholeConnectionId).updateWith(newSig.wormholeConnectionId).asOption,
       updatedAt = now,
       updatedByCharacterId = sessionId.characterId
     )
