@@ -38,6 +38,7 @@ import org.scalajs.dom.MouseEvent
 given equalEventTarget[El <: dom.Element]: CanEqual[dom.EventTarget, El] = CanEqual.derived
 
 object Modal:
+  val Shown: Var[Boolean]                  = Var(false)
   lazy val onClose: EventProp[dom.UIEvent] = eventProp("close")
 
 //  def create(mods: Mod[ReactiveHtmlElement[dom.HTMLDialogElement]]*): Modal = new Modal(mods*)
@@ -60,6 +61,7 @@ object Modal:
     val detached = renderDetached(dialog, activateNow = true)
     dialog.amend(
       onClose --> { _ =>
+        Shown.set(false)
         onCloseObs.onNext(())
         owner.killSubscriptions()
         detached.deactivate()
@@ -69,6 +71,7 @@ object Modal:
         dialog.ref.close()
       }
     )
+    Shown.set(true)
     dialog.ref.showModal()
 
   def showConfirmation(

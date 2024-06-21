@@ -305,7 +305,9 @@ private final class MapView(
     documentEvents(
       _.onKeyDown
         .filter(ev => !ev.repeat && ev.code == code && !ev.ctrlKey && !ev.shiftKey && !ev.metaKey)
-    ).compose(es => compose(es).filterWith(shouldEnable).filterWith(notInKeyHandler.signal)) --> { (ev, b) =>
+    ).compose(es =>
+      compose(es).filterWith(Modal.Shown.signal.map(!_)).filterWith(shouldEnable).filterWith(notInKeyHandler.signal)
+    ) --> { (ev, b) =>
       ev.preventDefault()
       inKeyHandler.set(true)
       action(b, Observer(_ => inKeyHandler.set(false)))
