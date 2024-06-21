@@ -225,14 +225,14 @@ private val K162Types = List(
     "k162-u",
     "K162 -> C1/2/3",
     "K162",
-    Some(WormholeClass.C3),
+    None,
     WormholeConnectionType.K162(WormholeK162Type.Unknown)
   ),
   WormholeSelectInfo(
     "k162-d",
     "K162 -> C4/5",
     "K162",
-    Some(WormholeClass.C5),
+    None,
     WormholeConnectionType.K162(WormholeK162Type.Dangerous)
   ),
   WormholeSelectInfo(

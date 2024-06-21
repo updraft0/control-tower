@@ -93,6 +93,15 @@ class ConnectionView(
               cx  := s"${endPos.x}",
               cy  := s"${endPos.y}",
               r   := s"${ConnectionView.EndRadius}"
+            ),
+            text(
+              cls              := "connection-size",
+              filterAttr       := "url(#background-size)",
+              x                := s"${startPos.x + ((endPos.x - startPos.x) / 2)}",
+              y                := s"${startPos.y + ((endPos.y - startPos.y) / 2)}",
+              textAnchor       := "middle",
+              dominantBaseline := "central",
+              getWormholeMassSize(conn).toString
             )
           )
     )

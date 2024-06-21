@@ -504,8 +504,9 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
       removeConn: MapRequest.RemoveSystemConnection
   ) =
     for
-      // TODO: remove connection id from signature too!
       _ <- query.map.deleteMapWormholeConnection(mapId, removeConn.connectionId, sessionId.characterId)
+      // delete any signatures that map to those connection ids
+      _ <- query.map.deleteSignaturesWithConnectionIds(mapId, Chunk(removeConn.connectionId), sessionId.characterId)
       whcOpt <- MapQueries
         .getWormholeConnectionsWithSigs(mapId, Some(removeConn.connectionId), includeDeleted = true)
         .map(_.headOption)

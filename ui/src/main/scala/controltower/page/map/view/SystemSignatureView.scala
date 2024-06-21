@@ -29,7 +29,7 @@ enum ConnectionTarget derives CanEqual:
       toSystemName: Signal[Option[String]],
       toSolarSystem: SolarSystem,
       isEol: Signal[Boolean],
-      connection: Signal[MapWormholeConnectionWithSigs],
+      connection: Signal[Option[MapWormholeConnectionWithSigs]],
       sigId: Option[SigId]
   ) extends ConnectionTarget
 
@@ -83,17 +83,16 @@ private inline def sigView(
 
   val connectionTargets = system.map: mss =>
     mss.connections.map: whc =>
-      val targetId = if (whc.fromSystemId == systemId) whc.toSystemId else whc.fromSystemId
-      val connection =
-        mapCtx.connection(whc.id).map(_.getOrElse(throw new IllegalStateException("BUG: Connection id not found!")))
+      val targetId   = if (whc.fromSystemId == systemId) whc.toSystemId else whc.fromSystemId
+      val connection = mapCtx.connection(whc.id)
       ConnectionTarget.Wormhole(
         id = whc.id,
         toSystemId = targetId,
         toSystemName = mapCtx.systemName(targetId),
         toSolarSystem = static.solarSystemMap(targetId),
         connection = connection,
-        isEol = connection.map(whcs =>
-          whcs.toSignature.exists(_.eolAt.nonEmpty) || whcs.fromSignature.exists(_.eolAt.nonEmpty)
+        isEol = connection.map(
+          _.exists(whcs => whcs.toSignature.exists(_.eolAt.nonEmpty) || whcs.fromSignature.exists(_.eolAt.nonEmpty))
         ),
         sigId = mss.signatures
           .find {
@@ -541,8 +540,12 @@ given DropdownItem[ConnectionTarget] with
       span(
         cls                       := "wormhole-connection-option",
         dataAttr("connection-id") := id.toString,
-        dataAttr("mass-status") <-- connection.map(getWormholeMassStatus).map(_.toString),
-        dataAttr("mass-size") <-- connection.map(getWormholeMassSize).map(_.toString),
+        dataAttr("mass-status") <-- connection
+          .mapSome(getWormholeMassStatus)
+          .map(_.getOrElse(WormholeMassStatus.Unknown).toString),
+        dataAttr("mass-size") <-- connection
+          .mapSome(getWormholeMassSize)
+          .map(_.getOrElse(WormholeMassSize.Unknown).toString),
         cls("wormhole-eol") <-- isEol,
         span(
           cls := "connection-system-name",
@@ -744,8 +747,15 @@ private[view] def wormholeSelect(
     signatureGroups,
     static.wormholeTypes
   )
-  val wormholeType = Var(possibleWormholeTypes.find(_.connectionType == connectionType).get)
-  val dropdown     = OptionDropdown(possibleWormholeTypes, wormholeType, isDisabled = canEdit.map(!_))
+  val wormholeType = Var(
+    possibleWormholeTypes
+      .find(_.connectionType == connectionType)
+      .getOrElse:
+        org.scalajs.dom.console
+          .debug(s"Potential bug - have a connection type ${connectionType} but no possible wormhole types found")
+        possibleWormholeTypes.head
+  )
+  val dropdown = OptionDropdown(possibleWormholeTypes, wormholeType, isDisabled = canEdit.map(!_))
 
   if (useTd)
     td(

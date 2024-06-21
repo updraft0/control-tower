@@ -268,6 +268,21 @@ private final class MapView(
             svg.height   := "100%",
             svg.width    := "100%",
             svg.overflow := "visible",
+            svg.defs(
+              svg.filter(
+                // TODO could improve with drop shadows etc.
+                svg.idAttr := "background-size",
+                svg.width  := "1.2",
+                svg.height := "1.2",
+                svg.x      := "-0.1",
+                svg.y      := "-0.1",
+                svg.feFlood(svg.floodColor := "#3c3f41" /* FIXME hardcoding? */ ),
+                svg.feComposite(
+                  svg.in       := "SourceGraphic",
+                  svg.operator := "over"
+                )
+              )
+            ),
             children.command <-- connectionNodes,
             connectionInProgress.view
           )

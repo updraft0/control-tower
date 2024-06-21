@@ -196,10 +196,26 @@ class MapController(rds: ReferenceDataStore, val clock: Signal[Instant])(using O
             whcs.foldLeft(map): (m, whc) =>
               m
                 .updatedWith(whc.fromSystemId)(
-                  _.map(mss => mss.copy(connections = mss.connections.filterNot(_.id == whc.id)))
+                  _.map(mss =>
+                    mss.copy(
+                      signatures = mss.signatures.filterNot:
+                        case w: MapSystemSignature.Wormhole => w.connectionId.contains(whc.id)
+                        case _                              => false
+                      ,
+                      connections = mss.connections.filterNot(_.id == whc.id)
+                    )
+                  )
                 )
                 .updatedWith(whc.toSystemId)(
-                  _.map(mss => mss.copy(connections = mss.connections.filterNot(_.id == whc.id)))
+                  _.map(mss =>
+                    mss.copy(
+                      signatures = mss.signatures.filterNot:
+                        case w: MapSystemSignature.Wormhole => w.connectionId.contains(whc.id)
+                        case _                              => false
+                      ,
+                      connections = mss.connections.filterNot(_.id == whc.id)
+                    )
+                  )
                 )
           ),
           allConnections.current -> ((conns: Map[ConnectionId, MapWormholeConnectionWithSigs]) =>

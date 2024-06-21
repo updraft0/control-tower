@@ -19,6 +19,12 @@ svg path.connector-path {
 svg g.wormhole-connection {
     pointer-events: bounding-box;
 
+    & text.connection-size {
+        fill: $gray-lightest;
+        stroke: none;
+        font-size: 0.6em;
+    }
+
     &:hover {
         z-index: 95;
         filter: drop-shadow(-3px 3px 4px rgba(0,0,0, 0.3));
@@ -52,6 +58,12 @@ svg g.wormhole-connection {
         }
     }
 
+    &[data-mass-size="Unknown"] {
+        & text.connection-size {
+            display: none;
+        }
+    }
+
     &[data-mass-size="S"] {
         & path.connector-path-outline {
             stroke-dasharray: 10 5;
@@ -65,6 +77,10 @@ svg g.wormhole-connection {
     }
 
     &[data-mass-size="XL"] {
+        &:hover path.connector-path-outline {
+            stroke: $gray-lighter;
+        }
+
         & path.connector-path-outline {
             stroke: $teal-dark;
             stroke-width: 10px;
