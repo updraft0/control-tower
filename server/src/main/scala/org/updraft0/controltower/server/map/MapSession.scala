@@ -208,7 +208,7 @@ object MapSession:
           Identified(
             Some(ctx.sessionId),
             MapRequest.RenameSystem(
-              systemId = upd.systemId,
+              systemId = SystemId(upd.systemId),
               name = upd.name.get.toOption
             )
           )
@@ -218,7 +218,7 @@ object MapSession:
           Identified(
             Some(ctx.sessionId),
             MapRequest.UpdateSystemDisplay(
-              systemId = upd.systemId,
+              systemId = SystemId(upd.systemId),
               displayData = toDisplayData(upd.displayData.get)
             )
           )
@@ -228,7 +228,7 @@ object MapSession:
           Identified(
             Some(ctx.sessionId),
             MapRequest.UpdateSystemAttribute(
-              systemId = upd.systemId,
+              systemId = SystemId(upd.systemId),
               pinned = upd.isPinned,
               intelStance = upd.stance.map(toIntelStance)
             )
@@ -236,40 +236,40 @@ object MapSession:
         )
       )
     case protocol.MapRequest.RemoveSystem(systemId) =>
-      ctx.mapQ.offer(Identified(Some(ctx.sessionId), MapRequest.RemoveSystem(systemId)))
+      ctx.mapQ.offer(Identified(Some(ctx.sessionId), MapRequest.RemoveSystem(SystemId(systemId))))
     case protocol.MapRequest.RemoveSystems(systemIds) =>
       NonEmptyChunk
         .fromChunk(Chunk.fromArray(systemIds))
         .fold(ZIO.unit)(systemIds =>
-          ctx.mapQ.offer(Identified(Some(ctx.sessionId), MapRequest.RemoveSystems(systemIds)))
+          ctx.mapQ.offer(Identified(Some(ctx.sessionId), MapRequest.RemoveSystems(systemIds.map(SystemId(_)))))
         )
     // signatures
     case addSig: protocol.MapRequest.AddSystemSignature =>
       ctx.mapQ.offer(
         Identified(
           Some(ctx.sessionId),
-          MapRequest.AddSystemSignature(addSig.systemId, toNewMapSystemSignature(addSig.sig))
+          MapRequest.AddSystemSignature(SystemId(addSig.systemId), toNewMapSystemSignature(addSig.sig))
         )
       )
     case protocol.MapRequest.UpdateSystemSignatures(systemId, replaceAll, scanned) =>
       ctx.mapQ.offer(
         Identified(
           Some(ctx.sessionId),
-          MapRequest.UpdateSystemSignatures(systemId, replaceAll, scanned.map(toNewMapSystemSignature).toList)
+          MapRequest.UpdateSystemSignatures(SystemId(systemId), replaceAll, scanned.map(toNewMapSystemSignature).toList)
         )
       )
     case protocol.MapRequest.RemoveSystemSignatures(systemId, sigIds) =>
       ctx.mapQ.offer(
         Identified(
           Some(ctx.sessionId),
-          MapRequest.RemoveSystemSignatures(systemId, Chunk.from(sigIds).nonEmptyOrElse(None)(Some(_)))
+          MapRequest.RemoveSystemSignatures(SystemId(systemId), Chunk.from(sigIds).nonEmptyOrElse(None)(Some(_)))
         )
       )
     case protocol.MapRequest.RemoveAllSystemSignatures(systemId) =>
       ctx.mapQ.offer(
         Identified(
           Some(ctx.sessionId),
-          MapRequest.RemoveSystemSignatures(systemId, None)
+          MapRequest.RemoveSystemSignatures(SystemId(systemId), None)
         )
       )
 
@@ -303,7 +303,7 @@ private def toProto(msg: MapResponse): Option[protocol.MapMessage] = msg match
   case MapResponse.MapSnapshot(systems, connections, connectionRanks) =>
     Some(
       protocol.MapMessage.MapSnapshot(
-        systems = systems.view.mapValues(toProtoSystemSnapshot).toMap,
+        systems = systems.map((sysId, mss) => (sysId.value, toProtoSystemSnapshot(mss))),
         connections =
           connections.view.mapValues(c => toProtoConnectionWithSigs(c, connectionRanks(c.connection.id))).toMap
       )
@@ -328,7 +328,7 @@ private def toProto(msg: MapResponse): Option[protocol.MapMessage] = msg match
       ) =>
     Some(
       protocol.MapMessage.SystemsRemoved(
-        removedSystemIds = removedSystemIds.toArray,
+        removedSystemIds = removedSystemIds.map(_.value).toArray,
         removedConnectionIds = removedConnectionIds.toArray,
         updatedSystems = updatedSystems.map(toProtoSystemSnapshot).toArray,
         updatedConnections = updatedConnections.view
@@ -355,7 +355,7 @@ private def toProtoCharacter(char: model.AuthCharacter) =
 
 private def toAddSystem(msg: protocol.MapRequest.AddSystem) =
   MapRequest.AddSystem(
-    systemId = msg.systemId,
+    systemId = SystemId(msg.systemId),
     name = msg.name.flatMap(_.toOption),
     isPinned = msg.isPinned,
     displayData = toDisplayData(msg.displayData),
@@ -444,7 +444,7 @@ private def toProtoSystemSnapshot(value: MapSystemWithAll): protocol.MapSystemSn
     display = value.display.map(toProtoDisplay),
     structures = value.structures.map(toProtoStructure).toArray,
     notes = value.notes.map(toProtoNote).toArray,
-    signatures = value.signatures.map(toProtoSignature).toArray,
+    signatures = value.signatures.map(toProtoSignature(value.sys.systemId, _)).toArray,
     connections = value.connections.map(toProtoConnection).toArray
   )
 
@@ -461,10 +461,11 @@ private def toProtoSystem(value: model.MapSystem, displayData: Option[model.Syst
     updatedByCharacterId = value.updatedByCharacterId
   )
 
-private def toProtoSignature(value: model.MapSystemSignature): protocol.MapSystemSignature =
+private def toProtoSignature(systemId: SystemId, value: model.MapSystemSignature): protocol.MapSystemSignature =
   value.signatureGroup match
     case model.SignatureGroup.Unknown =>
       protocol.MapSystemSignature.Unknown(
+        systemId = systemId,
         id = value.signatureId,
         createdAt = value.createdAt,
         createdByCharacterId = value.createdByCharacterId,
@@ -473,6 +474,7 @@ private def toProtoSignature(value: model.MapSystemSignature): protocol.MapSyste
       )
     case model.SignatureGroup.Wormhole =>
       protocol.MapSystemSignature.Wormhole(
+        systemId = systemId,
         id = value.signatureId,
         eolAt = value.wormholeEolAt,
         connectionType = toProtoConnectionType(value),
@@ -487,6 +489,7 @@ private def toProtoSignature(value: model.MapSystemSignature): protocol.MapSyste
       )
     case group =>
       protocol.MapSystemSignature.Site(
+        systemId = systemId,
         id = value.signatureId,
         group = toProtoGroup(group),
         name = value.signatureTypeName,
@@ -604,15 +607,16 @@ private def toProtoConnectionWithSigs(
   protocol.MapWormholeConnectionWithSigs(
     connection = toProtoConnection(value.connection),
     jumps = value.jumps.map(toProtoConnectionJump).toArray,
-    fromSignature = value.fromSignature.flatMap(toProtoSignatureWormhole(_)),
-    toSignature = value.toSignature.flatMap(toProtoSignatureWormhole(_)),
+    fromSignature = value.fromSignature.flatMap(toProtoSignatureWormhole(value.connection.fromSystemId, _)),
+    toSignature = value.toSignature.flatMap(toProtoSignatureWormhole(value.connection.toSystemId, _)),
     rank = toProtoConnectionRank(rank)
   )
 
 private inline def toProtoSignatureWormhole(
+    systemId: SystemId,
     value: model.MapSystemSignature
 ): Option[protocol.MapSystemSignature.Wormhole] =
-  toProtoSignature(value) match
+  toProtoSignature(systemId, value) match
     case ws: protocol.MapSystemSignature.Wormhole => Some(ws)
     case _                                        => None
 

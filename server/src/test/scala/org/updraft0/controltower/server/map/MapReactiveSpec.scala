@@ -1,6 +1,6 @@
 package org.updraft0.controltower.server.map
 
-import org.updraft0.controltower.constant.{SystemId as _, *}
+import org.updraft0.controltower.constant.*
 import org.updraft0.controltower.db.model.*
 import org.updraft0.controltower.db.query
 import org.updraft0.controltower.server.db.{
@@ -29,13 +29,13 @@ object MapReactiveSpec extends ZIOSpecDefault:
   val Time2 = Instant.ofEpochMilli(202000L)
 
   val MapId1    = MapId(1)
-  val SystemId1 = 30000142L
-  val SystemId2 = 31002604L
-  val SystemId3 = 30000140L
-  val SystemId4 = 30001447L
-  val SystemId5 = 30000848L
-  val SystemId6 = 30045328L
-  val SystemId7 = 31000003L
+  val SystemId1 = SystemId(30000142L)
+  val SystemId2 = SystemId(31002604L)
+  val SystemId3 = SystemId(30000140L)
+  val SystemId4 = SystemId(30001447L)
+  val SystemId5 = SystemId(30000848L)
+  val SystemId6 = SystemId(30045328L)
+  val SystemId7 = SystemId(31000003L)
 
   val TestSolarSystems = Map(
     SystemId1 -> MapSolarSystem(SystemId1, "Jita", WormholeClass.H, 10000002L, 20000020L, Map(SystemId3 -> 50001248)),

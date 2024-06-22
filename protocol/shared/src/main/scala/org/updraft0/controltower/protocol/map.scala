@@ -149,6 +149,7 @@ enum WormholeConnectionType derives CanEqual:
   case Known(typeId: Long)
 
 enum MapSystemSignature(
+    val systemId: SystemId,
     val id: SigId,
     val createdAt: Instant,
     val createdByCharacterId: CharacterId,
@@ -157,12 +158,14 @@ enum MapSystemSignature(
     val signatureGroup: SignatureGroup
 ) derives CanEqual:
   case Unknown(
+      override val systemId: SystemId,
       override val id: SigId,
       override val createdAt: Instant,
       override val createdByCharacterId: CharacterId,
       override val updatedAt: Instant,
       override val updatedByCharacterId: CharacterId
   ) extends MapSystemSignature(
+        systemId,
         id,
         createdAt,
         createdByCharacterId,
@@ -171,6 +174,7 @@ enum MapSystemSignature(
         SignatureGroup.Unknown
       )
   case Wormhole(
+      override val systemId: SystemId,
       override val id: SigId,
       eolAt: Option[Instant],
       connectionType: WormholeConnectionType,
@@ -182,6 +186,7 @@ enum MapSystemSignature(
       override val updatedAt: Instant,
       override val updatedByCharacterId: CharacterId
   ) extends MapSystemSignature(
+        systemId,
         id,
         createdAt,
         createdByCharacterId,
@@ -191,6 +196,7 @@ enum MapSystemSignature(
       )
 
   case Site(
+      override val systemId: SystemId,
       override val id: SigId,
       group: SignatureGroup,
       name: Option[String],
@@ -199,6 +205,7 @@ enum MapSystemSignature(
       override val updatedAt: Instant,
       override val updatedByCharacterId: CharacterId
   ) extends MapSystemSignature(
+        systemId,
         id,
         createdAt,
         createdByCharacterId,

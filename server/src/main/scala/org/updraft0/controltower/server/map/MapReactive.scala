@@ -1,6 +1,6 @@
 package org.updraft0.controltower.server.map
 
-import org.updraft0.controltower.constant.{SystemId as _, *}
+import org.updraft0.controltower.constant.*
 import org.updraft0.controltower.db.model.{
   MapSystemSignature,
   MapWormholeConnection,
@@ -18,7 +18,6 @@ import java.time.Instant
 import java.util.UUID
 
 type MapEnv     = javax.sql.DataSource & LocationTracker & MapPermissionTracker
-type SystemId   = Long // TODO opaque type
 type ShipTypeId = Int
 
 private[map] case class MapSolarSystem(
@@ -114,9 +113,9 @@ private[map] case class MapState(
     )
 
   def removeSystems(
-      removedSystemIds: Chunk[model.SystemId],
+      removedSystemIds: Chunk[SystemId],
       removedConnectionIds: Chunk[ConnectionId],
-      refreshedSystemIds: Chunk[model.SystemId],
+      refreshedSystemIds: Chunk[SystemId],
       connectionRanks: List[MapWormholeConnectionRank],
       connectionsWithSigs: List[MapWormholeConnectionWithSigs]
   ): MapState =
@@ -896,7 +895,7 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
         .filter((_, mls) => mls.locationInfo.isDefined && mls.online)
         .transform: (_, mls) =>
           val locationInfo = mls.locationInfo.get
-          locationInfo.system.value -> locationInfo.shipTypeId
+          locationInfo.system -> locationInfo.shipTypeId
     )
 
   private def isPotentialWormholeJump(state: MapState, fromSystemId: SystemId, toSystemId: SystemId) =
@@ -1112,7 +1111,7 @@ private def loadMapRef() =
             whClass = WormholeClasses.ById(ss.sys.whClassId.get),
             regionId = ss.sys.regionId,
             constellationId = ss.sys.constellationId,
-            gates = ss.gates.map(sg => sg.outSystemId.value -> sg.inGateId).toMap
+            gates = ss.gates.map(sg => sg.outSystemId -> sg.inGateId).toMap
           )
         )
         .toMap

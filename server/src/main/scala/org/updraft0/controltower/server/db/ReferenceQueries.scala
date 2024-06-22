@@ -1,20 +1,18 @@
 package org.updraft0.controltower.server.db
 
 import io.getquill.*
-import org.updraft0.controltower.constant
-import org.updraft0.controltower.constant.{WormholeClasses, WormholeEffects}
+import org.updraft0.controltower.constant.*
 import org.updraft0.controltower.db.model
 import org.updraft0.controltower.db.query.*
 import org.updraft0.controltower.protocol
 import org.updraft0.controltower.protocol.jsoncodec.given
-import org.updraft0.controltower.protocol.{StationOperation, StationService}
 import zio.*
 
 case class StargateBothSides(
     inGateId: Long,
     outGateId: Long,
-    inSystemId: constant.SystemId,
-    outSystemId: constant.SystemId
+    inSystemId: SystemId,
+    outSystemId: SystemId
 )
 case class SolarSystemWithGates(sys: model.SolarSystem, gates: Array[StargateBothSides])
 
@@ -22,6 +20,7 @@ case class SolarSystemWithGates(sys: model.SolarSystem, gates: Array[StargateBot
   */
 object ReferenceQueries:
   import ctx.{*, given}
+  import auth.given_MappedEncoding_Long_SystemId
   import map.given
   import map.schema.*
   import sde.schema.*
@@ -192,7 +191,7 @@ object ReferenceQueries:
         svc   <- stationService.join(_.id == opSvc.serviceId)
       yield (op.id, op.name, svc.id, svc.name))
         .groupByMap(k => (k._1, k._2))(v =>
-          (v._1, v._2, jsonGroupArray[StationService](jsonObject2("id", v._3, "name", v._4)))
+          (v._1, v._2, jsonGroupArray[protocol.StationService](jsonObject2("id", v._3, "name", v._4)))
         )
     }).map(_.map(r => protocol.StationOperation(r._1.toInt, r._2, r._3.value)))
 

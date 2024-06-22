@@ -5,8 +5,6 @@ import org.updraft0.controltower.constant.*
 import java.time.Instant
 import scala.CanEqual
 
-type SystemId = Long // TODO move to opaque
-
 enum ChainNamingStrategy extends Enum[ChainNamingStrategy] derives CanEqual:
   case Manual
 

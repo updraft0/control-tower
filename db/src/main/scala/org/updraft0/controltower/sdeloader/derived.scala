@@ -1,7 +1,7 @@
 package org.updraft0.controltower.sdeloader
 
 import io.getquill.JsonValue
-import org.updraft0.controltower.constant.{WormholeClass, WormholeClasses}
+import org.updraft0.controltower.constant.{SystemId, WormholeClass, WormholeClasses}
 import org.updraft0.controltower.db.model.{SignatureGroup, SignatureInGroup, SystemStaticWormhole, Wormhole}
 import org.updraft0.controltower.db.query.map
 import zio.*
@@ -59,7 +59,7 @@ private def toWormhole(id: Long, name: String, attributes: JsonValue[Map[String,
   )
 
 private def readSystemStatics(
-    systemsByName: Map[String, Long],
+    systemsByName: Map[String, SystemId],
     wormholeTypes: Map[String, Long]
 ): ZStream[Any, Throwable, SystemStaticWormhole] =
   ZStream

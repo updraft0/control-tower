@@ -54,15 +54,13 @@ class SystemSignatureView(
       hideIfEmptyOpt(selected),
       table(
         children <-- selected.splitOption(
-          (mss, system) =>
-            sigView(mss.system.systemId, system, filter, staticData, settings, mapRole, time, isConnected, actions),
+          (mss, system) => sigView(system, filter, staticData, settings, mapRole, time, isConnected, actions),
           nodeSeq()
         )
       )
     )
 
 private inline def sigView(
-    systemId: SystemId,
     system: Signal[MapSystemSnapshot],
     currentFilter: Var[SignatureFilter],
     static: SystemStaticData,
@@ -83,7 +81,7 @@ private inline def sigView(
 
   val connectionTargets = system.map: mss =>
     mss.connections.map: whc =>
-      val targetId   = if (whc.fromSystemId == systemId) whc.toSystemId else whc.fromSystemId
+      val targetId   = if (whc.fromSystemId == mss.system.systemId) whc.toSystemId else whc.fromSystemId
       val connection = mapCtx.connection(whc.id)
       ConnectionTarget.Wormhole(
         id = whc.id,
@@ -265,16 +263,16 @@ private inline def sigView(
       )
     ),
     tbody(
-      children <-- signatures.split(_.id)((sigId, _, sig) =>
+      children <-- signatures.split(mss => (mss.systemId, mss.id))((k, _, sig) =>
         signatureRow(
-          sigId,
+          k._2,
           sig,
           connectionTargets,
           time,
           currentFilter.signal,
           settings,
           selected,
-          actions.contramap(nss => MapAction.UpdateSignatures(systemId, false, Array(nss))),
+          actions.contramap(nss => MapAction.UpdateSignatures(k._1, false, Array(nss))),
           solarSystem,
           canEdit
         )(using static)
@@ -382,7 +380,7 @@ private def signatureRow(
     td(cls := "signature-id", sigId.convert.take(3)),
     child <-- sig.map(signatureGroupCell),
     child <-- sig
-      .withCurrentValueOf(solarSystem, signaturesByGroup)
+      .combineWith(solarSystem, signaturesByGroup)
       .map: (s, solarSystem, groups) =>
         s match
           case u: MapSystemSignature.Unknown =>
@@ -751,8 +749,8 @@ private[view] def wormholeSelect(
     possibleWormholeTypes
       .find(_.connectionType == connectionType)
       .getOrElse:
-        org.scalajs.dom.console
-          .debug(s"Potential bug - have a connection type ${connectionType} but no possible wormhole types found")
+//        org.scalajs.dom.console
+//          .debug(s"Potential bug - have a connection type ${connectionType} but no possible wormhole types found")
         possibleWormholeTypes.head
   )
   val dropdown = OptionDropdown(possibleWormholeTypes, wormholeType, isDisabled = canEdit.map(!_))

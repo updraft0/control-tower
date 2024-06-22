@@ -80,7 +80,7 @@ object MapQueries:
     .mapOrFail: m =>
       for
         mapId                <- m("mapId").as[MapId]
-        systemId             <- m("systemId").as[model.SystemId]
+        systemId             <- m("systemId").as[SystemId]
         name                 <- m("name").as[String]
         isDeleted            <- m("isDeleted").as[Int].map(_ == 1)
         ownerCorporationId   <- m("ownerCorporationId").as[Option[CorporationId]]
@@ -110,7 +110,7 @@ object MapQueries:
       for
         id                   <- m("id").as[Long]
         mapId                <- m("mapId").as[MapId]
-        systemId             <- m("systemId").as[model.SystemId]
+        systemId             <- m("systemId").as[SystemId]
         note                 <- m("note").as[String]
         isDeleted            <- m("isDeleted").as[Int].map(_ == 1)
         createdAt            <- m("createdAt").as[Long].map(Instant.ofEpochMilli)
@@ -133,7 +133,7 @@ object MapQueries:
     .mapOrFail: m =>
       for
         mapId                <- m("mapId").as[MapId]
-        systemId             <- m("systemId").as[model.SystemId]
+        systemId             <- m("systemId").as[SystemId]
         signatureId          <- m("signatureId").as[SigId]
         isDeleted            <- m("isDeleted").as[Int].map(_ == 1)
         signatureGroup       <- m("signatureGroup").as[model.SignatureGroup]
@@ -246,7 +246,7 @@ object MapQueries:
     }).map(_.toMap)
 
   @nowarn("msg=.*it is preferable to define both an encoder and a decoder.*")
-  def getMapSystemAll(mapId: MapId, systemId: Option[Long] = None): Result[List[MapSystemWithAll]] =
+  def getMapSystemAll(mapId: MapId, systemId: Option[SystemId] = None): Result[List[MapSystemWithAll]] =
     run(quote {
       (for
         map <- mapModel.filter(_.id == lift(mapId))
@@ -454,7 +454,7 @@ object MapQueries:
 
   def getWormholeConnectionsWithSigsBySystemId(
       mapId: MapId,
-      systemId: model.SystemId
+      systemId: SystemId
   ): Result[List[MapWormholeConnectionWithSigs]] =
     run(
       quote(
@@ -479,7 +479,7 @@ object MapQueries:
 
   def getWormholeConnectionsWithSigsBySystemIds(
       mapId: MapId,
-      systemIds: Chunk[model.SystemId]
+      systemIds: Chunk[SystemId]
   ): Result[List[MapWormholeConnectionWithSigs]] =
     run(
       quote(
@@ -527,7 +527,7 @@ object MapQueries:
 
   def getWormholeConnectionRanksForSystem(
       mapId: MapId,
-      systemId: model.SystemId
+      systemId: SystemId
   ): Result[List[MapWormholeConnectionRank]] =
     run(
       quote(
@@ -544,8 +544,8 @@ object MapQueries:
 
   def getWormholeConnectionRanksForSystems(
       mapId: MapId,
-      systemId1: model.SystemId,
-      systemId2: model.SystemId
+      systemId1: SystemId,
+      systemId2: SystemId
   ): Result[List[MapWormholeConnectionRank]] =
     run(
       quote(

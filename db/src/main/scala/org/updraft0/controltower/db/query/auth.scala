@@ -28,6 +28,9 @@ object auth:
   given MappedEncoding[Long, ConnectionId] = MappedEncoding(ConnectionId.apply)
   given MappedEncoding[ConnectionId, Long] = MappedEncoding(identity)
 
+  given MappedEncoding[Long, SystemId] = MappedEncoding(SystemId.apply)
+  given MappedEncoding[SystemId, Long] = MappedEncoding(identity)
+
   given MappedEncoding[String, SigId] = MappedEncoding(SigId.apply)
   given MappedEncoding[SigId, String] = MappedEncoding(identity)
 

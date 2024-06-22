@@ -1,7 +1,7 @@
 package org.updraft0.controltower.db.query
 
 import io.getquill.*
-import org.updraft0.controltower.constant.{SystemId as _, *}
+import org.updraft0.controltower.constant.*
 import org.updraft0.controltower.db.model.*
 import zio.{ZIO, Chunk}
 
@@ -106,7 +106,7 @@ object map:
       )
     )
 
-  def getWormholeSystemNames: DbOperation[Map[String, Long]] =
+  def getWormholeSystemNames: DbOperation[Map[String, SystemId]] =
     ctx
       .run(quote(sde.schema.solarSystem.map(ss => ss.name -> ss.id)))
       .map(_.filter((n, _) => n.startsWith("J") || n == "Thera" || n == "Turnur").toMap)
@@ -114,7 +114,7 @@ object map:
   def getWormholeTypeNames: DbOperation[List[(String, Long)]] =
     ctx.run(quote { sde.schema.itemType.filter(_.groupId == lift(WormholeGroupId)).map(it => it.name -> it.id) })
 
-  def getMapSystem(mapId: MapId, systemId: Long): DbOperation[Option[MapSystem]] =
+  def getMapSystem(mapId: MapId, systemId: SystemId): DbOperation[Option[MapSystem]] =
     ctx
       .run(quote(mapSystem.filter(ms => ms.mapId == lift(mapId) && ms.systemId == lift(systemId))))
       .map(_.headOption)

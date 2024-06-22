@@ -51,14 +51,14 @@ object MapQueriesSpec extends ZIOSpecDefault:
       )
 
       val connectionRanks = Map(
-        (100L, 200L) -> MapWormholeConnectionRank(ConnectionId(0L), 1, 2, 1, 2),
-        (200L, 400L) -> MapWormholeConnectionRank(ConnectionId(0L), 1, 1, 1, 1),
-        (400L, 100L) -> MapWormholeConnectionRank(ConnectionId(0L), 1, 2, 1, 1),
-        (300L, 200L) -> MapWormholeConnectionRank(ConnectionId(0L), 1, 3, 2, 2),
-        (300L, 500L) -> MapWormholeConnectionRank(ConnectionId(0L), 2, 3, 1, 2),
-        (100L, 500L) -> MapWormholeConnectionRank(ConnectionId(0L), 2, 2, 2, 2),
-        (300L, 600L) -> MapWormholeConnectionRank(ConnectionId(0L), 3, 3, 1, 1),
-        (400L, 300L) -> MapWormholeConnectionRank(ConnectionId(0L), 2, 2, 1, 1)
+        (SystemId(100L), SystemId(200L)) -> MapWormholeConnectionRank(ConnectionId(0L), 1, 2, 1, 2),
+        (SystemId(200L), SystemId(400L)) -> MapWormholeConnectionRank(ConnectionId(0L), 1, 1, 1, 1),
+        (SystemId(400L), SystemId(100L)) -> MapWormholeConnectionRank(ConnectionId(0L), 1, 2, 1, 1),
+        (SystemId(300L), SystemId(200L)) -> MapWormholeConnectionRank(ConnectionId(0L), 1, 3, 2, 2),
+        (SystemId(300L), SystemId(500L)) -> MapWormholeConnectionRank(ConnectionId(0L), 2, 3, 1, 2),
+        (SystemId(100L), SystemId(500L)) -> MapWormholeConnectionRank(ConnectionId(0L), 2, 2, 2, 2),
+        (SystemId(300L), SystemId(600L)) -> MapWormholeConnectionRank(ConnectionId(0L), 3, 3, 1, 1),
+        (SystemId(400L), SystemId(300L)) -> MapWormholeConnectionRank(ConnectionId(0L), 2, 2, 1, 1)
       )
 
       query.transaction(
@@ -74,12 +74,12 @@ object MapQueriesSpec extends ZIOSpecDefault:
           connRanksExpected = connectionRanks.map((k, v) => connsMap(k).id -> v.copy(connectionId = connsMap(k).id))
           allRanksMap       = ranksById(allRanks)
           // 3. test getting ranks for particular systems
-          ranks100 <- MapQueries.getWormholeConnectionRanksForSystem(DefaultMap.id, 100L).map(ranksById)
-          ranks200 <- MapQueries.getWormholeConnectionRanksForSystem(DefaultMap.id, 200L).map(ranksById)
-          ranks300 <- MapQueries.getWormholeConnectionRanksForSystem(DefaultMap.id, 300L).map(ranksById)
-          ranks400 <- MapQueries.getWormholeConnectionRanksForSystem(DefaultMap.id, 400L).map(ranksById)
-          ranks500 <- MapQueries.getWormholeConnectionRanksForSystem(DefaultMap.id, 500L).map(ranksById)
-          ranks600 <- MapQueries.getWormholeConnectionRanksForSystem(DefaultMap.id, 600L).map(ranksById)
+          ranks100 <- MapQueries.getWormholeConnectionRanksForSystem(DefaultMap.id, SystemId(100L)).map(ranksById)
+          ranks200 <- MapQueries.getWormholeConnectionRanksForSystem(DefaultMap.id, SystemId(200L)).map(ranksById)
+          ranks300 <- MapQueries.getWormholeConnectionRanksForSystem(DefaultMap.id, SystemId(300L)).map(ranksById)
+          ranks400 <- MapQueries.getWormholeConnectionRanksForSystem(DefaultMap.id, SystemId(400L)).map(ranksById)
+          ranks500 <- MapQueries.getWormholeConnectionRanksForSystem(DefaultMap.id, SystemId(500L)).map(ranksById)
+          ranks600 <- MapQueries.getWormholeConnectionRanksForSystem(DefaultMap.id, SystemId(600L)).map(ranksById)
         yield assertTrue(
           connsInserted.size == connections.size && allRanksMap == connRanksExpected &&
             containsAll(ranks100, connRanksExpected) && ranks100.size == 3 &&
@@ -92,10 +92,10 @@ object MapQueriesSpec extends ZIOSpecDefault:
       )
   ).provideLayer(TempDb.empty)
 
-  private def system(id: model.SystemId, name: Option[String]): model.MapSystem =
+  private def system(id: Long, name: Option[String]): model.MapSystem =
     model.MapSystem(
       mapId = DefaultMap.id,
-      systemId = id,
+      systemId = SystemId(id),
       name = name,
       isPinned = false,
       chainNamingStrategy = model.ChainNamingStrategy.Manual,
@@ -105,12 +105,12 @@ object MapQueriesSpec extends ZIOSpecDefault:
       updatedAt = Instant.EPOCH
     )
 
-  private def connection(fromSystem: model.SystemId, toSystem: model.SystemId): model.MapWormholeConnection =
+  private def connection(fromSystem: Long, toSystem: Long): model.MapWormholeConnection =
     model.MapWormholeConnection(
       id = ConnectionId(0),
       mapId = DefaultMap.id,
-      fromSystemId = fromSystem,
-      toSystemId = toSystem,
+      fromSystemId = SystemId(fromSystem),
+      toSystemId = SystemId(toSystem),
       isDeleted = false,
       createdAt = Instant.EPOCH,
       createdByCharacterId = CharacterId(1L),
@@ -118,7 +118,9 @@ object MapQueriesSpec extends ZIOSpecDefault:
       updatedByCharacterId = CharacterId(1L)
     )
 
-  private def connectionsById(got: List[model.MapWormholeConnection]): Map[(Long, Long), model.MapWormholeConnection] =
+  private def connectionsById(
+      got: List[model.MapWormholeConnection]
+  ): Map[(SystemId, SystemId), model.MapWormholeConnection] =
     got.map(whc => (whc.fromSystemId, whc.toSystemId) -> whc).toMap
 
   private def ranksById(got: List[MapWormholeConnectionRank]): Map[ConnectionId, MapWormholeConnectionRank] =

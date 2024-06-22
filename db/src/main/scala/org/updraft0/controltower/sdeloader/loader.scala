@@ -1,5 +1,6 @@
 package org.updraft0.controltower.sdeloader
 
+import org.updraft0.controltower.constant.SystemId
 import org.updraft0.controltower.db.model.*
 import org.updraft0.controltower.db.query
 import org.updraft0.controltower.sde
@@ -152,7 +153,7 @@ private def toSolarSystem(
     s: ExportedData.SolarSystem
 ) =
   SolarSystem(
-    id = s.id,
+    id = SystemId(s.id),
     name = names(s.id).name,
     starId = s.star.map(_.id),
     starTypeId = s.star.map(_.typeId),
@@ -172,12 +173,14 @@ private def toSolarSystem(
     regional = s.regional
   )
 
-private def toPlanet(s: ExportedData.SolarSystem, p: sde.Planet) = SolarSystemPlanet(p.id, s.id, p.index, p.typeId)
+private def toPlanet(s: ExportedData.SolarSystem, p: sde.Planet) =
+  SolarSystemPlanet(p.id, SystemId(s.id), p.index, p.typeId)
 private def toPlanetMoon(s: ExportedData.SolarSystem, p: sde.Planet, m: sde.PlanetMoon, idx: Int) =
-  SolarSystemMoon(m.id, p.id, s.id, idx)
+  SolarSystemMoon(m.id, p.id, SystemId(s.id), idx)
 private def toAsteroidBelt(s: ExportedData.SolarSystem, p: sde.Planet, ab: sde.PlanetAsteroidBelt) =
-  SolarSystemAsteroidBelt(ab.id, p.id, s.id)
-private def toStargate(s: ExportedData.SolarSystem, sg: sde.Stargate) = Stargate(sg.id, s.id, sg.destinationId)
+  SolarSystemAsteroidBelt(ab.id, p.id, SystemId(s.id))
+private def toStargate(s: ExportedData.SolarSystem, sg: sde.Stargate) =
+  Stargate(sg.id, SystemId(s.id), sg.destinationId)
 private def toFaction(f: sde.Faction): Faction =
   Faction(
     id = f.id,
@@ -206,7 +209,7 @@ private def toNpcStation(
     operationId = ns.operationId,
     planetId = p.id,
     moonId = m.map(_.id),
-    systemId = s.id
+    systemId = SystemId(s.id)
   )
 
 private def toNpcCorporation(c: sde.NpcCorporation): NpcCorporation =

@@ -8,6 +8,7 @@ import java.sql.SQLException
 import javax.sql.DataSource
 
 object sde:
+  import auth.given
   import schema.*
   import ctx.*
   import zio.json.*

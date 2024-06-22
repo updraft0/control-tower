@@ -1,6 +1,7 @@
 package org.updraft0.controltower.db.model
 
-import org.updraft0.controltower.constant.WormholeClass
+import org.updraft0.controltower.constant.{SystemId, WormholeClass}
+
 import java.time.Instant
 
 case class Constellation(id: Long, name: String, regionId: Long, regionName: String)
@@ -14,14 +15,14 @@ case class NpcStation(
     operationId: Long,
     planetId: Long,
     moonId: Option[Long],
-    systemId: Long
+    systemId: SystemId
 )
-case class SolarSystemAsteroidBelt(id: Long, planetId: Long, systemId: Long)
-case class SolarSystemPlanet(id: Long, systemId: Long, idx: Long, typeId: Long)
-case class SolarSystemMoon(id: Long, planetId: Long, systemId: Long, idx: Long)
+case class SolarSystemAsteroidBelt(id: Long, planetId: Long, systemId: SystemId)
+case class SolarSystemPlanet(id: Long, systemId: SystemId, idx: Long, typeId: Long)
+case class SolarSystemMoon(id: Long, planetId: Long, systemId: SystemId, idx: Long)
 case class SolarSystemStar(id: Long, type_id: Long)
 case class SolarSystem(
-    id: Long, // TODO: use opaque type
+    id: SystemId,
     starId: Option[Long],
     starTypeId: Option[Long],
     name: String,
@@ -46,7 +47,7 @@ case class Stargate(id: Long, systemId: SystemId, toStargateId: Long)
 // from map
 
 case class SystemStaticWormhole(
-    systemId: Long,
+    systemId: SystemId,
     staticTypeId: Long,
     validFrom: Option[Instant] = None,
     validUntil: Option[Instant] = None,
