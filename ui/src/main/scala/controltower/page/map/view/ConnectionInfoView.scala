@@ -34,9 +34,10 @@ final class ConnectionInfoView(selected: Signal[Option[MapWormholeConnectionWith
         .map(_.getOrElse(ctx.staticData.solarSystemMap(whcs.connection.toSystemId).name))
     )
 
-    val whMassSize   = s.map(getWormholeMassSize)
-    val whMassStatus = s.map(getWormholeMassStatus)
-    val whType       = s.map(getWormholeClass)
+    // TODO: incorporate these
+//    val whMassSize   = s.map(getWormholeMassSize)
+//    val whMassStatus = s.map(getWormholeMassStatus)
+//    val whType       = s.map(getWormholeClass)
 
     nodeSeq(
       div(
