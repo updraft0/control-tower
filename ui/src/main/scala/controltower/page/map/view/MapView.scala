@@ -112,7 +112,6 @@ private final class MapView(
       )
     val systemSignatureView =
       SystemSignatureView(
-        static,
         controller.selectedSystem,
         mapCtx.actions,
         controller.mapSettings,
@@ -120,6 +119,8 @@ private final class MapView(
         time,
         ws.isConnected
       )
+
+    val connectionView = ConnectionInfoView(controller.selectedConnection)
 
     val systemNodesTransformer = CollectionCommandTransformer[MapSystemSnapshot, SystemView, Element, Long](
       _.system.systemId,
@@ -209,7 +210,6 @@ private final class MapView(
               solarSystem.systemClass
                 .flatMap(whc => static.signatureByClassAndGroup.get(whc))
                 .getOrElse(Map.empty),
-              static,
               time,
               controller.actionsBus
             ),
@@ -261,7 +261,6 @@ private final class MapView(
         div(
           idAttr := "map-inner",
           children.command <-- systemNodes,
-          SelectionView(controller.selectedSystemId.signal, controller.bulkSelectedSystemIds.writer, systemNodes).view,
           svg.svg(
             svg.cls      := "connection-container",
             svg.style    := "position: absolute; left: 0px; top: 0px;",
@@ -285,14 +284,17 @@ private final class MapView(
             ),
             children.command <-- connectionNodes,
             connectionInProgress.view
-          )
+          ),
+          // TODO important??
+          SelectionView(controller.selectedSystemId.signal, controller.bulkSelectedSystemIds.writer, systemNodes).view
         )
       ),
       div(
         idAttr := "map-left-sidebar",
         navTopView.view,
         systemInfoView.view,
-        systemSignatureView.view
+        systemSignatureView.view,
+        connectionView.view
       )
     )
 

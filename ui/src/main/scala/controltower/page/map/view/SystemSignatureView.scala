@@ -34,7 +34,6 @@ enum ConnectionTarget derives CanEqual:
   ) extends ConnectionTarget
 
 class SystemSignatureView(
-    staticData: SystemStaticData,
     selected: Signal[Option[MapSystemSnapshot]],
     actions: WriteBus[MapAction],
     settings: Signal[MapSettings],
@@ -54,7 +53,7 @@ class SystemSignatureView(
       hideIfEmptyOpt(selected),
       table(
         children <-- selected.splitOption(
-          (mss, system) => sigView(system, filter, staticData, settings, mapRole, time, isConnected, actions),
+          (mss, system) => sigView(system, filter, settings, mapRole, time, isConnected, actions),
           nodeSeq()
         )
       )
@@ -63,21 +62,20 @@ class SystemSignatureView(
 private inline def sigView(
     system: Signal[MapSystemSnapshot],
     currentFilter: Var[SignatureFilter],
-    static: SystemStaticData,
     settings: Signal[MapSettings],
     mapRole: Signal[MapRole],
     time: Signal[Instant],
     isConnected: Signal[Boolean],
     actions: WriteBus[MapAction]
 )(using mapCtx: MapViewContext) =
-  val solarSystem = system.map(mss => static.solarSystemMap(mss.system.systemId))
+  val solarSystem = system.map(mss => mapCtx.staticData.solarSystemMap(mss.system.systemId))
   val selected    = Selectable[SigId]()
 
   val signatures           = system.map(mss => mss.signatures.toList)
   val signatureScanPercent = signatures.map(sigs => s"${scanPercent(sigs, true).toInt}%")
   val canEdit              = isConnected.combineWith(mapRole.map(RoleController.canEditSignatures(_))).map(_ && _)
 
-  given SystemStaticData = static
+  given SystemStaticData = mapCtx.staticData
 
   val connectionTargets = system.map: mss =>
     mss.connections.map: whc =>
@@ -87,7 +85,7 @@ private inline def sigView(
         id = whc.id,
         toSystemId = targetId,
         toSystemName = mapCtx.systemName(targetId),
-        toSolarSystem = static.solarSystemMap(targetId),
+        toSolarSystem = mapCtx.staticData.solarSystemMap(targetId),
         connection = connection,
         isEol = connection.map(
           _.exists(whcs => whcs.toSignature.exists(_.eolAt.nonEmpty) || whcs.fromSignature.exists(_.eolAt.nonEmpty))
@@ -145,9 +143,8 @@ private inline def sigView(
                       mss,
                       solarSystem,
                       solarSystem.systemClass
-                        .flatMap(whc => static.signatureByClassAndGroup.get(whc))
+                        .flatMap(whc => mapCtx.staticData.signatureByClassAndGroup.get(whc))
                         .getOrElse(Map.empty),
-                      static,
                       time,
                       actions
                     ),
@@ -168,9 +165,9 @@ private inline def sigView(
                   addSingleSignatureView(
                     solarSystem,
                     solarSystem.systemClass
-                      .flatMap(whc => static.signatureByClassAndGroup.get(whc))
+                      .flatMap(whc => mapCtx.staticData.signatureByClassAndGroup.get(whc))
                       .getOrElse(Map.empty),
-                    static.wormholeTypes,
+                    mapCtx.staticData.wormholeTypes,
                     actions,
                     canEdit
                   ),
@@ -194,9 +191,9 @@ private inline def sigView(
                     solarSystem,
                     signatures.find(_.id == selected.head).get,
                     solarSystem.systemClass
-                      .flatMap(whc => static.signatureByClassAndGroup.get(whc))
+                      .flatMap(whc => mapCtx.staticData.signatureByClassAndGroup.get(whc))
                       .getOrElse(Map.empty),
-                    static.wormholeTypes,
+                    mapCtx.staticData.wormholeTypes,
                     actions,
                     canEdit
                   ),
@@ -275,7 +272,7 @@ private inline def sigView(
           actions.contramap(nss => MapAction.UpdateSignatures(k._1, false, Array(nss))),
           solarSystem,
           canEdit
-        )(using static)
+        )
       )
     )
   )
@@ -690,14 +687,13 @@ private[map] def pasteSignaturesView(
     mss: MapSystemSnapshot,
     solarSystem: SolarSystem,
     signatureGroups: Map[SignatureGroup, List[SignatureClassified]],
-    static: SystemStaticData,
     time: Signal[Instant],
     actions: WriteBus[MapAction]
-)(closeMe: Observer[Unit], owner: Owner) =
+)(closeMe: Observer[Unit], owner: Owner)(using ctx: MapViewContext) =
   val validationError = Var(Option.empty[String])
   val updates         = Var(Option.empty[Array[SignatureUpdate]])
   val shouldReplace   = Var(false)
-  val addAll          = PasteSignaturesView(mss.signatures, static, time, updates.writer, shouldReplace)
+  val addAll          = PasteSignaturesView(mss.signatures, time, updates.writer, shouldReplace)
   div(
     cls := "system-paste-signatures-view",
     cls := "dialog-view",
@@ -775,6 +771,27 @@ private[view] inline def getWormholeMassStatus(connection: MapWormholeConnection
 
 private[view] inline def getWormholeMassSize(connection: MapWormholeConnectionWithSigs) =
   getFromBoth(connection, _.massSize, WormholeMassSize.Unknown)
+
+private[view] inline def getWormholeClass(connection: MapWormholeConnectionWithSigs) =
+  (connection.fromSignature, connection.toSignature) match
+    case (Some(from), Some(to)) =>
+      (from.connectionType, to.connectionType) match
+        case (WormholeConnectionType.Known(fromId), WormholeConnectionType.Known(toId)) =>
+          throw new IllegalStateException(
+            s"BUG: connection ${connection.connection.id} has inconsistent wh type ids ${fromId} != ${toId}"
+          )
+        case (WormholeConnectionType.K162(fromType), WormholeConnectionType.K162(toType)) if fromType != toType =>
+          throw new IllegalStateException(
+            s"BUG: connection ${connection.connection.id} has inconsistent k162 type on both sides ${fromType} != ${toType}"
+          )
+        case (k: WormholeConnectionType.Known, _) => k
+        case (_, k: WormholeConnectionType.Known) => k
+        case (u: WormholeConnectionType.K162, _)  => u
+        case (_, u: WormholeConnectionType.K162)  => u
+        case (_, _)                               => WormholeConnectionType.Unknown
+    case (Some(from), None) => from.connectionType
+    case (None, Some(to))   => to.connectionType
+    case (None, None)       => WormholeConnectionType.Unknown
 
 private inline def getFromBoth[A](
     connection: MapWormholeConnectionWithSigs,

@@ -4,4 +4,5 @@ div.selection-rectangle {
     background-color: $orange-dark;
     opacity: 0.4;
     border: 1px dashed $gray-lighter;
+    pointer-events: none;
 }

@@ -1,0 +1,62 @@
+div.connection-info-view {
+    $font-size: 0.8rem;
+
+    & img {
+        height: 16px;
+        width: 16px;
+    }
+
+    & div.connection-info {
+        font-size: $font-size;
+        display: flex;
+
+        & * {
+            flex-grow: 1;
+        }
+
+        & .ti {
+            align-self: center;
+        }
+
+
+    }
+
+    & table.connection-jumps {
+        font-size: $font-size;
+
+        border: 1px solid $gray-darkest;
+
+        & thead {
+            border-bottom: 1px solid $gray-darkest;
+
+            & th.connection-jump-ship, th.connection-jump-character {
+                width: 16px;
+                text-align: center;
+            }
+
+            & th.connection-jump-mass {
+                width: 2em;
+                text-align: right;
+            }
+
+            & th.connection-jump-time {
+                text-align: right;
+            }
+        }
+
+        & tbody tr {
+            & td {
+                padding-left: 2px;
+                padding-right: 2px;
+            }
+            & td.connection-jump-mass, td.connection-jump-time  {
+                text-align: right;
+            }
+
+            &:nth-child(even) {
+                background-color: $gray-dark;
+            }
+        }
+    }
+}
+

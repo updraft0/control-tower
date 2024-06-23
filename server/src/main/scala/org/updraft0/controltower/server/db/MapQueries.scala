@@ -200,7 +200,7 @@ object MapQueries:
         connectionId <- m("connectionId").as[ConnectionId]
         characterId  <- m("characterId").as[CharacterId]
         shipTypeId   <- m("shipTypeId").as[Int]
-        massOverride <- m("massOverride").as[Option[Int]]
+        massOverride <- m("massOverride").as[Option[Long]]
         createdAt    <- m("createdAt").as[Long].map(Instant.ofEpochMilli)
       yield model.MapWormholeConnectionJump(connectionId, characterId, shipTypeId, massOverride, createdAt)
 

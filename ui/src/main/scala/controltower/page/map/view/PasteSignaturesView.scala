@@ -29,11 +29,11 @@ enum SignatureUpdate:
 
 class PasteSignaturesView(
     existingSigs: Array[MapSystemSignature],
-    static: SystemStaticData,
     time: Signal[Instant],
     updates: Observer[Option[Array[SignatureUpdate]]],
     shouldReplace: Var[Boolean]
-) extends ViewController:
+)(using ctx: MapViewContext)
+    extends ViewController:
 
   override def view =
     val signatures = Var("")
@@ -202,13 +202,13 @@ class PasteSignaturesView(
     case _: NewSystemSignature.Unknown => ""
     case s: NewSystemSignature.Site    => span(cls := "site-name", s.name.getOrElse(""))
     case w: NewSystemSignature.Wormhole =>
-      wormholeTypeCell(w.connectionType, w.isEol, w.massStatus, w.massSize, w.connectionId.asOption, static)
+      wormholeTypeCell(w.connectionType, w.isEol, w.massStatus, w.massSize, w.connectionId.asOption, ctx.staticData)
 
   private inline def nameOf(s: MapSystemSignature): HtmlMod = s match
     case _: MapSystemSignature.Unknown => ""
     case s: MapSystemSignature.Site    => span(cls := "site-name", s.name.getOrElse(""))
     case w: MapSystemSignature.Wormhole =>
-      wormholeTypeCell(w.connectionType, w.eolAt.isDefined, w.massStatus, w.massSize, w.connectionId, static)
+      wormholeTypeCell(w.connectionType, w.eolAt.isDefined, w.massStatus, w.massSize, w.connectionId, ctx.staticData)
 
   private inline def createdAt(s: NewSystemSignature) = s.createdAt
   private inline def createdAt(m: MapSystemSignature) = m.createdAt

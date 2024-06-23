@@ -80,7 +80,7 @@ case class MapWormholeConnectionJump(
     connectionId: ConnectionId,
     characterId: CharacterId,
     shipTypeId: Int,
-    massOverride: Option[Int],
+    massOverride: Option[Long],
     createdAt: Instant
 )
 

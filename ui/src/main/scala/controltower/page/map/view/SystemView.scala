@@ -129,18 +129,12 @@ class SystemView(
             // FIXME: this is also fired when we drag the element so selection is always changing
             onClick
               .filter(ev => !ev.ctrlKey && !ev.shiftKey && !ev.metaKey)
-              .preventDefault
-              .stopPropagation
               .mapToUnit --> ctx.actions.contramap(_ => MapAction.Select(Some(systemId))),
             onClick
               .filter(ev => ev.ctrlKey && !ev.shiftKey && !ev.metaKey)
-              .preventDefault
-              .stopPropagation
               .mapToUnit --> ctx.actions.contramap(_ => MapAction.ToggleBulkSelection(systemId)),
             onDblClick
               .filter(ev => !ev.ctrlKey && !ev.shiftKey && !ev.metaKey)
-              .preventDefault
-              .stopPropagation
               .compose(
                 _.filterWith(isConnected)
                   .sample(ctx.mapRole)

@@ -43,10 +43,14 @@ class ConnectionView(
         whc.toSignature.exists(_.eolAt.isDefined) || whc.fromSignature.exists(_.eolAt.isDefined)
       ),
       cls("selected") <-- selectedConnection.signal.map(_.exists(_ == id)),
-      onClick.stopImmediatePropagation.compose(_.mapToUnit.withCurrentValueOf(selectedConnection).map {
-        case Some(`id`) => None
-        case _          => Some(id)
-      }) --> selectedConnection.writer,
+      onClick
+        .filter(ev => !ev.ctrlKey && !ev.shiftKey && !ev.metaKey)
+        .stopPropagation
+        .mapToUnit
+        .compose(_.withCurrentValueOf(selectedConnection).map {
+          case Some(`id`) => None
+          case _          => Some(id)
+        }) --> selectedConnection.writer,
       children <-- connectionWithCoords.map:
         case (conn, fromBox, toBox) =>
           val (startBox, startRank, endBox, endRank) =

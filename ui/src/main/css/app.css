@@ -15,6 +15,7 @@
 @import 'views/edit-map.css';
 
 /* map views */
+@import 'views/connection-info-view.css';
 @import 'views/nav-top-view.css';
 @import 'views/solar-system-info-view.css';
 @import 'views/map-connection.css';
