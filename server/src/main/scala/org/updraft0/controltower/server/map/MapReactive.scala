@@ -993,7 +993,7 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
         state,
         Chunk(removeConnections(deletedConnections)) ++
           systemIdsToRefresh.map(sId => reloadSystemSnapshot(mapId, sId))
-      ).when(deletedConnections.nonEmpty).someOrElse(state -> Chunk.empty)
+      ).when(expiredConnections.nonEmpty).someOrElse(state -> Chunk.empty)
     yield res
 
   private inline def loadSingleSystem(mapId: MapId, systemId: SystemId) =

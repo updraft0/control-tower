@@ -84,7 +84,7 @@ object LocationTracker:
       _ <- refreshLocations(esi, state, responseHub, c.maxParallel)
         .timeout(c.interval)
         .ignoreLogged
-        .schedule(Schedule.fixed(c.interval))
+        .repeat(Schedule.fixed(c.interval))
         .forkScoped
     yield new LocationTracker:
       override def inbound: Enqueue[LocationTrackingRequest]     = inQ

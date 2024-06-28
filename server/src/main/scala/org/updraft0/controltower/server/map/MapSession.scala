@@ -125,7 +125,7 @@ object MapSession:
         _ <- chan.send(ChannelEvent.Read(WebSocketFrame.Ping)).schedule(Schedule.fixed(PingInterval)).ignore.forkDaemon
         // listen for server status
         _ <- sendServerStatus(ourQ)
-          .schedule(Schedule.once.andThen(Schedule.fixed(ServerStatusInterval)))
+          .repeat(Schedule.fixed(ServerStatusInterval))
           .ignore
           .forkDaemon
         // join on the remaining loops

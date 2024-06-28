@@ -17,12 +17,11 @@ object CharacterAffiliationTracker:
   private val EsiMaxCharacterPerBatch = 64
 
   def apply(): ZIO[Scope & Env, Nothing, Unit] =
-    (refreshAll
-      .tapError(ex => ZIO.logErrorCause("Failed to refresh character affiliations", Cause.fail(ex))) @@
-      Log.BackgroundOperation("affiliationTracker")).ignoreLogged
-      .repeat(Schedule.duration(5.seconds).andThen(Schedule.fixed(PollInterval)))
-      .forkScoped
-      .unit
+    val refresh = refreshAll
+      .tapError(ex => ZIO.logErrorCause("Failed to refresh character affiliations", Cause.fail(ex)))
+      .ignoreLogged @@ Log.BackgroundOperation("affiliationTracker")
+
+    refresh.delay(5.seconds).forkScoped *> refresh.repeat(Schedule.fixed(PollInterval)).forkScoped.unit
 
   private def refreshAll: ZIO[Env, Throwable, Unit] =
     ZIO

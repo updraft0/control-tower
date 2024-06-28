@@ -42,7 +42,7 @@ object MapPermissionTracker:
       // reload permissions every interval
       _ <- inHub
         .publish(InternalMessage.RefreshAll)
-        .schedule(Schedule.once.andThen(Schedule.fixed(PermissionReloadInterval)))
+        .repeat(Schedule.fixed(PermissionReloadInterval))
         .forkScoped
       // process messages
       inQ <- inHub.subscribe
