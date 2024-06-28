@@ -11,6 +11,7 @@ opaque type CharacterId = Long
 
 object CharacterId:
   val Invalid: CharacterId = CharacterId(-1)
+  val System: CharacterId  = CharacterId(1)
 
   def apply(i: Long): CharacterId = i
 

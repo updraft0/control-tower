@@ -15,4 +15,5 @@ package object query:
   // final transaction at the end
   def transaction[R, A](op: RIO[R & DataSource, A]): RIO[R & DataSource, A] = ctx.transaction(op)
 
-  inline def unixepoch = sql"unixepoch() * 1000".pure.as[Instant]
+  inline def unixepoch                                   = sql"unixepoch() * 1000".pure.as[Instant]
+  inline def unixepochMinusSeconds(inline seconds: Long) = sql"(unixepoch() - $seconds) * 1000".pure.as[Instant]

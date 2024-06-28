@@ -4,7 +4,7 @@ import org.updraft0.controltower.db
 import org.updraft0.controltower.protocol.Endpoints
 import org.updraft0.controltower.server.auth.{SessionCrypto, TokenCrypto, UserSession}
 import org.updraft0.controltower.server.endpoints.*
-import org.updraft0.controltower.server.map.{MapPermissionTracker, MapReactive}
+import org.updraft0.controltower.server.map.{MapConfig, MapPermissionTracker, MapReactive}
 import org.updraft0.controltower.server.tracking.*
 import org.updraft0.esi.client.{EsiClient, SdeClient}
 import org.updraft0.minireactive.MiniReactive
@@ -35,6 +35,7 @@ object Server extends ZIOAppDefault:
       .provideSome(
         httpConfigLayer,
         ZLayer.succeed(MetricsConfig(5.seconds)),
+        ZLayer.succeed(MapConfig()), // TODO: load from file
         prometheus.prometheusLayer,
         prometheus.publisherLayer,
         Config.layer,

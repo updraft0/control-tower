@@ -17,8 +17,15 @@ import zio.*
 import java.time.Instant
 import java.util.UUID
 
-type MapEnv     = javax.sql.DataSource & LocationTracker & MapPermissionTracker
+type MapEnv     = MapConfig & javax.sql.DataSource & LocationTracker & MapPermissionTracker
 type ShipTypeId = Int
+
+case class MapConfig(
+    cleanupPeriod: Duration = 5.minutes,
+    staleConnectionRemovalInterval: Duration = 50.hours,
+    eolConnectionRemovalInterval: Duration = 270.minutes,
+    hardDeletionInterval: Duration = 10.days
+)
 
 private[map] case class MapSolarSystem(
     systemId: SystemId,
@@ -266,6 +273,7 @@ enum MapRequest derives CanEqual:
   // internals
   case UpdateLocations(u: LocationUpdate)                         extends MapRequest with InternalMapRequest
   case UpdateCharacters(roleMap: Map[CharacterId, model.MapRole]) extends MapRequest with InternalMapRequest
+  case RemoveOldConnections                                       extends MapRequest with InternalMapRequest
 
 enum MapResponse:
   case ConnectionSnapshot(
@@ -304,6 +312,7 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
   override def hydrate(key: MapId, in: Enqueue[Identified[MapRequest]]): URIO[Scope & MapEnv, MapState] =
     // FIXME there is a race condition here
     (for
+      config          <- ZIO.service[MapConfig]
       systems         <- MapQueries.getMapSystemAll(key)
       connections     <- MapQueries.getWormholeConnectionsWithSigs(key, None)
       connectionRanks <- MapQueries.getWormholeConnectionRanksAll(key)
@@ -324,6 +333,12 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
           case _ => ZIO.unit
         }
         .forever
+        .ignoreLogged
+        .forkScoped
+      // self-messages for cleanup
+      _ <- in
+        .offer(Identified(None, MapRequest.RemoveOldConnections))
+        .repeat(Schedule.fixed(config.cleanupPeriod))
         .ignoreLogged
         .forkScoped
     yield MapState(systems, connections, connectionRanks, mapRef)).orDie
@@ -412,6 +427,8 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
                 updateCharacterLocations(mapId, state, ul.u) @@ Log.MapOperation("updateLocations")
               case Identified(_, uc: MapRequest.UpdateCharacters) =>
                 updateCharacterRoles(mapId, state, uc.roleMap) @@ Log.MapOperation("updateCharacters")
+              case Identified(_, MapRequest.RemoveOldConnections) =>
+                removeOldConnections(mapId, state) @@ Log.MapOperation("removeOldConnections")
               // fall-through case
               case Identified(None, _) =>
                 ZIO.logWarning("non-identified request not processed").as(state -> Chunk.empty)
@@ -928,6 +945,56 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
       }
     // TODO: should probably remove the characters that do not have roles
     }) -> Chunk.empty)
+
+  private def removeOldConnections(mapId: MapId, state: MapState) =
+    for
+      config <- ZIO.service[MapConfig]
+      // perform hard deletes (for which clients don't need to be updated)
+      hardDeleteSignatures    <- MapQueries.getHardDeleteSignatures(mapId, config.hardDeletionInterval)
+      hardDeleteConnectionIds <- MapQueries.getHardDeleteConnectionIds(mapId, config.hardDeletionInterval)
+      rSigCount <- query.map
+        .hardDeleteMapWormholeSignatures(mapId, Chunk.fromIterable(hardDeleteSignatures))
+        .when(hardDeleteSignatures.nonEmpty)
+        .someOrElse(0)
+      rCJumpCount <- query.map
+        .hardDeleteMapWormholeConnectionJumps(mapId, Chunk.fromIterable(hardDeleteConnectionIds))
+        .when(hardDeleteConnectionIds.nonEmpty)
+        .someOrElse(0)
+      rConnCount <- query.map
+        .hardDeleteMapWormholeConnections(mapId, Chunk.fromIterable(hardDeleteConnectionIds))
+        .when(hardDeleteConnectionIds.nonEmpty)
+        .someOrElse(0)
+      _ <- ZIO.logTrace(s"Hard deleted $rSigCount sigs, $rCJumpCount jumps and $rConnCount connections")
+      // get expired connections
+      expiredConnections <- MapQueries.getWormholeConnectionsWithSigsExpiredOrEol(
+        mapId,
+        config.staleConnectionRemovalInterval,
+        config.eolConnectionRemovalInterval
+      )
+      // delete the connections if any were found
+      expiredConnectionIds = Chunk.fromIterable(expiredConnections.map(_.connection.id))
+      systemIdsToRefresh   = expiredConnections.map(_.systemIds).toSet.flatten
+      eConnCount <- query.map
+        .deleteMapWormholeConnections(mapId, expiredConnectionIds, CharacterId.System)
+        .when(expiredConnectionIds.nonEmpty)
+        .someOrElse(0)
+      // delete any signatures that map to those connection ids
+      eSigCount <- query.map
+        .deleteSignaturesWithConnectionIds(mapId, expiredConnectionIds, CharacterId.System)
+        .when(expiredConnectionIds.nonEmpty)
+        .someOrElse(0)
+      _ <- ZIO.logTrace(s"Removed expired $eConnCount connections, $eSigCount signatures")
+      deletedConnections <- query.map
+        .getWormholeConnections(mapId, expiredConnectionIds, isDeleted = true)
+        .when(expiredConnectionIds.nonEmpty)
+        .someOrElse(Nil)
+      // reload state
+      res <- combineMany(
+        state,
+        Chunk(removeConnections(deletedConnections)) ++
+          systemIdsToRefresh.map(sId => reloadSystemSnapshot(mapId, sId))
+      ).when(deletedConnections.nonEmpty).someOrElse(state -> Chunk.empty)
+    yield res
 
   private inline def loadSingleSystem(mapId: MapId, systemId: SystemId) =
     MapQueries

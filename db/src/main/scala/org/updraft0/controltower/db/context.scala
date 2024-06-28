@@ -271,7 +271,11 @@ trait SqliteModifiedDialect extends SqliteDialect { self =>
   import io.getquill.context.sql.{SetOperationSqlQuery, SqlQuery}
   import io.getquill.idiom.StatementInterpolator.*
 
-  def parentTokenizer(implicit astTokenizer: Tokenizer[Ast], strategy: NamingStrategy, idiomContext: IdiomContext) =
+  private def parentTokenizer(implicit
+      astTokenizer: Tokenizer[Ast],
+      strategy: NamingStrategy,
+      idiomContext: IdiomContext
+  ) =
     super.sqlQueryTokenizer
 
   // NOTE: sqlite does not support encasing UNION operations with parens so don't do that

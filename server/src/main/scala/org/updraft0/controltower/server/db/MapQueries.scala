@@ -25,7 +25,13 @@ case class MapWormholeConnectionWithSigs(
     jumps: Chunk[model.MapWormholeConnectionJump],
     fromSignature: Option[model.MapSystemSignature],
     toSignature: Option[model.MapSystemSignature]
-)
+):
+  lazy val systemIds: Set[SystemId] =
+    (fromSignature, toSignature) match
+      case (Some(from), Some(to)) => Set(from.systemId, to.systemId)
+      case (Some(from), None)     => Set(from.systemId)
+      case (None, Some(to))       => Set(to.systemId)
+      case (None, None)           => Set.empty
 
 case class MapSystemWithAll(
     sys: model.MapSystem,
@@ -392,7 +398,17 @@ object MapQueries:
       )
     )
 
-  private inline def connectionsWithSigs(inline whcQ: EntityQuery[model.MapWormholeConnection]) =
+  private inline def connectionsWithSigs(
+      inline whcQ: EntityQuery[model.MapWormholeConnection],
+      inline filterBy: (
+          (
+              model.MapWormholeConnection,
+              Option[model.MapSystemSignature],
+              Option[model.MapSystemSignature],
+              Option[model.MapWormholeConnectionJump]
+          )
+      ) => Boolean = _ => true
+  ) =
     (for
       whc <- whcQ
       fromSig <- mapSystemSignature.leftJoin(mss =>
@@ -403,7 +419,8 @@ object MapQueries:
       )
       jumps <- mapWormholeConnectionJump.leftJoin(_.connectionId == whc.id)
     yield (whc, fromSig, toSig, jumps))
-      .sortBy((whc, _, _, whjs) => (whc.id, whjs.map(_.createdAt)))(Ord.ascNullsFirst)
+      .filter(filterBy)
+      .sortBy((whc, _, _, whjs) => (whc.id, whjs.map(_.createdAt)))(Ord.asc)
       .groupByMap((whc, _, _, _) => whc.id)((whc, fromSig, toSig, whcj) =>
         (
           whc,
@@ -427,6 +444,25 @@ object MapQueries:
         )
       )
 
+  private inline def toWormholeConnectionsWithSigs(
+      xs: List[
+        (
+            model.MapWormholeConnection,
+            Option[model.MapSystemSignature],
+            Option[model.MapSystemSignature],
+            JsonValue[Array[model.MapWormholeConnectionJump]]
+        )
+      ]
+  ) =
+    xs.map((whc, fromSig, toSig, jumps) =>
+      MapWormholeConnectionWithSigs(
+        connection = whc,
+        fromSignature = fromSig,
+        toSignature = toSig,
+        jumps = Chunk.fromArray(jumps.value)
+      )
+    )
+
   def getWormholeConnectionsWithSigs(
       mapId: MapId,
       connectionIdOpt: Option[ConnectionId],
@@ -437,21 +473,12 @@ object MapQueries:
         connectionsWithSigs(
           mapWormholeConnection
             .filter(whc =>
-              whc.mapId == lift(mapId) && (lift(includeDeleted) || !whc.isDeleted) && lift(connectionIdOpt)
-                .forall(_ == whc.id)
+              whc.mapId == lift(mapId) && infix"(${lift(includeDeleted) || !whc.isDeleted})".asCondition &&
+                lift(connectionIdOpt).forall(_ == whc.id)
             )
         )
       )
-    ).map(
-      _.map((whc, fromSig, toSig, jumps) =>
-        MapWormholeConnectionWithSigs(
-          connection = whc,
-          fromSignature = fromSig,
-          toSignature = toSig,
-          jumps = Chunk.fromArray(jumps.value)
-        )
-      )
-    )
+    ).map(toWormholeConnectionsWithSigs)
 
   def getWormholeConnectionsWithSigsBySystemId(
       mapId: MapId,
@@ -467,16 +494,7 @@ object MapQueries:
             )
         )
       )
-    ).map(
-      _.map((whc, fromSig, toSig, jumps) =>
-        MapWormholeConnectionWithSigs(
-          connection = whc,
-          fromSignature = fromSig,
-          toSignature = toSig,
-          jumps = Chunk.fromArray(jumps.value)
-        )
-      )
-    )
+    ).map(toWormholeConnectionsWithSigs)
 
   def getWormholeConnectionsWithSigsBySystemIds(
       mapId: MapId,
@@ -492,14 +510,49 @@ object MapQueries:
             )
         )
       )
-    ).map(
-      _.map((whc, fromSig, toSig, jumps) =>
-        MapWormholeConnectionWithSigs(
-          connection = whc,
-          fromSignature = fromSig,
-          toSignature = toSig,
-          jumps = Chunk.fromArray(jumps.value)
+    ).map(toWormholeConnectionsWithSigs)
+
+  def getWormholeConnectionsWithSigsExpiredOrEol(
+      mapId: MapId,
+      normalExpiry: Duration,
+      eolExpiry: Duration
+  ): Result[List[MapWormholeConnectionWithSigs]] =
+    run(
+      quote(
+        connectionsWithSigs(
+          mapWormholeConnection.filter(whc => whc.mapId == lift(mapId) && !whc.isDeleted),
+          (whc, fromSig, toSig, _) =>
+            whc.createdAt < unixepochMinusSeconds(lift(normalExpiry.toSeconds)) ||
+              // note: quill does not seem to be able to group the conditions properly together - help it with explicit brackets
+              infix"(${fromSig.map(_.signatureId).isDefined && fromSig.orNull.wormholeEolAt
+                  .exists(_ < unixepochMinusSeconds(lift(eolExpiry.toSeconds)))})".asCondition ||
+              infix"(${toSig.map(_.signatureId).isDefined && toSig.orNull.wormholeEolAt
+                  .exists(_ < unixepochMinusSeconds(lift(eolExpiry.toSeconds)))})".asCondition
         )
+      )
+    ).map(toWormholeConnectionsWithSigs)
+
+  def getHardDeleteConnectionIds(mapId: MapId, expiry: Duration): Result[List[ConnectionId]] =
+    run(
+      quote(
+        mapWormholeConnection
+          .filter(whc =>
+            whc.mapId == lift(mapId) && whc.isDeleted && whc.updatedAt < unixepochMinusSeconds(lift(expiry.toSeconds))
+          )
+          .map(_.id)
+      )
+    )
+
+  def getHardDeleteSignatures(mapId: MapId, expiry: Duration): Result[List[model.MapSystemSignature]] =
+    run(
+      quote(
+        mapWormholeConnection
+          .filter(whc =>
+            whc.mapId == lift(mapId) && whc.isDeleted && whc.updatedAt < unixepochMinusSeconds(lift(expiry.toSeconds))
+          )
+          .join(mapSystemSignature)
+          .on((whc, mss) => mss.wormholeConnectionId.contains(whc.id))
+          .map(_._2)
       )
     )
 

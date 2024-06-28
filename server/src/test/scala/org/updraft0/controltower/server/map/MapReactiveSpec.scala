@@ -643,7 +643,8 @@ object MapReactiveSpec extends ZIOSpecDefault:
   private def testMapLayer: ZLayer[Scope, Throwable, MapEnv] = ZLayer.make[MapEnv](
     TempDb.empty,
     TestLocationTracker.empty,
-    TestPermissionTracker.empty
+    TestPermissionTracker.empty,
+    ZLayer.succeed(MapConfig())
     // uncomment to enable debug logging in tests
 //    consoleLogger(ConsoleLoggerConfig.apply(LogFormat.colored, LogFilter.LogLevelByNameConfig(LogLevel.Debug))),
 //    Slf4jBridge.init(LogFilter.acceptAll)

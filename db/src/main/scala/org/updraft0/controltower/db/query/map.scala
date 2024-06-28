@@ -436,6 +436,31 @@ object map:
         .update(_.isDeleted -> lift(true), _.updatedByCharacterId -> lift(byCharacterId), _.updatedAt -> unixepoch)
     )
 
+  def hardDeleteMapWormholeSignatures(mapId: MapId, sigs: Chunk[MapSystemSignature]): DbOperation[Long] =
+    ctx
+      .run(
+        quote(
+          liftQuery(sigs).foreach(mss =>
+            mapSystemSignature
+              .filter(_.mapId == lift(mapId))
+              .filter(_.systemId == mss.systemId)
+              .filter(_.signatureId == mss.signatureId)
+              .delete
+          )
+        )
+      )
+      .map(_.sum)
+
+  def hardDeleteMapWormholeConnections(mapId: MapId, connectionIds: Chunk[ConnectionId]): DbOperation[Long] =
+    ctx.run(quote(liftQuery(connectionIds).foreach(cId => mapWormholeConnection.filter(_.id == cId).delete))).map(_.sum)
+
+  def hardDeleteMapWormholeConnectionJumps(mapId: MapId, connectionIds: Chunk[ConnectionId]): DbOperation[Long] =
+    ctx
+      .run(
+        quote(liftQuery(connectionIds).foreach(cId => mapWormholeConnectionJump.filter(_.connectionId == cId).delete))
+      )
+      .map(_.sum)
+
   def vacuumMap: DbOperation[Long] =
     // TODO this is a bit strange
     val vac = "VACUUM map;"
