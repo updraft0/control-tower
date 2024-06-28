@@ -17,6 +17,8 @@ class Selectable[K](current: Var[Set[K]]):
   val signal: Signal[Set[K]] = current.signal.debugWithName("selected")
 
   def clear(): Unit                           = current.update(_ => Set.empty)
+  def clearUpdater: Observer[Any]             = current.updater[Any]((_, _) => Set.empty)
+  def filterBy: Observer[Set[K]]              = current.updater[Set[K]]((curr, next) => curr -- next)
   def isSelected(key: K): Observable[Boolean] = current.signal.map(_.contains(key))
   def toggle(key: K): Observer[Unit]          = writer.contramap(_ => SelectAction.Toggle(key))
   def select(key: K): Observer[Unit]          = writer.contramap(_ => SelectAction.Select(key))

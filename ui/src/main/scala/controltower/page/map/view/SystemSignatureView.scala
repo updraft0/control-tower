@@ -100,6 +100,10 @@ private inline def sigView(
 
   nodeSeq(
     thead(
+      // need to reset selection whenever system changes
+      system.distinctBy(_.system.systemId) --> selected.clearUpdater,
+      // need to keep selection to the current signature ids in system
+      system.map(_.signatures.map(_.id).toSet) --> selected.filterBy,
       tr(
         cls := "signature-toolbar",
         td(
@@ -185,11 +189,11 @@ private inline def sigView(
               cls := "ti-pencil",
               onClick.stopPropagation.mapToUnit.compose(
                 _.withCurrentValueOf(selected.signal, signatures, solarSystem)
-              ) --> ((selected, signatures, solarSystem) =>
+              ) --> ((selection, signatures, solarSystem) =>
                 Modal.show(
                   editSingleSignatureView(
                     solarSystem,
-                    signatures.find(_.id == selected.head).get,
+                    signatures.find(_.id == selection.head).get,
                     solarSystem.systemClass
                       .flatMap(whc => mapCtx.staticData.signatureByClassAndGroup.get(whc))
                       .getOrElse(Map.empty),
@@ -197,7 +201,7 @@ private inline def sigView(
                     actions,
                     canEdit
                   ),
-                  Observer.empty[Unit],
+                  selected.clearUpdater,
                   true,
                   cls := "system-add-signature"
                 )
@@ -211,11 +215,13 @@ private inline def sigView(
               cls := "ti",
               cls := "ti-eraser",
               onClick.stopPropagation.mapToUnit.compose(_.withCurrentValueOf(selected.signal, solarSystem)) --> (
-                (selected, solarSystem) =>
+                (selection, solarSystem) =>
                   Modal.showConfirmation(
-                    s"Remove ${selected.size} signatures?",
-                    s"Confirm removal of signatures ${selected.mkString(", ")} in ${solarSystem.name}?",
-                    Observer(_ => actions.onNext(MapAction.RemoveSignatures(solarSystem.id, selected)))
+                    s"Remove ${selection.size} signatures?",
+                    s"Confirm removal of signatures ${selection.mkString(", ")} in ${solarSystem.name}?",
+                    Observer(_ => actions.onNext(MapAction.RemoveSignatures(solarSystem.id, selection))),
+                    true,
+                    selected.clearUpdater
                   )
               )
             ),
@@ -230,7 +236,9 @@ private inline def sigView(
                 Modal.showConfirmation(
                   "Remove all signatures?",
                   s"Clear all signatures in ${solarSystem.name}?",
-                  Observer(_ => actions.onNext(MapAction.RemoveAllSignatures(solarSystem.id)))
+                  Observer(_ => actions.onNext(MapAction.RemoveAllSignatures(solarSystem.id))),
+                  true,
+                  selected.clearUpdater
                 )
               )
             )
