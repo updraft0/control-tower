@@ -46,7 +46,7 @@ div#nav-top-view {
     }
 
     & button:last-of-type {
-        margin-right: 0.2em;
+        padding-right: 1.1em;
     }
 
     /* current user indicator */

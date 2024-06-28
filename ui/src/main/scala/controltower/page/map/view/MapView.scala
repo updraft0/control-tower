@@ -162,6 +162,9 @@ private final class MapView(
     val connectionInProgress =
       ConnectionInProgressView(connectingSystem, controller.pos, controller.BoxSize, controller.actionsBus)
 
+    val selectionView =
+      SelectionView(controller.selectedSystemId.signal, controller.bulkSelectedSystemIds.writer, systemNodes)
+
     div(
       idAttr := "map-view-inner",
       // A -> add system
@@ -245,6 +248,8 @@ private final class MapView(
         cls    := "grid",
         cls    := "g-20px",
         toolbarView.view,
+        // note: the selection event handler must come before the cancel one
+        selectionView.eventHandlers,
         inContext(self =>
           onPointerUp.compose(_.withCurrentValueOf(mapCtx.userPreferences)) --> ((ev, prefs) =>
             // TODO: unsure about the checks against self.ref - should always be true?
@@ -285,8 +290,7 @@ private final class MapView(
             children.command <-- connectionNodes,
             connectionInProgress.view
           ),
-          // TODO important??
-          SelectionView(controller.selectedSystemId.signal, controller.bulkSelectedSystemIds.writer, systemNodes).view
+          selectionView.view
         )
       ),
       div(
