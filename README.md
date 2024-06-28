@@ -51,6 +51,8 @@ In the future:
 * [ ] Intel information is editable (e.g. system owner) and notes
 * [ ] Route calculation
 * [ ] Notifications for when systems become connected
+* [ ] ZKill feed
+* [ ] Thera feed
 
 ## Developing
 
@@ -63,6 +65,25 @@ to hack on the frontend CSS) on a Unix like system (tested on Linux only but sho
 * In a separate terminal tab, run `cd ui && npm run dev` to bring up [vite]
 * In a separate terminal tab, run `sbt server/run` (after having brought in all the appropriate environment variables)
 * Open up http://localhost:8091/ - you should be able to see the login screen and your maps
+
+The database used is [sqlite] and there are actually three separate databases that are created: `sde.db`, `map.db` and
+`auth.db`. Migrations are stored in [db resources](./db/src/main/resources) and you should be able to point any SQL 
+client at the database files by running:
+
+```sqlite
+ATTACH DATABASE 'path-to/map.db' as map; 
+ATTACH DATABASE 'path-to/sde.db' as sde; 
+ATTACH DATABASE 'path-to/auth.db' as auth;
+```
+
+### Updating static data
+
+There are sources of data that are not included in the [SDE][eve-online-sde]:
+
+* Signatures by group (e.g. Data site names) in [`ref_signature_in_group.csv`](./db/src/main/resources/map/reference/ref_signature_in_group.csv)
+* Wormhole statics in [`ref_system_static_wormhole.csv`](./db/src/main/resources/map/reference/ref_system_static_wormhole.csv)
+
+These have to be maintained manually.
 
 ## Contributing
 
@@ -77,4 +98,5 @@ A fuller `DEVELOPING.md` guide will probably be available eventually.
 [mise]: https://github.com/jdx/mise
 [pathfinder]: https://github.com/goryn-clade/pathfinder
 [scala-lang]: https://scala-lang.org/
+[sqlite]: https://www.sqlite.org/index.html
 [vite]: https://vitejs.dev/
