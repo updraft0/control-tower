@@ -1,17 +1,27 @@
 div.connection-info-view {
     $font-size: 0.8rem;
+    $image-width: 20px;
+
+    span.info-title {
+        font-size: 1rem;
+    }
 
     & img {
-        height: 16px;
-        width: 16px;
+        width: $image-width;
+        height: $image-width;
     }
 
     & div.connection-info {
         font-size: $font-size;
         display: flex;
+        align-self: baseline;
 
         & * {
             flex-grow: 1;
+        }
+
+        & span {
+            color: $gray-lighter;
         }
 
         & .ti {
@@ -23,20 +33,17 @@ div.connection-info-view {
 
     & table.connection-jumps {
         font-size: $font-size;
-
-        border: 1px solid $gray-darkest;
+        border-spacing: 0;
+        border: none;
 
         & thead {
             border-bottom: 1px solid $gray-darkest;
 
-            & th.connection-jump-ship, th.connection-jump-character {
-                width: 16px;
-                text-align: center;
+            & th.connection-jump-ship, th.connection-jump-character  {
+                width: $image-width;
             }
-
             & th.connection-jump-mass {
                 width: 2em;
-                text-align: right;
             }
 
             & th.connection-jump-time {
@@ -45,11 +52,21 @@ div.connection-info-view {
         }
 
         & tbody tr {
+            background-color: $gray;
+            border-top: 1px solid $gray-light;
+            border-bottom: 1px solid $gray-light;
+            white-space: nowrap;
+
             & td {
                 padding-left: 2px;
                 padding-right: 2px;
+                padding-top: 0;
+                padding-bottom: 0;
+                margin-top: 0;
+                margin-bottom: 0;
             }
-            & td.connection-jump-mass, td.connection-jump-time  {
+
+            & td.connection-jump-time  {
                 text-align: right;
             }
 

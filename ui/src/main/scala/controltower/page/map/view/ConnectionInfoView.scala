@@ -42,6 +42,7 @@ final class ConnectionInfoView(selected: Signal[Option[MapWormholeConnectionWith
     nodeSeq(
       div(
         cls := "connection-info",
+        span(cls := "info-title", "Connection"),
         span(
           cls := "from-system",
           mark(
@@ -52,7 +53,7 @@ final class ConnectionInfoView(selected: Signal[Option[MapWormholeConnectionWith
           " ",
           child.text <-- fromName
         ),
-        i(cls := "ti", cls := "ti-arrow-wave-right-up"),
+        i(cls := "ti", cls := "ti-arrows-exchange-2"),
         span(
           cls := "to-system",
           mark(
@@ -87,9 +88,9 @@ final class ConnectionInfoView(selected: Signal[Option[MapWormholeConnectionWith
         cls := "connection-jumps",
         thead(
           th(cls := "connection-jump-ship", i(cls := "ti", cls := "ti-ship")),
-          th(cls := "connection-jump-character", i(cls := "ti", cls := "ti-user")),
-          th(cls := "connection-jump-mass", i(cls := "ti", cls := "ti-weight")),
-          th(cls := "connection-jump-time", i(cls := "ti", cls := "ti-clock-filled"))
+          th(cls := "connection-jump-mass", "Mass"),
+          th(cls := "connection-jump-time", i(cls := "ti", cls := "ti-clock-filled")),
+          th(cls := "connection-jump-character", i(cls := "ti", cls := "ti-user"))
         ),
         tbody(
           children <-- s
@@ -98,16 +99,16 @@ final class ConnectionInfoView(selected: Signal[Option[MapWormholeConnectionWith
               tr(
                 td(cls := "connection-jump-ship", child <-- cjs.map(j => ESI.typeIcon(j.shipTypeId))),
                 td(
-                  cls := "connection-jump-character",
-                  child <-- cjs.map(j => ESI.characterImage(j.characterId, "jumpedBy", size = CharacterImageSize))
-                ),
-                td(
                   cls := "connection-jump-mass",
                   child.text <-- cjs.map(jumpMass).map(m => pointsFromMass(m).toString)
                 ),
                 td(
                   cls := "connection-jump-time",
                   child.text <-- ctx.now.withCurrentValueOf(cjs).map((now, j) => timeDiffString(now, j.createdAt))
+                ),
+                td(
+                  cls := "connection-jump-character",
+                  child <-- cjs.map(j => ESI.characterImage(j.characterId, "jumpedBy", size = CharacterImageSize))
                 )
               )
         )

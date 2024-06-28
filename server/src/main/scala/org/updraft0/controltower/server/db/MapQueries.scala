@@ -403,6 +403,7 @@ object MapQueries:
       )
       jumps <- mapWormholeConnectionJump.leftJoin(_.connectionId == whc.id)
     yield (whc, fromSig, toSig, jumps))
+      .sortBy((whc, _, _, whjs) => (whc.id, whjs.map(_.createdAt)))(Ord.ascNullsFirst)
       .groupByMap((whc, _, _, _) => whc.id)((whc, fromSig, toSig, whcj) =>
         (
           whc,

@@ -170,7 +170,7 @@ private[map] case class MapState(
   def addConnectionJump(jump: MapWormholeConnectionJump): MapState =
     this.copy(
       connections = this.connections.updatedWith(jump.connectionId)(
-        _.map(whcs => whcs.copy(jumps = whcs.jumps :+ jump))
+        _.map(whcs => whcs.copy(jumps = (whcs.jumps :+ jump).sortBy(_.createdAt)))
       )
     )
 
