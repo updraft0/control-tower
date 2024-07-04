@@ -31,6 +31,12 @@ object Endpoints:
       .out(jsonBody[SolarSystem])
       .description("Get static data for a given solar system")
 
+  val getSolarSystemById =
+    reference.get
+      .in("system" / "id" / path[Long]("solarSystemId"))
+      .out(jsonBody[SolarSystem])
+      .description("Get static data for a given solar system (by id)")
+
   val getAllSolarSystems =
     reference.get
       .in("all" / "systems")

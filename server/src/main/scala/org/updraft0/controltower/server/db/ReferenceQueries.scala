@@ -20,7 +20,7 @@ case class SolarSystemWithGates(sys: model.SolarSystem, gates: Array[StargateBot
   */
 object ReferenceQueries:
   import ctx.{*, given}
-  import auth.given_MappedEncoding_Long_SystemId
+  import auth.given
   import map.given
   import map.schema.*
   import sde.schema.*
@@ -68,19 +68,25 @@ object ReferenceQueries:
     )
 
   def getSolarSystemByName(name: String): Result[List[protocol.SolarSystem]] =
-    getSolarSystemsByName(Some(name))
+    getSolarSystemsByName(Some(name), None)
 
-  def getSolarSystemsByName(name: Option[String]): Result[List[protocol.SolarSystem]] =
+  def getSolarSystemById(id: SystemId): Result[List[protocol.SolarSystem]] =
+    getSolarSystemsByName(None, Some(id))
+
+  def getSolarSystemsByName(name: Option[String], id: Option[SystemId]): Result[List[protocol.SolarSystem]] =
     run(quote {
       (for
-        sys <- solarSystem.filter(s => lift(name).forall(_ == s.name))
+        sys <- solarSystem.filter(s =>
+          infix"(${lift(name).forall(_ == s.name)})".asCondition &&
+            infix"(${lift(id).forall(_ == s.id)})".asCondition
+        )
         reg <- region.join(_.id == sys.regionId)
         ptj <- (solarSystemPlanet
           .join(itemType)
           .on(_.typeId == _.id)
           .leftJoin(itemName)
           .on(_._1.id == _.id))
-          .join(_._1._1.systemId == sys.id)
+          .leftJoin(_._1._1.systemId == sys.id)
         stj <- (npcStation
           .join(npcCorporation)
           .on(_.ownerId == _.id)
@@ -99,17 +105,18 @@ object ReferenceQueries:
           (
             sys,
             reg,
-            jsonGroupArrayDistinct[protocol.Planet](
+            jsonGroupArrayFilterNullDistinct[protocol.Planet](
               jsonObject4(
                 "idx",
-                ptj._1._1.idx,
+                ptj.map(_._1._1.idx),
                 "name",
-                ptj._2.map(_.name),
+                ptj.map(_._2.map(_.name)),
                 "typeName",
-                ptj._1._2.name,
+                ptj.map(_._1._2.name),
                 "typeId",
-                ptj._1._1.typeId
-              )
+                ptj.map(_._1._1.typeId)
+              ),
+              ptj.map(_._1._1.idx)
             ),
             jsonGroupArrayFilterNullDistinct[protocol.Station](
               jsonObject8(

@@ -1,6 +1,7 @@
 package org.updraft0.controltower.server.endpoints
 
 import org.updraft0.controltower.build.BuildInfo
+import org.updraft0.controltower.constant.SystemId
 import org.updraft0.controltower.protocol.*
 import org.updraft0.controltower.server.Server.EndpointEnv
 import org.updraft0.controltower.server.db.ReferenceQueries
@@ -14,6 +15,14 @@ private val NoSdeVersion =
 
 def getSolarSystem = Endpoints.getSolarSystem.zServerLogic { name =>
   ReferenceQueries.getSolarSystemByName(name).flatMapError(logDbError).flatMap {
+    case Nil       => ZIO.fail(StatusCode.NotFound -> "")
+    case ss :: Nil => ZIO.succeed(ss)
+    case _         => ZIO.fail(StatusCode.InternalServerError -> "BUG: non-unique solar system")
+  }
+}
+
+def getSolarSystemById = Endpoints.getSolarSystemById.zServerLogic { id =>
+  ReferenceQueries.getSolarSystemById(SystemId(id)).flatMapError(logDbError).flatMap {
     case Nil       => ZIO.fail(StatusCode.NotFound -> "")
     case ss :: Nil => ZIO.succeed(ss)
     case _         => ZIO.fail(StatusCode.InternalServerError -> "BUG: non-unique solar system")
@@ -50,7 +59,7 @@ def getAllReference = Endpoints.getAllReference.zServerLogic(_ =>
 )
 
 def getAllSolarSystems = Endpoints.getAllSolarSystems.zServerLogic(_ =>
-  (getLatestVersion <&> ReferenceQueries.getSolarSystemsByName(None))
+  (getLatestVersion <&> ReferenceQueries.getSolarSystemsByName(None, None))
     .flatMapError(logDbError)
     .flatMap((versionOpt, solarSystems) =>
       versionOpt
@@ -72,6 +81,7 @@ def getSignaturesInGroup =
 def allReferenceEndpoints: List[ZServerEndpoint[EndpointEnv, Any]] =
   List(
     getSolarSystem.widen[EndpointEnv],
+    getSolarSystemById.widen[EndpointEnv],
     getVersion.widen[EndpointEnv],
     getAllReference.widen[EndpointEnv],
     getAllSolarSystems.widen[EndpointEnv],

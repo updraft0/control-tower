@@ -14,6 +14,11 @@ GET {{api}}/reference/system/Rens
 
 ###
 
+# @name GetRefSolarSystemById
+GET {{api}}/reference/system/id/32000041
+
+###
+
 # Used by the client to pre-load static reference data (to avoid balooning request sizes)
 # @name GetRefAll
 GET {{api}}/reference/all

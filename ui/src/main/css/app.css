@@ -257,7 +257,7 @@ $box-height:    40px;
     color: $red;
 }
 
-.system-class-pochven {
+.system-class-pochven, .system-class-void, .system-class-abyssal20, .system-class-abyssal21, .system-class-abyssal22, .system-class-abyssal22 {
     color: $red-dark;
 }
 
