@@ -40,7 +40,7 @@ enum EsiError derives CanEqual:
   case RateLimited(error: String)                       extends EsiError
   case InternalServerError(error: String)               extends EsiError
   case ServiceUnavailable(error: String)                extends EsiError
-  case BadGateway                                       extends EsiError
+  case BadGateway()                                     extends EsiError
   case Timeout(error: String, timeout: Option[Int])     extends EsiError
   case NotFound(error: String)                          extends EsiError
   case Other(code: StatusCode, message: String)         extends EsiError
@@ -59,7 +59,7 @@ object Endpoints:
     oneOfVariant(StatusCode(420), jsonBody[EsiError.RateLimited]),
     oneOfVariant(StatusCode.InternalServerError, jsonBody[EsiError.InternalServerError]),
     oneOfVariant(StatusCode.ServiceUnavailable, jsonBody[EsiError.ServiceUnavailable]),
-    oneOfVariant(StatusCode.BadGateway, emptyOutputAs(EsiError.BadGateway)),
+    oneOfVariantClassMatcher(StatusCode.BadGateway, emptyOutputAs(EsiError.BadGateway()), EsiError.BadGateway.getClass),
     oneOfVariant(StatusCode.GatewayTimeout, jsonBody[EsiError.Timeout]),
     oneOfDefaultVariant(
       // TODO this still does not handle the case of getting either a string/json response back
@@ -101,7 +101,10 @@ object Endpoints:
     .out(jsonBody[CharacterFleetResponse])
     .errorOut(
       oneOf[FleetError](
-        oneOfVariant(StatusCode.NotFound, emptyOutputAs(FleetError.NotInFleet).description("Pilot is not in fleet")),
+        oneOfVariantSingletonMatcher(
+          StatusCode.NotFound,
+          emptyOutputAs(FleetError.NotInFleet)
+        )(FleetError.NotInFleet),
         oneOfDefaultVariant(statusCode.and(stringBody(Charset.defaultCharset())).mapTo[FleetError.Other])
       )
     )

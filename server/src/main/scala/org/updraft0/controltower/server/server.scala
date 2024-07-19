@@ -12,7 +12,7 @@ import sttp.client3.UriContext
 import sttp.tapir.server.interceptor.cors.*
 import sttp.tapir.server.interceptor.log.DefaultServerLog
 import sttp.tapir.server.ziohttp.{ZioHttpInterpreter, ZioHttpServerOptions}
-import zio.http.{HttpApp, Server as ZServer}
+import zio.http.{Response, Routes, Server as ZServer}
 import zio.metrics.connectors.prometheus.PrometheusPublisher
 import zio.metrics.connectors.{MetricsConfig, prometheus}
 import zio.metrics.jvm.DefaultJvmMetrics
@@ -81,13 +81,13 @@ object Server extends ZIOAppDefault:
         )
     ).flatten
 
-  private def prometheusRouter =
+  private def prometheusRouter: Routes[PrometheusPublisher, Response] =
     import zio.http.*
     Routes(
       Method.GET / "metrics" -> handler(ZIO.serviceWithZIO[PrometheusPublisher](_.get.map(Response.text)))
-    ).toHttpApp
+    )
 
-  private def httpApp: HttpApp[EndpointEnv] =
+  private def httpApp: Routes[EndpointEnv, Response] =
     ZioHttpInterpreter(
       ZioHttpServerOptions.customiseInterceptors
         .corsInterceptor(CORSInterceptor.default)

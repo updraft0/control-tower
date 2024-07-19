@@ -10,7 +10,7 @@ object Dependencies {
   object Versions {
     val brotli             = "1.16.0"
     val flyway             = "9.21.1"
-    val jsoniter           = "2.30.1"
+    val jsoniter           = "2.30.7"
     val jwt                = "10.0.0"
     val laminar            = "17.0.0"
     val laminext           = "0.17.0"
@@ -21,11 +21,11 @@ object Dependencies {
     val snakeyaml          = "2.7"
     val sqlite             = "3.46.0.0"
     val sttp               = "3.9.7"
-    val tapir              = "1.10.7"
+    val tapir              = "1.10.14"
     val waypoint           = "8.0.0"
-    val zio                = "2.1.5"
+    val zio                = "2.1.6"
     val `zio-config`       = "4.0.2"
-    val `zio-json`         = "0.6.2"                      // TODO migrate to jsoniter
+    val `zio-json`         = "0.7.1"                      // TODO migrate to jsoniter
     val `zio-logging`      = "2.3.0"
     val `zio-metrics`      = "2.2.1"
   }

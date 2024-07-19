@@ -108,7 +108,7 @@ def deleteMap = Endpoints.deleteMap
   )
 
 // NOTE: See comments in MapSession for why this doesn't use sttp's websocket interop
-def mapWebSocket: zio.http.HttpApp[EndpointEnv] =
+def mapWebSocket: zio.http.Routes[EndpointEnv, zio.http.Response] =
   import zio.http.*
 
   def validCookie(req: Request): ZIO[EndpointEnv, Response, LoggedInUser] =
@@ -142,7 +142,7 @@ def mapWebSocket: zio.http.HttpApp[EndpointEnv] =
             yield resp
         else ZIO.fail(Response.notFound("Not a map websocket endpoint"))
       }
-  ).toHttpApp
+  )
 
 def allMapEndpoints
     : List[ZServerEndpoint[EndpointEnv, sttp.capabilities.zio.ZioStreams & sttp.capabilities.WebSockets]] =

@@ -26,6 +26,7 @@ object schema:
 
   // error
   given Schema[EsiError.BadRequest]          = Schema.derived
+  given Schema[EsiError.BadGateway]          = Schema.derived
   given Schema[EsiError.Unauthorized]        = Schema.derived
   given Schema[EsiError.Timeout]             = Schema.derived
   given Schema[EsiError.ServiceUnavailable]  = Schema.derived
