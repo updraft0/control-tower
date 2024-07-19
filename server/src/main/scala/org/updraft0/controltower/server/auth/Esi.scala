@@ -1,18 +1,15 @@
 package org.updraft0.controltower.server.auth
 
-import org.updraft0.controltower.constant.CharacterId
-import org.updraft0.controltower.server.auth.EsiError.{InvalidJwt, UpstreamAuth, UpstreamError, ValidationError}
-import org.updraft0.esi.client.{AuthErrorResponse, EsiClient, JwtAuthResponse, EsiError as EsiClientError}
-import org.updraft0.controltower.server.Config
-
 import com.github.plokhotnyuk.jsoniter_scala.core.*
 import com.github.plokhotnyuk.jsoniter_scala.macros.*
-import pdi.jwt.{Jwt, JwtAlgorithm, JwtClaim}
+import org.updraft0.controltower.constant.CharacterId
+import org.updraft0.controltower.server.Config
+import org.updraft0.controltower.server.auth.EsiError.{InvalidJwt, UpstreamAuth, UpstreamError, ValidationError}
+import org.updraft0.esi.client.{AuthErrorResponse, EsiClient, JwtAuthResponse, EsiError as EsiClientError}
+import pdi.jwt.{Jwt, JwtAlgorithm}
 import zio.*
 
 import java.time.Instant
-
-given CanEqual[JwtAlgorithm, JwtAlgorithm] = CanEqual.derived
 
 enum EsiError:
   case InvalidJwt(reason: Throwable)
