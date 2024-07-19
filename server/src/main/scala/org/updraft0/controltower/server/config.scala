@@ -1,14 +1,17 @@
 package org.updraft0.controltower.server
 
 import org.updraft0.controltower.db.Config as DbConfig
+import org.updraft0.controltower.server.map.MapConfig
 import sttp.model.Uri
 import zio.config.*
 import zio.config.magnolia.*
-import zio.{ZIO, ZLayer}
+import zio.http.Server as ZServer
+import zio.metrics.connectors.MetricsConfig
+import zio.{TaskLayer, ZIO, ZLayer}
 
 import java.math.BigInteger
-import java.security.{KeyFactory, PublicKey}
 import java.security.spec.RSAPublicKeySpec
+import java.security.{KeyFactory, PublicKey}
 import java.time.Duration
 import java.util.Base64
 
@@ -52,7 +55,10 @@ case class Config(
     esi: EsiConfig,
     sde: SdeConfig,
     http: HttpConfig,
-    location: LocationTrackingConfig
+    location: LocationTrackingConfig,
+    metrics: MetricsConfig,
+    map: MapConfig,
+    zioHttp: ZServer.Config
 )
 
 object Config:
@@ -63,9 +69,8 @@ object Config:
     case s if s.value.length == 44 => Right(BytesSecret(s))
     case _                         => Left(zio.Config.Error.InvalidData(message = "Bytes secret length != 44"))
 
-  private given DeriveConfig[DbConfig] = DeriveConfig[java.nio.file.Path].map(DbConfig.apply)
+  private given DeriveConfig[DbConfig]       = DeriveConfig[java.nio.file.Path].map(DbConfig.apply)
+  private given DeriveConfig[ZServer.Config] = DeriveConfig.from(ZServer.Config.config)
 
-  def layer: ZLayer[Any, Throwable, Config] =
+  def layer: TaskLayer[Config] =
     ZLayer(ZIO.configProviderWith(cp => cp.nested("control-tower").load(deriveConfig[Config].mapKey(toKebabCase))))
-
-  private[server] def dbConfigLayer: ZLayer[Config, Nothing, DbConfig] = ZLayer(ZIO.serviceWith[Config](_.db))

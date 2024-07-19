@@ -21,10 +21,10 @@ type MapEnv     = MapConfig & javax.sql.DataSource & LocationTracker & MapPermis
 type ShipTypeId = Int
 
 case class MapConfig(
-    cleanupPeriod: Duration = 5.minutes,
-    staleConnectionRemovalInterval: Duration = 50.hours,
-    eolConnectionRemovalInterval: Duration = 270.minutes,
-    hardDeletionInterval: Duration = 10.days
+    cleanupPeriod: Duration,
+    staleConnectionRemovalInterval: Duration,
+    eolConnectionRemovalInterval: Duration,
+    hardDeletionInterval: Duration
 )
 
 private[map] case class MapSolarSystem(

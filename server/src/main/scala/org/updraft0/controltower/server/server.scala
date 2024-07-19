@@ -15,7 +15,6 @@ import sttp.tapir.server.ziohttp.{ZioHttpInterpreter, ZioHttpServerOptions}
 import zio.http.{Response, Routes, Server as ZServer}
 import zio.metrics.connectors.prometheus.PrometheusPublisher
 import zio.metrics.connectors.{MetricsConfig, prometheus}
-import zio.metrics.jvm.DefaultJvmMetrics
 import zio.{Config as _, *}
 
 import java.security.SecureRandom
@@ -34,53 +33,67 @@ object Server extends ZIOAppDefault:
     (updateReferenceData *> ZServer
       .serve[EndpointEnv & PrometheusPublisher](httpApp ++ prometheusRouter ++ mapWebSocket))
       .provideSome(
-        httpConfigLayer,
-        ZLayer.succeed(MetricsConfig(5.seconds)),
-        ZLayer.succeed(MapConfig()), // TODO: load from file
-        prometheus.prometheusLayer,
-        prometheus.publisherLayer,
-        Config.layer,
-        Config.dbConfigLayer,
-        db.postMigrationLayer,
-        SessionCrypto.layer,
+        // http server + main app
+        ZServer.live,
         UserSession.layer,
-        ZLayer
-          .service[Config]
-          .project(c =>
-            EsiClient
-              .Config(c.esi.base, uri"https://${c.auth.esi.host}", c.auth.esi.clientId, c.auth.esi.clientSecret)
-          ),
-        EsiClient.layer,
-        ZLayer
-          .service[Config]
-          .project(c => SdeClient.Config(c.sde.base)),
-        ZLayer.service[Config].project(c => c.sde),
-        SdeClient.layer,
-        ZLayer
-          .service[Config]
-          .project(c => LocationTracker.Config(c.location.interval, c.location.parallel)),
-        CharacterAuthTracker.layer,
-        LocationTracker.layer,
         MapReactive.layer,
-        DefaultJvmMetrics.live.unit,
+        // configuration
+        Config.layer,
+        dbConfig,
+        esiClientConfig,
+        httpServerConfig,
+        mapConfig,
+        metricsConfig,
+        locationTrackerConfig,
+        sdeClientConfig,
+        sdeConfig,
+        // ESI & SDE
+        EsiClient.layer,
+        SdeClient.layer,
+        // JWT + other crypto
+        SessionCrypto.layer,
         TokenCrypto.layer,
         ZLayer(ZIO.attempt(new SecureRandom())),
+        // trackers are background processes
+        CharacterAffiliationTracker.layer,
+        CharacterAuthTracker.layer,
+        LocationTracker.layer,
         MapPermissionTracker.layer,
         ServerStatusTracker.layer,
-        ZLayer.scoped(CharacterAffiliationTracker.apply())
+        // database
+        db.postMigrationLayer,
+        // metrics
+        prometheus.prometheusLayer,
+        prometheus.publisherLayer
       )
 
-  private def httpConfigLayer: ZLayer[Config, Throwable, ZServer] =
+  private def dbConfig: URLayer[Config, db.Config] =
+    ZLayer(ZIO.serviceWith[Config](_.db))
+
+  private def mapConfig: URLayer[Config, MapConfig] =
+    ZLayer(ZIO.serviceWith[Config](_.map))
+
+  private def metricsConfig: URLayer[Config, MetricsConfig] =
+    ZLayer(ZIO.serviceWith[Config](_.metrics))
+
+  private def locationTrackerConfig: URLayer[Config, LocationTracker.Config] =
+    ZLayer(ZIO.serviceWith[Config](c => LocationTracker.Config(c.location.interval, c.location.parallel)))
+
+  private def sdeConfig: URLayer[Config, SdeConfig] =
+    ZLayer(ZIO.serviceWith[Config](_.sde))
+
+  private def sdeClientConfig: URLayer[Config, SdeClient.Config] =
+    ZLayer(ZIO.serviceWith[Config](c => SdeClient.Config(c.sde.base)))
+
+  private def esiClientConfig: URLayer[Config, EsiClient.Config] =
     ZLayer(
-      ZIO.serviceWith[Config]: cfg =>
-        ZServer.defaultWith(
-          _.binding(cfg.http.listenHost, cfg.http.port)
-            .responseCompression(
-              // TODO revisit compression options if needed
-              ZServer.Config.ResponseCompressionConfig(1000, Vector(ZServer.Config.CompressionOptions.gzip(level = 1)))
-            )
-        )
-    ).flatten
+      ZIO.serviceWith[Config](c =>
+        EsiClient.Config(c.esi.base, uri"https://${c.auth.esi.host}", c.auth.esi.clientId, c.auth.esi.clientSecret)
+      )
+    )
+
+  private def httpServerConfig: ZLayer[Config, Throwable, ZServer.Config] =
+    ZLayer(ZIO.serviceWith[Config](c => c.zioHttp.binding(c.http.listenHost, c.http.port)))
 
   private def prometheusRouter: Routes[PrometheusPublisher, Response] =
     import zio.http.*

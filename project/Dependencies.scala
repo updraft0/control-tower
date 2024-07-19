@@ -16,7 +16,7 @@ object Dependencies {
     val laminext           = "0.17.0"
     val `native-converter` = "0.9.0"
     val quill              = "4.8.5"
-    val `scala-java-time`  = "2.5.0"
+    val `scala-java-time`  = "2.6.0"
     val `sjs-dom`          = "2.8.0+45-53f9a1a2-SNAPSHOT" // FIXME wait for 2.9.0 release
     val snakeyaml          = "2.7"
     val sqlite             = "3.46.0.0"
@@ -70,7 +70,7 @@ object Dependencies {
   val `tapir-server` = Seq(
     "com.softwaremill.sttp.tapir" %% "tapir-zio-http-server" % Versions.tapir,
     // runtime
-    "com.aayushatharva.brotli4j" % "brotli4j" % Versions.brotli % Runtime
+    "com.aayushatharva.brotli4j" % "brotli4j" % Versions.brotli // TODO runtime does not play well with running from IntelliJ it seems % Runtime
   )
 
   val zio = Seq(

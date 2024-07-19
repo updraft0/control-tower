@@ -16,6 +16,9 @@ object CharacterAffiliationTracker:
   // Limit how many characters to put in a batch
   private val EsiMaxCharacterPerBatch = 64
 
+  def layer: ZLayer[Env, Nothing, Unit] =
+    ZLayer.scoped(apply())
+
   def apply(): ZIO[Scope & Env, Nothing, Unit] =
     val refresh = refreshAll
       .tapError(ex => ZIO.logErrorCause("Failed to refresh character affiliations", Cause.fail(ex)))
@@ -45,7 +48,7 @@ object CharacterAffiliationTracker:
     ZIO
       .serviceWithZIO[EsiClient](_.getCharacterAffiliations(charIds.toList))
       .tapError(ex => ZIO.logWarning(s"Updating character affiliations for $charIds failed due to $ex"))
-      .mapError(_ => new RuntimeException("Updating character affiliations failed due to ESI error"))
+      .orElseFail(new RuntimeException("Updating character affiliations failed due to ESI error"))
       .flatMap(xs => Users.updateAffiliations(xs.map(ca => (ca.characterId, ca.corporationId, ca.allianceId))))
 
 extension (v: ServerStatusResponse) def isOnlineEnough: Boolean = v.players > 100 && v.vip.forall(!_)
