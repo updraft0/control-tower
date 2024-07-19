@@ -68,15 +68,24 @@ def getAllSolarSystems = Endpoints.getAllSolarSystems.zServerLogic(_ =>
     )
 )
 
-def getFactions  = Endpoints.getFactions.zServerLogic(_ => ReferenceQueries.getFactions.flatMapError(logDbError))
-def getShipTypes = Endpoints.getShipTypes.zServerLogic(_ => ReferenceQueries.getShipTypes.flatMapError(logDbError))
-def getStarTypes = Endpoints.getStarTypes.zServerLogic(_ => ReferenceQueries.getStarTypes.flatMapError(logDbError))
+def getFactions =
+  Endpoints.getFactions.zServerLogic(_ => ReferenceQueries.getFactions.flatMapError(logDbError).map(_.toArray))
+def getShipTypes =
+  Endpoints.getShipTypes.zServerLogic(_ => ReferenceQueries.getShipTypes.flatMapError(logDbError).map(_.toArray))
+def getStarTypes =
+  Endpoints.getStarTypes.zServerLogic(_ => ReferenceQueries.getStarTypes.flatMapError(logDbError).map(_.toArray))
 def getStationOperations =
-  Endpoints.getStationOperations.zServerLogic(_ => ReferenceQueries.getStationOperations.flatMapError(logDbError))
+  Endpoints.getStationOperations.zServerLogic(_ =>
+    ReferenceQueries.getStationOperations.flatMapError(logDbError).map(_.toArray)
+  )
 def getWormholeTypes =
-  Endpoints.getWormholeTypes.zServerLogic(_ => ReferenceQueries.getWormholeTypes.flatMapError(logDbError))
+  Endpoints.getWormholeTypes.zServerLogic(_ =>
+    ReferenceQueries.getWormholeTypes.flatMapError(logDbError).map(_.toArray)
+  )
 def getSignaturesInGroup =
-  Endpoints.getSignaturesInGroup.zServerLogic(_ => ReferenceQueries.getSignaturesInGroup.flatMapError(logDbError))
+  Endpoints.getSignaturesInGroup.zServerLogic(_ =>
+    ReferenceQueries.getSignaturesInGroup.flatMapError(logDbError).map(_.toArray)
+  )
 
 def allReferenceEndpoints: List[ZServerEndpoint[EndpointEnv, Any]] =
   List(

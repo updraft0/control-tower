@@ -108,6 +108,8 @@ object SigId:
 
   given CanEqual[SigId, SigId] = CanEqual.derived
 
+  extension (inline v: SigId) inline def value: String = v
+
 // SystemId
 
 opaque type SystemId = Long

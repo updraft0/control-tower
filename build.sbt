@@ -5,6 +5,11 @@ import org.scalajs.linker.interface.ModuleSplitStyle
 Global / onChangedBuildSource := ReloadOnSourceChanges
 //Global / conflictManager := ConflictManager.strict
 
+Global / excludeDependencies ++= Seq(
+  // banish zio-json at least until the magnolia usage doesn't clash with tapir
+  ExclusionRule("dev.zio", "zio-json_3")
+)
+
 lazy val constant =
   crossProject(JSPlatform, JVMPlatform)
     .crossType(CrossType.Pure)
@@ -16,7 +21,7 @@ lazy val db = project
   .settings(
     commonSettings,
     Seq(
-      libraryDependencies ++= flyway ++ quill ++ sqlite,
+      libraryDependencies ++= jsoniter ++ flyway ++ quill ++ sqlite,
       libraryDependencies ++= zio ++ `zio-test`
     )
   )
@@ -67,23 +72,23 @@ lazy val protocol =
       buildInfoPackage := "org.updraft0.controltower.build"
     )
     .jvmSettings(
-      libraryDependencies ++= tapir ++ `tapir-zio-json`,
+      libraryDependencies ++= jsoniter ++ tapir ++ `tapir-jsoniter`,
       libraryDependencies ++= `zio-test`
     )
     .jsSettings(
       libraryDependencies ++= Seq(
-        "com.softwaremill.sttp.tapir" %%% "tapir-core"     % Versions.tapir,
-        "com.softwaremill.sttp.tapir" %%% "tapir-json-zio" % Versions.tapir,
+        "com.softwaremill.sttp.tapir"           %%% "tapir-core"            % Versions.tapir,
+        "com.softwaremill.sttp.tapir"           %%% "tapir-jsoniter-scala"  % Versions.tapir,
+        "com.github.plokhotnyuk.jsoniter-scala" %%% "jsoniter-scala-macros" % Versions.jsoniter % "compile-internal",
         // native json object conversion
         "org.getshaka" %%% "native-converter" % Versions.`native-converter`,
         // tests
-        "dev.zio" %%% "zio-json"          % Versions.`zio-json`,
         "dev.zio" %%% "zio-test"          % Versions.zio % Test,
         "dev.zio" %%% "zio-test-sbt"      % Versions.zio % Test,
         "dev.zio" %%% "zio-test-magnolia" % Versions.zio % Test
       )
     )
-    .dependsOn(constant)
+    .dependsOn(constant, `test-deps` % Test)
 
 lazy val server = project
   .in(file("server"))
@@ -92,7 +97,7 @@ lazy val server = project
   .settings(
     commonSettings,
     Seq(
-      libraryDependencies ++= jwt ++ tapir ++ `tapir-zio-json` ++ `tapir-server`,
+      libraryDependencies ++= jsoniter ++ jwt ++ tapir ++ `tapir-jsoniter` ++ `tapir-server`,
       libraryDependencies ++= zio ++ `zio-config` ++ `zio-test`,
 
       // runtime
@@ -118,12 +123,18 @@ lazy val server = project
       dockerUpdateLatest   := true
     )
   )
-  .dependsOn(protocol.jvm, db, `esi-client`, `mini-reactive`)
+  .dependsOn(protocol.jvm, db, `esi-client`, `mini-reactive`, `test-deps`.jvm % Test)
 
 lazy val `sde-reader` = project
   .in(file("sde-reader"))
   .settings(commonSettings, Seq(libraryDependencies ++= snakeyaml ++ zio ++ `zio-test`))
   .dependsOn(constant.jvm)
+
+lazy val `test-deps` =
+  crossProject(JSPlatform, JVMPlatform)
+    .crossType(CrossType.Full)
+    .in(file("test-deps"))
+    .settings(commonSettings, Seq(libraryDependencies ++= jsoniter))
 
 lazy val ui = project
   .in(file("ui"))
@@ -156,6 +167,9 @@ lazy val ui = project
       "com.softwaremill.sttp.tapir" %%% "tapir-sttp-client" % Versions.tapir,
       "io.github.cquiroz" %%% "scala-java-time" % Versions.`scala-java-time`, // implementations of java.time classes for Scala.JS
       "com.softwaremill.sttp.client3" %%% "core" % Versions.sttp,
+      // json
+      "com.github.plokhotnyuk.jsoniter-scala" %%% "jsoniter-scala-core"   % Versions.jsoniter,
+      "com.github.plokhotnyuk.jsoniter-scala" %%% "jsoniter-scala-macros" % Versions.jsoniter % "compile-internal",
 
       // custom sjs-dom for now
       "org.scala-js" %%% "scalajs-dom" % Versions.`sjs-dom`,
@@ -180,6 +194,8 @@ lazy val root = project
     protocol.jvm,
     server,
     `sde-reader`,
+    `test-deps`.js,
+    `test-deps`.jvm,
     ui
   )
   .settings(

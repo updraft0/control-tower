@@ -11,18 +11,16 @@ object sde:
   import auth.given
   import schema.*
   import ctx.*
-  import zio.json.*
+
+  import com.github.plokhotnyuk.jsoniter_scala.core.*
+  import com.github.plokhotnyuk.jsoniter_scala.macros.*
 
   private val BatchRows = 5_000
 
-  given JsonCodec[SdeLoadMeta] = JsonCodec.derived
+  given JsonValueCodec[SdeLoadMeta] = JsonCodecMaker.make
 
-  given MappedEncoding[String, SdeLoadMeta] = MappedEncoding(
-    _.fromJson[SdeLoadMeta].getOrElse(
-      throw new RuntimeException("Unable to decode SdeLoadMeta from string")
-    )
-  )
-  given MappedEncoding[SdeLoadMeta, String] = MappedEncoding(_.toJson)
+  given MappedEncoding[String, SdeLoadMeta] = MappedEncoding(readFromString[SdeLoadMeta](_))
+  given MappedEncoding[SdeLoadMeta, String] = MappedEncoding(writeToString[SdeLoadMeta](_))
 
   /** Each table lives in the `sde` schema, but Quill has no config annotation/etc. for that
     */

@@ -109,7 +109,12 @@ object MapQuerySpec extends ZIOSpecDefault:
           val set = classes.toSet
           encodeDecode(BitSet(set.map(_.value).toSeq*).toBitMask(0).toInt, set)
         }
-      ) @@ samples(10)
+      ) @@ samples(10),
+      test("for SystemDisplayData"):
+        // quite important, don't want to do a migration here
+        encodeDecodeMany(
+          """{"Manual":{"x":42,"y":6}}""" -> SystemDisplayData.Manual(42, 6)
+        )
     )
 
 private def encodeDecodeMany[I, O](hd: (I, O), xs: (I, O)*)(using MappedEncoding[I, O], MappedEncoding[O, I]) =

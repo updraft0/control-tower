@@ -4,7 +4,7 @@ import com.raquo.laminar.api.L.*
 import com.raquo.waypoint.*
 import controltower.backend.ControlTowerBackend
 import org.scalajs.dom
-import zio.json.*
+import org.getshaka.nativeconverter.fromJson
 
 import java.time.Clock
 import scala.util.{Failure, Success, Try}
@@ -25,9 +25,7 @@ object Routes:
     routes = List(mapRoute, mapEditorRoute, landingRoute),
     getPageTitle = _.pageTitle,
     serializePage = _.toJson,
-    deserializePage = _.fromJson[Page] match
-      case Left(err)   => throw new Exception(err)
-      case Right(page) => page
+    deserializePage = _.fromJson[Page]
   )(
     popStateEvents = windowEvents(_.onPopState),
     owner = unsafeWindowOwner

@@ -18,10 +18,11 @@ import org.updraft0.controltower.server.tracking.{
   LocationTrackingRequest,
   ServerStatusTracker
 }
+import com.github.plokhotnyuk.jsoniter_scala.core.{readFromString, writeToString}
+import scala.util.Try
 import zio.*
 import zio.http.ChannelEvent.UserEvent
 import zio.http.{ChannelEvent, Handler, WebSocketChannelEvent, WebSocketFrame}
-import zio.json.*
 import zio.logging.LogAnnotation
 
 import java.util.UUID
@@ -110,13 +111,13 @@ object MapSession:
         send <- resQ.take
           .map(filterToProto(sid)(_))
           .flatMap {
-            case Some(msg) => chan.send(ChannelEvent.Read(WebSocketFrame.Text(msg.toJson)))
+            case Some(msg) => chan.send(ChannelEvent.Read(WebSocketFrame.Text(writeToString(msg))))
             case None      => ZIO.unit
           }
           .forever
           .forkScoped
         sendOurs <- ourQ.take
-          .flatMap(msg => chan.send(ChannelEvent.Read(WebSocketFrame.Text(msg.toJson))))
+          .flatMap(msg => chan.send(ChannelEvent.Read(WebSocketFrame.Text(writeToString(msg)))))
           .forever
           .forkScoped
         // process any session messages
@@ -166,10 +167,10 @@ object MapSession:
     case ChannelEvent.UserEventTriggered(UserEvent.HandshakeComplete) =>
       ZIO.right(protocol.MapRequest.GetMapInfo)
     case ChannelEvent.Read(WebSocketFrame.Text(msgText)) =>
-      msgText.fromJson[protocol.MapRequest] match
-        case Left(error) =>
+      Try(readFromString[protocol.MapRequest](msgText)).toEither match
+        case Left(ex) =>
           ZIO.logError(s"Unable to decode json content").as(Left("Unable to decode json content")) @@
-            jsonContent(msgText) @@ errorMessage(error)
+            jsonContent(msgText) @@ errorMessage(ex.getMessage)
         case Right(msg) => ZIO.right(msg)
     case ChannelEvent.ExceptionCaught(ex) =>
       ZIO.logErrorCause("Received exception, logging", Cause.fail(ex)).as(Left("Unknown error"))
@@ -209,7 +210,7 @@ object MapSession:
             Some(ctx.sessionId),
             MapRequest.RenameSystem(
               systemId = SystemId(upd.systemId),
-              name = upd.name.get.toOption
+              name = upd.name.get
             )
           )
         )
@@ -356,7 +357,7 @@ private def toProtoCharacter(char: model.AuthCharacter) =
 private def toAddSystem(msg: protocol.MapRequest.AddSystem) =
   MapRequest.AddSystem(
     systemId = SystemId(msg.systemId),
-    name = msg.name.flatMap(_.toOption),
+    name = msg.name,
     isPinned = msg.isPinned,
     displayData = toDisplayData(msg.displayData),
     stance = msg.stance.map(toIntelStance)

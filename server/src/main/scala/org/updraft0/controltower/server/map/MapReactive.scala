@@ -252,7 +252,7 @@ enum MapRequest derives CanEqual:
   case MapSnapshot
   case AddSystem(
       systemId: SystemId,
-      name: Option[String],
+      name: Option[Option[String]],
       isPinned: Boolean,
       displayData: model.SystemDisplayData,
       stance: Option[model.IntelStance]
@@ -452,7 +452,7 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
         model.MapSystem(
           mapId = mapId,
           systemId = add.systemId,
-          name = add.name.orElse(curr.flatMap(_.name)),
+          name = add.name.getOrElse(curr.flatMap(_.name)),
           isPinned = add.isPinned,
           chainNamingStrategy = curr.map(_.chainNamingStrategy).getOrElse(model.ChainNamingStrategy.Manual),
           description = curr.flatMap(_.description),

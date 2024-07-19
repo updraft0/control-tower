@@ -1,13 +1,11 @@
 package org.updraft0.controltower.protocol
 
+import org.updraft0.json.*
 import org.updraft0.controltower.protocol.jsoncodec.given
-import zio.json.*
-import zio.json.ast.Json
 import zio.test.*
 
 import scala.language.strictEquality
 
-given CanEqual[Json, Json]                     = CanEqual.derived
 given CanEqual[StationService, StationService] = CanEqual.derived
 
 object ReferenceProtocolSpec extends ZIOSpecDefault:
@@ -23,8 +21,8 @@ object ReferenceProtocolSpec extends ZIOSpecDefault:
           )
         )
         val json = Json.Obj(
-          "operationId"   -> Json.Num(42),
-          "operationName" -> Json.Str("Law School"),
+          "operation_id"   -> Json.Num(42),
+          "operation_name" -> Json.Str("Law School"),
           "services" -> Json.Arr(
             Json.Obj("id" -> Json.Num(5), "name" -> Json.Str("Reprocessing Plant")),
             Json.Obj("id" -> Json.Num(9), "name" -> Json.Str("Stock Exchange"))
@@ -39,6 +37,6 @@ object ReferenceProtocolSpec extends ZIOSpecDefault:
           res.map(_.services.toList) == Right(
             List(StationService(5, "Reprocessing Plant"), StationService(9, "Stock Exchange"))
           ),
-          value.toJsonAST == Right(json)
+          value.toJsonAST == json
         )
     )

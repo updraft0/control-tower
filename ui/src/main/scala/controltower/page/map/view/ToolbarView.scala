@@ -153,7 +153,7 @@ private def systemAddView(
           val req = MapAction.Direct(
             MapRequest.AddSystem(
               systemId = solarSystem.id,
-              name = Option.when(!mapName.isBlank)(NewSystemName.Name(mapName.trim)),
+              name = Option.when(!mapName.isBlank)(Some(mapName.trim)),
               isPinned = pinnedVar.now(),
               displayData = pc.newSystemDisplay,
               stance = None // FIXME add select for this

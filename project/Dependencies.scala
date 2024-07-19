@@ -11,7 +11,7 @@ object Dependencies {
     val brotli             = "1.16.0"
     val flyway             = "9.21.1"
     val jsoniter           = "2.30.7"
-    val jwt                = "10.0.0"
+    val jwt                = "10.0.1"
     val laminar            = "17.0.0"
     val laminext           = "0.17.0"
     val `native-converter` = "0.9.0"
@@ -25,7 +25,6 @@ object Dependencies {
     val waypoint           = "8.0.0"
     val zio                = "2.1.6"
     val `zio-config`       = "4.0.2"
-    val `zio-json`         = "0.7.1"                      // TODO migrate to jsoniter
     val `zio-logging`      = "2.3.0"
     val `zio-metrics`      = "2.2.1"
   }
@@ -40,7 +39,7 @@ object Dependencies {
   )
 
   val jwt = Seq(
-    "com.github.jwt-scala" %% "jwt-zio-json" % Versions.jwt
+    "com.github.jwt-scala" %% "jwt-core" % Versions.jwt
   )
 
   val quill = Seq(
@@ -57,10 +56,6 @@ object Dependencies {
 
   val tapir = Seq(
     "com.softwaremill.sttp.tapir" %% "tapir-core" % Versions.tapir
-  )
-
-  val `tapir-zio-json` = Seq(
-    "com.softwaremill.sttp.tapir" %% "tapir-json-zio" % Versions.tapir
   )
 
   val `tapir-jsoniter` = Seq(

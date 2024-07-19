@@ -250,14 +250,6 @@ enum MapServerStatus derives CanEqual:
   case Error
   case Online(players: Int, version: String, startedAt: String, vip: Boolean)
 
-enum NewSystemName derives CanEqual:
-  case None
-  case Name(value: String)
-
-  def toOption: Option[String] = this match
-    case None        => Option.empty
-    case Name(value) => Some(value)
-
 enum MapRequest derives CanEqual:
   /** A snapshot of the map's systems, signatures, connections + intel data
     */
@@ -271,7 +263,7 @@ enum MapRequest derives CanEqual:
     */
   case AddSystem(
       systemId: SystemId,
-      name: Option[NewSystemName],
+      name: Option[Option[String]],
       isPinned: Boolean,
       displayData: SystemDisplayData,
       stance: Option[IntelStance]
@@ -304,7 +296,7 @@ enum MapRequest derives CanEqual:
       displayData: Option[SystemDisplayData] = None,
       isPinned: Option[Boolean] = None,
       stance: Option[IntelStance] = None,
-      name: Option[NewSystemName] = None // TODO: weirdly cannot nest Option[Option[_]]
+      name: Option[Option[String]] = None
   )
 
   /** Remove a system from the map

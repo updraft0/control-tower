@@ -4,11 +4,15 @@ import org.updraft0.controltower.constant.*
 export org.updraft0.controltower.constant.SigId
 export org.updraft0.controltower.constant.SigId.given
 export org.updraft0.controltower.constant.SystemId.given
-import zio.json.*
+import com.github.plokhotnyuk.jsoniter_scala.core.*
+import com.github.plokhotnyuk.jsoniter_scala.macros.*
 import sttp.tapir.*
 import sttp.tapir.SchemaType.SInteger
+import sttp.tapir.generic.Configuration
 
 object schema:
+  given Configuration = Configuration.default.withSnakeCaseMemberNames
+
   given longMapSchema[V: Schema]: Schema[Map[Long, V]]               = Schema.schemaForMap[Long, V](_.toString)
   given characterMapSchema[V: Schema]: Schema[Map[CharacterId, V]]   = Schema.schemaForMap[CharacterId, V](_.toString)
   given connectionMapSchema[V: Schema]: Schema[Map[ConnectionId, V]] = Schema.schemaForMap[ConnectionId, V](_.toString)
@@ -52,7 +56,6 @@ object schema:
   given Schema[Stargate]       = Schema.derived
   given Schema[SolarSystem]    = Schema.derived
   given Schema[WormholeStatic] = Schema.derived
-  given Schema[NewSystemName]  = Schema.derived
 
   // user
   given Schema[MapRole]          = Schema.derived
@@ -94,93 +97,135 @@ object schema:
   given Schema[MapServerStatus]               = Schema.derived
   given Schema[NewSystemSignature]            = Schema.derived
 
-object jsoncodec:
+trait OpaqueCodecs:
+  // currently, jsoniter is unable to derive codecs for opaque types
 
-  // opaque
-  given JsonFieldEncoder[SystemId] = JsonFieldEncoder.long.asInstanceOf[JsonFieldEncoder[SystemId]]
-  given JsonFieldDecoder[SystemId] = JsonFieldDecoder.long.asInstanceOf[JsonFieldDecoder[SystemId]]
+  given JsonValueCodec[CharacterId] = new JsonValueCodec[CharacterId]:
+    override def decodeValue(in: JsonReader, default: CharacterId): CharacterId = CharacterId(in.readLong())
+    override def encodeValue(x: CharacterId, out: JsonWriter): Unit             = out.writeVal(x.value)
+    override def nullValue: CharacterId                                         = CharacterId.Invalid
 
-  given JsonFieldEncoder[ConnectionId] = JsonFieldEncoder.long.asInstanceOf[JsonFieldEncoder[ConnectionId]]
-  given JsonFieldDecoder[ConnectionId] = JsonFieldDecoder.long.asInstanceOf[JsonFieldDecoder[ConnectionId]]
+  given JsonValueCodec[AllianceId] = new JsonValueCodec[AllianceId]:
+    override def decodeValue(in: JsonReader, default: AllianceId): AllianceId = AllianceId(in.readLong())
+    override def encodeValue(x: AllianceId, out: JsonWriter): Unit            = out.writeVal(x.value)
+    override def nullValue: AllianceId                                        = AllianceId(-1)
 
-  given JsonFieldEncoder[CharacterId] = JsonFieldEncoder.long.asInstanceOf[JsonFieldEncoder[CharacterId]]
-  given JsonFieldDecoder[CharacterId] = JsonFieldDecoder.long.asInstanceOf[JsonFieldDecoder[CharacterId]]
+  given JsonValueCodec[CorporationId] = new JsonValueCodec[CorporationId]:
+    override def decodeValue(in: JsonReader, default: CorporationId): CorporationId = CorporationId(in.readLong())
+    override def encodeValue(x: CorporationId, out: JsonWriter): Unit               = out.writeVal(x.value)
+    override def nullValue: CorporationId                                           = CorporationId(-1)
 
-  given JsonCodec[CharacterId]   = JsonCodec.long.asInstanceOf[JsonCodec[CharacterId]]
-  given JsonCodec[CorporationId] = JsonCodec.long.asInstanceOf[JsonCodec[CorporationId]]
-  given JsonCodec[AllianceId]    = JsonCodec.long.asInstanceOf[JsonCodec[AllianceId]]
-  given JsonCodec[SigId]         = JsonCodec.string.asInstanceOf[JsonCodec[SigId]]
-  given JsonCodec[SystemId]      = JsonCodec.long.asInstanceOf[JsonCodec[SystemId]]
-  given JsonCodec[UserId]        = JsonCodec.long.asInstanceOf[JsonCodec[UserId]]
-  given JsonCodec[MapId]         = JsonCodec.long.asInstanceOf[JsonCodec[MapId]]
-  given JsonCodec[ConnectionId]  = JsonCodec.long.asInstanceOf[JsonCodec[ConnectionId]]
+  given JsonCodec[SystemId] = new JsonCodec[SystemId]:
+    override def decodeKey(in: JsonReader): SystemId                      = SystemId(in.readKeyAsLong())
+    override def encodeKey(x: SystemId, out: JsonWriter): Unit            = out.writeKey(x.value)
+    override def decodeValue(in: JsonReader, default: SystemId): SystemId = SystemId(in.readLong())
+    override def encodeValue(x: SystemId, out: JsonWriter): Unit          = out.writeVal(x.value)
+    override def nullValue: SystemId                                      = SystemId(-1)
 
-  given unknownOrUnsetCodec[A: JsonCodec]: JsonCodec[UnknownOrUnset[A]] = JsonCodec.derived
+  given JsonValueCodec[MapId] = new JsonValueCodec[MapId]:
+    override def decodeValue(in: JsonReader, default: MapId): MapId = MapId(in.readLong())
+    override def encodeValue(x: MapId, out: JsonWriter): Unit       = out.writeVal(x.value)
+    override def nullValue: MapId                                   = MapId.Invalid
 
-  // auth
+  given JsonCodec[ConnectionId] = new JsonCodec[ConnectionId]:
+    override def decodeKey(in: JsonReader): ConnectionId                          = ConnectionId(in.readKeyAsLong())
+    override def encodeKey(x: ConnectionId, out: JsonWriter): Unit                = out.writeKey(x.value)
+    override def decodeValue(in: JsonReader, default: ConnectionId): ConnectionId = ConnectionId(in.readLong())
+    override def encodeValue(x: ConnectionId, out: JsonWriter): Unit              = out.writeVal(x.value)
+    override def nullValue: ConnectionId                                          = ConnectionId.Invalid
+
+  given JsonValueCodec[SigId] = new JsonValueCodec[SigId]:
+    override def decodeValue(in: JsonReader, default: SigId): SigId = SigId(in.readString(null))
+    override def encodeValue(x: SigId, out: JsonWriter): Unit       = out.writeVal(x.value)
+    override def nullValue: SigId                                   = null.asInstanceOf[SigId]
+
+  given JsonValueCodec[UserId] = new JsonValueCodec[UserId]:
+    override def decodeValue(in: JsonReader, default: UserId): UserId = UserId(in.readLong())
+    override def encodeValue(x: UserId, out: JsonWriter): Unit        = out.writeVal(x.value)
+    override def nullValue: UserId                                    = UserId.Invalid
+
+object jsoncodec extends OpaqueCodecs:
+  // debug print codecs
+  // given CodecMakerConfig.PrintCodec with {}
+
+  inline def config: CodecMakerConfig =
+    CodecMakerConfig.withFieldNameMapper(JsonCodecMaker.enforce_snake_case).withDiscriminatorFieldName(None)
+
+  // aux
+  given [A <: AnyRef: JsonValueCodec: scala.reflect.ClassTag]: JsonValueCodec[Array[A]] = JsonCodecMaker.make
+  given JsonValueCodec[Array[ConnectionId]] =
+    JsonCodecMaker.make[Array[Long]].asInstanceOf[JsonValueCodec[Array[ConnectionId]]]
 
   // constant
-  given JsonCodec[SpaceType]      = JsonCodec.derived
-  given JsonCodec[WormholeClass]  = JsonCodec.int.transform(WormholeClasses.ById.apply, _.value)
-  given JsonCodec[WormholeEffect] = JsonCodec.long.transform(WormholeEffects.ById.apply, _.typeId)
+  given JsonValueCodec[SpaceType] = JsonCodecMaker.make(config)
+
+  given JsonValueCodec[WormholeClass] = new JsonValueCodec[WormholeClass]:
+    override def decodeValue(in: JsonReader, default: WormholeClass): WormholeClass = WormholeClasses.ById(in.readInt())
+    override def encodeValue(x: WormholeClass, out: JsonWriter): Unit               = out.writeVal(x.value)
+    override def nullValue: WormholeClass                                           = null
+
+  given JsonValueCodec[WormholeEffect] = new JsonValueCodec[WormholeEffect]:
+    override def decodeValue(in: JsonReader, default: WormholeEffect): WormholeEffect =
+      WormholeEffects.ById(in.readLong())
+    override def encodeValue(x: WormholeEffect, out: JsonWriter): Unit = out.writeVal(x.typeId)
+    override def nullValue: WormholeEffect                             = null
 
   // reference
-  given JsonCodec[Faction]          = JsonCodec.derived
-  given JsonCodec[ShipType]         = JsonCodec.derived
-  given JsonCodec[StarType]         = JsonCodec.derived
-  given JsonCodec[StationService]   = JsonCodec.derived
-  given JsonCodec[StationOperation] = JsonCodec.derived
-  given JsonCodec[WormholeType]     = JsonCodec.derived
-  given JsonCodec[SignatureInGroup] = JsonCodec.derived
+  given JsonValueCodec[Faction]          = JsonCodecMaker.make(config)
+  given JsonValueCodec[ShipType]         = JsonCodecMaker.make(config)
+  given JsonValueCodec[StarType]         = JsonCodecMaker.make(config)
+  given JsonValueCodec[StationService]   = JsonCodecMaker.make(config)
+  given JsonValueCodec[StationOperation] = JsonCodecMaker.make(config)
+  given JsonValueCodec[WormholeType]     = JsonCodecMaker.make(config)
+  given JsonValueCodec[SignatureInGroup] = JsonCodecMaker.make(config)
 
-  given JsonCodec[Reference]             = JsonCodec.derived
-  given JsonCodec[ReferenceSolarSystems] = JsonCodec.derived
-  given JsonCodec[ReferenceVersion]      = JsonCodec.derived
+  given JsonValueCodec[Reference]             = JsonCodecMaker.make(config)
+  given JsonValueCodec[ReferenceSolarSystems] = JsonCodecMaker.make(config)
+  given JsonValueCodec[ReferenceVersion]      = JsonCodecMaker.make(config)
 
   // system
-  given JsonCodec[Planet]         = JsonCodec.derived
-  given JsonCodec[Station]        = JsonCodec.derived
-  given JsonCodec[Stargate]       = JsonCodec.derived
-  given JsonCodec[SolarSystem]    = JsonCodec.derived
-  given JsonCodec[WormholeStatic] = JsonCodec.derived
-  given JsonCodec[NewSystemName]  = JsonCodec.derived
+  given JsonValueCodec[Planet]         = JsonCodecMaker.make(config)
+  given JsonValueCodec[Station]        = JsonCodecMaker.make(config)
+  given JsonValueCodec[Stargate]       = JsonCodecMaker.make(config)
+  given JsonValueCodec[SolarSystem]    = JsonCodecMaker.make(config)
+  given JsonValueCodec[WormholeStatic] = JsonCodecMaker.make(config)
 
   // user
-  given JsonCodec[MapRole]          = JsonCodec.string.transform(MapRole.valueOf, _.toString)
-  given JsonCodec[UserCharacter]    = JsonCodec.derived
-  given JsonCodec[UserCharacterMap] = JsonCodec.derived
-  given JsonCodec[UserInfo]         = JsonCodec.derived
-  given JsonCodec[UserPreferences]  = JsonCodec.derived
+  given JsonValueCodec[MapRole]          = JsonCodecMaker.make(config)
+  given JsonValueCodec[UserCharacter]    = JsonCodecMaker.make(config)
+  given JsonValueCodec[UserCharacterMap] = JsonCodecMaker.make(config)
+  given JsonValueCodec[UserInfo]         = JsonCodecMaker.make(config)
+  given JsonValueCodec[UserPreferences]  = JsonCodecMaker.make(config)
 
   // map
-  given JsonCodec[MapInfo]                = JsonCodec.derived
-  given JsonCodec[MapInfoWithPermissions] = JsonCodec.derived
-  given JsonCodec[MapPolicyMember]        = JsonCodec.derived
-  given JsonCodec[MapSettings]            = JsonCodec.derived
-  given JsonCodec[NewMap]                 = JsonCodec.derived
-  given JsonCodec[PolicyMemberType]       = JsonCodec.string.transform(PolicyMemberType.valueOf, _.toString)
-  given JsonCodec[MapDisplayType]         = JsonCodec.string.transform(MapDisplayType.valueOf, _.toString)
-  given JsonCodec[CharacterLocation]      = JsonCodec.derived
+  given JsonValueCodec[MapInfo]                = JsonCodecMaker.make(config)
+  given JsonValueCodec[MapInfoWithPermissions] = JsonCodecMaker.make(config)
+  given JsonValueCodec[MapPolicyMember]        = JsonCodecMaker.make(config)
+  given JsonValueCodec[MapSettings]            = JsonCodecMaker.make(config)
+  given JsonValueCodec[NewMap]                 = JsonCodecMaker.make(config)
+  given JsonValueCodec[PolicyMemberType]       = JsonCodecMaker.make(config)
+  given JsonValueCodec[MapDisplayType]         = JsonCodecMaker.make(config)
+  given JsonValueCodec[CharacterLocation]      = JsonCodecMaker.make(config)
 
-  given JsonCodec[IntelStance]                   = JsonCodec.string.transform(IntelStance.valueOf, _.toString)
-  given JsonCodec[MapRequest]                    = JsonCodec.derived
-  given JsonCodec[MapMessage]                    = JsonCodec.derived
-  given JsonCodec[MapSystem]                     = JsonCodec.derived
-  given JsonCodec[SystemDisplayData]             = JsonCodec.derived
-  given JsonCodec[Corporation]                   = JsonCodec.derived
-  given JsonCodec[MapSystemStructure]            = JsonCodec.derived
-  given JsonCodec[MapSystemNote]                 = JsonCodec.derived
-  given JsonCodec[MapWormholeConnection]         = JsonCodec.derived
-  given JsonCodec[MapWormholeConnectionJump]     = JsonCodec.derived
-  given JsonCodec[MapWormholeConnectionRank]     = JsonCodec.derived
-  given JsonCodec[MapWormholeConnectionWithSigs] = JsonCodec.derived
-  given JsonCodec[MapServerStatus]               = JsonCodec.derived
-  given JsonCodec[SignatureGroup]                = JsonCodec.string.transform(SignatureGroup.valueOf, _.toString)
-  given JsonCodec[WormholeMassSize]              = JsonCodec.string.transform(WormholeMassSize.valueOf, _.toString)
-  given JsonCodec[WormholeMassStatus]            = JsonCodec.string.transform(WormholeMassStatus.valueOf, _.toString)
-  given JsonCodec[WormholeK162Type]              = JsonCodec.string.transform(WormholeK162Type.valueOf, _.toString)
-  given JsonCodec[WormholeConnectionType]        = JsonCodec.derived
-  given JsonCodec[MapSystemSignature]            = JsonCodec.derived
-  given JsonCodec[MapSystemSignature.Wormhole]   = JsonCodec.derived
-  given JsonCodec[MapSystemSnapshot]             = JsonCodec.derived
-  given JsonCodec[NewSystemSignature]            = JsonCodec.derived
+  given JsonValueCodec[IntelStance]                   = JsonCodecMaker.make(config)
+  given JsonValueCodec[MapRequest]                    = JsonCodecMaker.make(config)
+  given JsonValueCodec[MapMessage]                    = JsonCodecMaker.make(config)
+  given JsonValueCodec[MapSystem]                     = JsonCodecMaker.make(config)
+  given JsonValueCodec[SystemDisplayData]             = JsonCodecMaker.make(config)
+  given JsonValueCodec[Corporation]                   = JsonCodecMaker.make(config)
+  given JsonValueCodec[MapSystemStructure]            = JsonCodecMaker.make(config)
+  given JsonValueCodec[MapSystemNote]                 = JsonCodecMaker.make(config)
+  given JsonValueCodec[MapWormholeConnection]         = JsonCodecMaker.make(config)
+  given JsonValueCodec[MapWormholeConnectionJump]     = JsonCodecMaker.make(config)
+  given JsonValueCodec[MapWormholeConnectionRank]     = JsonCodecMaker.make(config)
+  given JsonValueCodec[MapWormholeConnectionWithSigs] = JsonCodecMaker.make(config)
+  given JsonValueCodec[MapServerStatus]               = JsonCodecMaker.make(config)
+  given JsonValueCodec[SignatureGroup]                = JsonCodecMaker.make(config)
+  given JsonValueCodec[WormholeMassSize]              = JsonCodecMaker.make(config)
+  given JsonValueCodec[WormholeMassStatus]            = JsonCodecMaker.make(config)
+  given JsonValueCodec[WormholeK162Type]              = JsonCodecMaker.make(config)
+  given JsonValueCodec[WormholeConnectionType]        = JsonCodecMaker.make(config)
+  given JsonValueCodec[MapSystemSignature]            = JsonCodecMaker.make(config)
+  given JsonValueCodec[MapSystemSignature.Wormhole]   = JsonCodecMaker.make(config)
+  given JsonValueCodec[MapSystemSnapshot]             = JsonCodecMaker.make(config)
+  given JsonValueCodec[NewSystemSignature]            = JsonCodecMaker.make(config)

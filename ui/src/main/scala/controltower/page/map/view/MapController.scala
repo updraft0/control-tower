@@ -133,7 +133,7 @@ class MapController(rds: ReferenceDataStore, val clock: Signal[Instant])(using O
         case (MapAction.Rename(systemId, newName), _) =>
           Some(
             MapRequest
-              .UpdateSystem(systemId, name = Some(newName.map(NewSystemName.Name(_)).getOrElse(NewSystemName.None)))
+              .UpdateSystem(systemId, name = Some(newName))
           )
         case (MapAction.Remove(systemId), _) =>
           Some(MapRequest.RemoveSystem(systemId))

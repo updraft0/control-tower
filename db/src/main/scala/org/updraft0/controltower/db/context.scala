@@ -1,20 +1,21 @@
 package org.updraft0.controltower.db
 
+import com.github.plokhotnyuk.jsoniter_scala.core.*
 import io.getquill.*
 import io.getquill.context.jdbc.{Decoders, Encoders, JdbcContextTypes, SqliteJdbcTypes}
 import io.getquill.context.qzio.{ZioJdbcContext, ZioJdbcUnderlyingContext}
-import zio.json.{JsonDecoder, JsonEncoder}
+import scala.util.Try
 
 trait StringJsonExtensions extends Encoders with Decoders:
   this: JdbcContextTypes[_, _] =>
 
-  given [T](using enc: JsonEncoder[T]): MappedEncoding[JsonValue[T], String] =
-    MappedEncoding(v => enc.encodeJson(v.value, None).toString)
+  inline given [T](using JsonValueCodec[T]): MappedEncoding[JsonValue[T], String] =
+    MappedEncoding(v => writeToString(v.value))
 
-  given [T](using dec: JsonDecoder[T]): MappedEncoding[String, JsonValue[T]] =
+  inline given [T](using JsonValueCodec[T]): MappedEncoding[String, JsonValue[T]] =
     MappedEncoding(s =>
-      dec.decodeJson(s) match {
-        case Left(message) => throw new IllegalArgumentException(s"Could not decode string to JSON: $message")
+      Try(readFromString[T](s)).toEither match {
+        case Left(message) => throw new IllegalArgumentException(s"Could not decode JSON from db: $message")
         case Right(value)  => JsonValue(value)
       }
     )

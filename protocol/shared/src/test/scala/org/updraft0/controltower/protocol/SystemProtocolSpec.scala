@@ -1,8 +1,7 @@
 package org.updraft0.controltower.protocol
 
+import org.updraft0.json.*
 import org.updraft0.controltower.protocol.jsoncodec.given
-import zio.json.*
-import zio.json.ast.Json
 import zio.test.*
 
 object SystemProtocolSpec extends ZIOSpecDefault:
@@ -21,19 +20,19 @@ object SystemProtocolSpec extends ZIOSpecDefault:
         )
 
         val json = Json.Obj(
-          "id"              -> Json.Num(60000361),
-          "name"            -> Json.Str("Jita IV - Moon 6 - Ytiri Storage"),
-          "typeId"          -> Json.Num(1531),
-          "operationId"     -> Json.Num(26),
-          "factionId"       -> Json.Num(500001),
-          "factionName"     -> Json.Str("Caldari State"),
-          "corporationId"   -> Json.Num(1000004),
-          "corporationName" -> Json.Str("Ytiri")
+          "id"               -> Json.Num(60000361),
+          "name"             -> Json.Str("Jita IV - Moon 6 - Ytiri Storage"),
+          "type_id"          -> Json.Num(1531),
+          "operation_id"     -> Json.Num(26),
+          "faction_id"       -> Json.Num(500001),
+          "faction_name"     -> Json.Str("Caldari State"),
+          "corporation_id"   -> Json.Num(1000004),
+          "corporation_name" -> Json.Str("Ytiri")
         )
 
         assertTrue(
           json.as[Station] == Right(value),
-          value.toJsonAST == Right(json)
+          value.toJsonAST == json
         )
       }
     )

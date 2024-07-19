@@ -12,11 +12,13 @@ import io.laminext.websocket.*
 import org.updraft0.controltower.constant
 import org.updraft0.controltower.protocol.*
 import org.scalajs.dom.KeyboardEvent
+import com.github.plokhotnyuk.jsoniter_scala.core.{readFromString, writeToString}
 
 import java.time.Instant
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration.*
+import scala.util.Try
 import scala.language.implicitConversions
 
 // TODO: duplication
@@ -322,7 +324,6 @@ private final class MapView(
 object MapView:
   import org.updraft0.controltower.protocol.jsoncodec.given
   import sttp.client3.UriContext
-  import zio.json.*
   private var counter = 0
 
   def apply(map: Page.Map, time: Signal[Instant])(using ct: ControlTowerBackend): Future[MapView] =
@@ -337,8 +338,8 @@ object MapView:
     ct.wsUrlOpt
       .map(base => WebSocket.url(uri"$base$path".toString, base.scheme.getOrElse("ws")))
       .getOrElse(WebSocket.path(path))
-      .receiveText(_.fromJson[MapMessage].left.map(new RuntimeException(_)))
-      .sendText[MapRequest](_.toJson)
+      .receiveText(s => Try(readFromString[MapMessage](s)).toEither)
+      .sendText(writeToString[MapRequest](_))
       .build(
         autoReconnect = true,
         bufferWhenDisconnected = false,

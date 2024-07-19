@@ -1,14 +1,11 @@
 package controltower
 
-import zio.json.*
+import org.getshaka.nativeconverter.NativeConverter
 
-enum Page derives CanEqual:
+enum Page derives CanEqual, NativeConverter:
   case Landing
   case Map(name: String, character: String)
   case MapEditor
-
-object Page:
-  given JsonCodec[Page] = JsonCodec.derived
 
 extension (p: Page)
   def pageTitle: String = p match

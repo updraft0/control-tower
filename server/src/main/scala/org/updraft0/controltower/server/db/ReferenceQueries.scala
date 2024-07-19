@@ -5,7 +5,7 @@ import org.updraft0.controltower.constant.*
 import org.updraft0.controltower.db.model
 import org.updraft0.controltower.db.query.*
 import org.updraft0.controltower.protocol
-import org.updraft0.controltower.protocol.jsoncodec.given
+import org.updraft0.controltower.protocol.jsoncodec.{config, given}
 import zio.*
 
 case class StargateBothSides(
@@ -24,9 +24,11 @@ object ReferenceQueries:
   import map.given
   import map.schema.*
   import sde.schema.*
-  import zio.json.*
 
-  private given JsonCodec[StargateBothSides] = JsonCodec.derived
+  import com.github.plokhotnyuk.jsoniter_scala.core.*
+  import com.github.plokhotnyuk.jsoniter_scala.macros.*
+
+  private given JsonValueCodec[StargateBothSides] = JsonCodecMaker.make(config)
 
   private val ShipCategoryId = 6
 
@@ -50,13 +52,13 @@ object ReferenceQueries:
           r.whClassId,
           jsonGroupArrayFilterNullDistinct[StargateBothSides](
             jsonObject4(
-              "inGateId",
+              "in_gate_id",
               isg.map(_.id),
-              "outGateId",
+              "out_gate_id",
               osg.map(_.systemId),
-              "inSystemId",
+              "in_system_id",
               isg.map(_.systemId),
-              "outSystemId",
+              "out_system_id",
               osg.map(_.systemId)
             ),
             isg.map(_.id)
@@ -111,9 +113,9 @@ object ReferenceQueries:
                 ptj.map(_._1._1.idx),
                 "name",
                 ptj.map(_._2.map(_.name)),
-                "typeName",
+                "type_name",
                 ptj.map(_._1._2.name),
-                "typeId",
+                "type_id",
                 ptj.map(_._1._1.typeId)
               ),
               ptj.map(_._1._1.idx)
@@ -124,24 +126,24 @@ object ReferenceQueries:
                 stj.map(_._1._1.id),
                 "name",
                 stj.map(_._1._1.name),
-                "typeId",
+                "type_id",
                 stj.map(_._1._1.typeId),
-                "corporationId",
+                "corporation_id",
                 stj.map(_._1._1.ownerId),
-                "operationId",
+                "operation_id",
                 stj.map(_._1._1.operationId),
-                "corporationName",
+                "corporation_name",
                 stj.map(_._1._2.name),
-                "factionId",
+                "faction_id",
                 stj.flatMap(_._1._2.factionId),
-                "factionName",
+                "faction_name",
                 stj.flatMap(_._2).map(_.name)
               ),
               stj.map(_._1._1.id)
             ),
             jsonGroupArrayFilterNullDistinct[protocol.WormholeStatic](
               jsonObject2(
-                "typeId",
+                "type_id",
                 whj.map(_._1.staticTypeId),
                 "name",
                 whj.map(_._2.name)
@@ -152,9 +154,9 @@ object ReferenceQueries:
               jsonObject3(
                 "id",
                 sgj.map(_.id),
-                "systemId",
+                "system_id",
                 sgj.map(_.systemId),
-                "toStargateId",
+                "to_stargate_id",
                 sgj.map(_.toStargateId)
               ),
               sgj.map(_.id)

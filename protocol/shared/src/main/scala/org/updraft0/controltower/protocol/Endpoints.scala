@@ -3,8 +3,8 @@ package org.updraft0.controltower.protocol
 import org.updraft0.controltower.constant.{CharacterId, MapId}
 
 import sttp.model.StatusCode
-import sttp.tapir.json.zio.*
 import sttp.tapir.{json as _, *}
+import sttp.tapir.json.jsoniter.*
 
 object Endpoints:
   import jsoncodec.given
@@ -46,12 +46,12 @@ object Endpoints:
   val getAllReference = reference.get.in("all").out(jsonBody[Reference])
   val getVersion      = reference.get.in("version").out(jsonBody[ReferenceVersion])
 
-  val getFactions          = reference.get.in("factions").out(jsonBody[List[Faction]])
-  val getShipTypes         = reference.get.in("shipTypes").out(jsonBody[List[ShipType]])
-  val getStarTypes         = reference.get.in("starTypes").out(jsonBody[List[StarType]])
-  val getStationOperations = reference.get.in("stationOperations").out(jsonBody[List[StationOperation]])
-  val getWormholeTypes     = reference.get.in("wormholeTypes").out(jsonBody[List[WormholeType]])
-  val getSignaturesInGroup = reference.get.in("signatureGroups").out(jsonBody[List[SignatureInGroup]])
+  val getFactions          = reference.get.in("factions").out(jsonBody[Array[Faction]])
+  val getShipTypes         = reference.get.in("shipTypes").out(jsonBody[Array[ShipType]])
+  val getStarTypes         = reference.get.in("starTypes").out(jsonBody[Array[StarType]])
+  val getStationOperations = reference.get.in("stationOperations").out(jsonBody[Array[StationOperation]])
+  val getWormholeTypes     = reference.get.in("wormholeTypes").out(jsonBody[Array[WormholeType]])
+  val getSignaturesInGroup = reference.get.in("signatureGroups").out(jsonBody[Array[SignatureInGroup]])
   // TODO: need an endpoint for wormhole sig strength
 
   // endregion

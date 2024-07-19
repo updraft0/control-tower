@@ -12,14 +12,18 @@ object map:
   import auth.given
   import schema.*
   import ctx.{*, given}
-  import zio.json.*
+  import com.github.plokhotnyuk.jsoniter_scala.core.*
+  import com.github.plokhotnyuk.jsoniter_scala.macros.*
 
   private val BatchRows = 5_000
 
   private val WormholeGroupId = 988L
 
+  private inline def config: CodecMakerConfig = CodecMakerConfig.withDiscriminatorFieldName(None)
+
   // this is always stored as json in the db
-  given JsonCodec[SystemDisplayData] = JsonCodec.derived
+  given JsonValueCodec[SystemDisplayData]   = JsonCodecMaker.make(config)
+  given JsonValueCodec[Map[String, Double]] = JsonCodecMaker.make(config)
 
   given MappedEncoding[Int, WormholeClass] = MappedEncoding(WormholeClasses.ById.apply)
   given MappedEncoding[WormholeClass, Int] = MappedEncoding(_.value)
@@ -45,12 +49,8 @@ object map:
   given MappedEncoding[Int, WormholeK162Type] = MappedEncoding(WormholeK162Type.fromOrdinal)
   given MappedEncoding[WormholeK162Type, Int] = MappedEncoding(_.ordinal())
 
-  given MappedEncoding[String, SystemDisplayData] = MappedEncoding(
-    _.fromJson[SystemDisplayData].getOrElse(
-      throw new RuntimeException("Unable to decode SystemDisplayData from string")
-    )
-  )
-  given MappedEncoding[SystemDisplayData, String] = MappedEncoding(_.toJson)
+  given MappedEncoding[String, SystemDisplayData] = MappedEncoding(readFromString[SystemDisplayData](_))
+  given MappedEncoding[SystemDisplayData, String] = MappedEncoding(writeToString[SystemDisplayData](_))
 
   given MappedEncoding[Int, Set[WormholeClass]] =
     MappedEncoding(i => whClassesFromSet(BitSet.fromBitMaskNoCopy(Array(i.toLong))))

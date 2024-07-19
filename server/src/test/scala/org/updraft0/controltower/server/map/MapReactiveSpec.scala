@@ -615,7 +615,7 @@ object MapReactiveSpec extends ZIOSpecDefault:
       isPinned: Boolean = false,
       displayData: SystemDisplayData = SystemDisplayData.Manual(0, 0),
       stance: Option[IntelStance] = None
-  ) = Identified(Some(sessionId), MapRequest.AddSystem(systemId, name, isPinned, displayData, stance))
+  ) = Identified(Some(sessionId), MapRequest.AddSystem(systemId, Some(name), isPinned, displayData, stance))
 
   private def addConnectionRequest(
       fromSystemId: SystemId,

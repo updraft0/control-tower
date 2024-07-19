@@ -13,18 +13,19 @@ Cookie: CT-Session={{ctsessionid}}
 
 {
   "name": "{{name}}",
-  "policyMembers": [
+  "policy_members": [
     {
-      "memberId": {{characterId}},
-      "memberType": "Character",
-      "isDeny": false,
+      "member_id": {{characterId}},
+      "member_type": "Character",
+      "is_deny": false,
       "role": "Admin"
     }
   ],
-  "displayType": "Manual"
+  "display_type": "Manual"
 }
 
 ###
+@characterName = Updraft0
 
 # Main map WebSocket through which the UI talks in a bidirectional message stream
 # @name MapWebsocket
@@ -47,15 +48,15 @@ Cookie: CT-Session={{ctsessionid}}
 
 ===
 
-{"GetSnapshot":  {}}
+"GetSnapshot"
 
 ===
 
 {
   "AddSystem": {
-    "systemId": 30000142,
-    "isPinned": true,
-    "displayData": {
+    "system_id": 30000142,
+    "is_pinned": true,
+    "display_data": {
       "Manual": {
         "x": 0,
         "y": 0
@@ -69,8 +70,8 @@ Cookie: CT-Session={{ctsessionid}}
 
 {
   "UpdateSystem": {
-    "systemId": 30000142,
-    "displayData": {"Manual": {"x": 20, "y": 0}}
+    "system_id": 30000142,
+    "display_data": {"Manual": {"x": 20, "y": 0}}
   }
 }
 
@@ -78,7 +79,7 @@ Cookie: CT-Session={{ctsessionid}}
 
 {
   "RemoveSystem": {
-    "systemId": 30000142
+    "system_id": 30000142
   }
 }
 
@@ -86,8 +87,8 @@ Cookie: CT-Session={{ctsessionid}}
 
 {
   "UpdateSystem": {
-    "systemId": 30000142,
-    "displayData": {"Manual": {"x": 50, "y": 50}}
+    "system_id": 30000142,
+    "display_data": {"Manual": {"x": 50, "y": 50}}
   }
 }
 
@@ -95,9 +96,9 @@ Cookie: CT-Session={{ctsessionid}}
 
 {
   "AddSystem": {
-    "systemId": 30002187,
-    "isPinned": true,
-    "displayData": {"Manual": {"x": 90, "y": 40}},
+    "system_id": 30002187,
+    "is_pinned": true,
+    "display_data": {"Manual": {"x": 90, "y": 40}},
     "stance": "Unknown"
   }
 }
@@ -106,9 +107,9 @@ Cookie: CT-Session={{ctsessionid}}
 
 {
   "AddSystem": {
-    "systemId": 30002659,
-    "isPinned": true,
-    "displayData": {"Manual": {"x": 90, "y": 200}},
+    "system_id": 30002659,
+    "is_pinned": true,
+    "display_data": {"Manual": {"x": 90, "y": 200}},
     "stance": "Unknown"
   }
 }
@@ -117,9 +118,9 @@ Cookie: CT-Session={{ctsessionid}}
 
 {
   "AddSystem": {
-    "systemId": 30002510,
-    "isPinned": true,
-    "displayData": {"Manual": {"x": 90, "y": 240}},
+    "system_id": 30002510,
+    "is_pinned": true,
+    "display_data": {"Manual": {"x": 90, "y": 240}},
     "stance": "Unknown"
   }
 }
@@ -128,14 +129,14 @@ Cookie: CT-Session={{ctsessionid}}
 
 {
   "AddSystem": {
-    "systemId": 31002558,
+    "system_id": 31002558,
     "name": {
-      "Name": {
+      "Some": {
         "value": "ABC-12"
       }
     },
-    "isPinned": true,
-    "displayData": {"Manual": {"x": 240, "y": 240}},
+    "is_pinned": true,
+    "display_data": {"Manual": {"x": 240, "y": 240}},
     "stance": "Friendly"
   }
 }
@@ -144,8 +145,9 @@ Cookie: CT-Session={{ctsessionid}}
 
 {
   "AddSystemConnection": {
-    "fromSystemId": 30002510,
-    "toSystemId": 31002558
+    "from_system_id": 30002510,
+    "to_system_id": 31002558
   }
 }
 
+###
