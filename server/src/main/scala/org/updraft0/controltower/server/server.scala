@@ -27,7 +27,8 @@ object Server extends ZIOAppDefault:
     MapReactive.Service & TokenCrypto & SecureRandom & MapPermissionTracker & CharacterAuthTracker & LocationTracker &
     ServerStatusTracker
 
-  override val bootstrap = Runtime.enableRuntimeMetrics >>> desktopLogger
+  override val bootstrap =
+    Runtime.disableFlags(RuntimeFlag.FiberRoots) >>> Runtime.enableRuntimeMetrics >>> desktopLogger
 
   override def run =
     (updateReferenceData *> ZServer
