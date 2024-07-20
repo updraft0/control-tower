@@ -1,6 +1,7 @@
 package org.updraft0.controltower.protocol
 
 import org.updraft0.json.*
+import org.updraft0.controltower.constant.*
 import org.updraft0.controltower.protocol.jsoncodec.given
 import zio.test.*
 
@@ -15,7 +16,7 @@ object SystemProtocolSpec extends ZIOSpecDefault:
           operationId = 26,
           factionId = Some(500001L),
           factionName = Some("Caldari State"),
-          corporationId = 1000004L,
+          corporationId = CorporationId(1000004L),
           corporationName = "Ytiri"
         )
 

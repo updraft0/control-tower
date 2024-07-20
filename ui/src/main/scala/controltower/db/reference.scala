@@ -1,7 +1,6 @@
 package controltower.db
 
 import controltower.backend.ControlTowerBackend
-import org.getshaka.nativeconverter.NativeConverter.given
 import org.getshaka.nativeconverter.{NativeConverter, fromNative}
 import org.scalajs.dom.idb.*
 import org.updraft0.controltower.build.BuildInfo
