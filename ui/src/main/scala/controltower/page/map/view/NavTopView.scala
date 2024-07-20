@@ -6,7 +6,7 @@ import controltower.backend.{ControlTowerBackend, ESI}
 import controltower.ui.ViewController
 import controltower.component.Modal
 import controltower.dialog.EditMapView
-import org.updraft0.controltower.constant
+import org.updraft0.controltower.constant.{SystemId, MagicConstant}
 import org.updraft0.controltower.protocol.*
 
 import java.time.{Instant, LocalDate, LocalTime}
@@ -15,7 +15,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 class NavTopView(
     mapName: String,
     mapMeta: Signal[MapMessage.MapMeta],
-    locations: Signal[Map[constant.SystemId, Array[CharacterLocation]]],
+    locations: Signal[Map[SystemId, Array[CharacterLocation]]],
     time: Signal[Instant],
     isConnected: Signal[Boolean],
     serverStatus: Signal[MapServerStatus],
@@ -64,11 +64,11 @@ private def navButton(id: String, mods: Modifier[Button]*) =
 
 private def userInfo(mapName: String, char: Signal[UserCharacter], mapRole: Signal[MapRole]) =
   nodeSeq(
-    ESI.characterImageS(char.map(c => c.characterId -> c.name), size = CharacterImageSize),
+    ESI.characterImageS(char.map(c => c.characterId -> c.name), size = MagicConstant.CharacterImageSize),
     span(cls := "map-role", child.text <-- mapRole.map(r => s"${mapName}/${r.toString}"))
   )
 
-private def locationStatus(locations: Signal[Map[constant.SystemId, Array[CharacterLocation]]]) =
+private def locationStatus(locations: Signal[Map[SystemId, Array[CharacterLocation]]]) =
   span(cls := "location-status", cls := "right-block", child <-- locations.map(_.valuesIterator.map(_.length).sum))
 
 private def timeStatus(time: Signal[Instant]) =

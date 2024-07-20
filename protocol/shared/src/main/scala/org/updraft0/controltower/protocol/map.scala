@@ -1,10 +1,7 @@
 package org.updraft0.controltower.protocol
 
-import org.updraft0.controltower.constant
-import org.updraft0.controltower.constant.{SystemId => _, *}
+import org.updraft0.controltower.constant.*
 import java.time.{Instant, Duration}
-
-type SystemId = Long // TODO opaque types
 
 enum PolicyMemberType derives CanEqual:
   case Character, Corporation, Alliance
@@ -275,7 +272,7 @@ enum MapRequest derives CanEqual:
 
   /** (non-idempotent) Add a connection between two systems
     */
-  case AddSystemConnection(fromSystemId: constant.SystemId, toSystemId: constant.SystemId)
+  case AddSystemConnection(fromSystemId: SystemId, toSystemId: SystemId)
 
   /** (idempotent) Update multiple system signatures
     */
@@ -311,8 +308,10 @@ enum MapRequest derives CanEqual:
     */
   case RemoveSystemConnection(connectionId: ConnectionId)
 
+end MapRequest
+
 enum MapMessage:
-  case CharacterLocations(locations: Map[constant.SystemId, Array[CharacterLocation]])
+  case CharacterLocations(locations: Map[SystemId, Array[CharacterLocation]])
   case ConnectionSnapshot(connection: MapWormholeConnectionWithSigs)
   case ConnectionsRemoved(connections: Array[MapWormholeConnection])
   case ConnectionJumped(jump: MapWormholeConnectionJump)
@@ -336,4 +335,4 @@ enum MapMessage:
   )
   case ServerStatus(status: MapServerStatus)
 
-// endregion
+end MapMessage

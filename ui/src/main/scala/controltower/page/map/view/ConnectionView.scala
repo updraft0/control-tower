@@ -4,7 +4,7 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.codecs.StringAsIsCodec
 import controltower.page.map.{Coord, MapAction, PositionController}
 import controltower.ui.{HVar, ViewController}
-import org.updraft0.controltower.constant.ConnectionId
+import org.updraft0.controltower.constant.{ConnectionId, SystemId}
 import org.updraft0.controltower.protocol.MapWormholeConnectionWithSigs
 
 object ConnectionView:
@@ -17,8 +17,8 @@ object ConnectionView:
 
 class ConnectionView(
     id: ConnectionId,
-    fromSystemId: Long,
-    toSystemId: Long,
+    fromSystemId: SystemId,
+    toSystemId: SystemId,
     conn: Signal[MapWormholeConnectionWithSigs],
     selectedConnection: Var[Option[ConnectionId]],
     pos: PositionController,

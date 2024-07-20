@@ -28,6 +28,10 @@ object native:
         case _         => ps.fail("Long")
       WormholeEffects.ById.getOrElse(idx, ps.fail("WormholeEffect.Id"))
 
+  // opaque
+  given NativeConverter[SystemId]      = NativeConverter.apply[Long].asInstanceOf[NativeConverter[SystemId]]
+  given NativeConverter[CorporationId] = NativeConverter.apply[Long].asInstanceOf[NativeConverter[CorporationId]]
+
   // reference
   given NativeConverter[Planet]           = NativeConverter.derived
   given NativeConverter[Station]          = NativeConverter.derived

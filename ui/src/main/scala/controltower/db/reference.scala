@@ -5,6 +5,7 @@ import org.getshaka.nativeconverter.NativeConverter.given
 import org.getshaka.nativeconverter.{NativeConverter, fromNative}
 import org.scalajs.dom.idb.*
 import org.updraft0.controltower.build.BuildInfo
+import org.updraft0.controltower.constant.SystemId
 import org.updraft0.controltower.protocol.*
 import org.updraft0.controltower.protocol.native.given
 
@@ -16,7 +17,7 @@ import scala.util.{Failure, Success, Try}
 
 trait ReferenceDataStore:
 
-  def systemForId(systemId: Long): Future[Option[SolarSystem]]
+  def systemForId(systemId: SystemId): Future[Option[SolarSystem]]
   def systemForName(name: String): Future[Option[SolarSystem]]
 
   // TODO: add fuzzies
@@ -39,7 +40,7 @@ object ReferenceDataStore:
 class IdbReferenceDataStore(db: Database, maxSearchHits: Int = 10) extends ReferenceDataStore:
   import IdbReferenceDataStore.{AllReferenceKey, ByNameIndex, ReferenceAll, SolarSystem}
 
-  override def systemForId(systemId: Long): Future[Option[SolarSystem]] =
+  override def systemForId(systemId: SystemId): Future[Option[SolarSystem]] =
     for
       trx <- solarSystemTx
       res <- inTransaction(trx, SolarSystem, _.get(systemId.toNative)).map(optOr[SolarSystem](_))

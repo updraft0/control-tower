@@ -9,3 +9,6 @@ object MagicConstant:
   // The size of a system box on the map
   val SystemBoxSizeX: Int = 140
   val SystemBoxSizeY: Int = 40
+
+  // Images
+  val CharacterImageSize: Int = 32

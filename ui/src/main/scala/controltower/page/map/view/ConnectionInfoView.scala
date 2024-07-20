@@ -1,12 +1,10 @@
 package controltower.page.map.view
 
 import com.raquo.laminar.api.L.*
-import com.raquo.laminar.codecs.StringAsIsCodec
 import controltower.backend.ESI
 import controltower.ui.*
+import org.updraft0.controltower.constant.MagicConstant
 import org.updraft0.controltower.protocol.*
-
-val scopeAttr = htmlAttr("scope", StringAsIsCodec)
 
 final class ConnectionInfoView(selected: Signal[Option[MapWormholeConnectionWithSigs]])(using ctx: MapViewContext)
     extends ViewController:
@@ -80,7 +78,7 @@ final class ConnectionInfoView(selected: Signal[Option[MapWormholeConnectionWith
         span(
           cls := "connection-created-by",
           child <-- s.map(c =>
-            ESI.characterImage(c.connection.createdByCharacterId, "createdBy", size = CharacterImageSize)
+            ESI.characterImage(c.connection.createdByCharacterId, "createdBy", size = MagicConstant.CharacterImageSize)
           )
         )
       ),
@@ -108,7 +106,8 @@ final class ConnectionInfoView(selected: Signal[Option[MapWormholeConnectionWith
                 ),
                 td(
                   cls := "connection-jump-character",
-                  child <-- cjs.map(j => ESI.characterImage(j.characterId, "jumpedBy", size = CharacterImageSize))
+                  child <-- cjs
+                    .map(j => ESI.characterImage(j.characterId, "jumpedBy", size = MagicConstant.CharacterImageSize))
                 )
               )
         )

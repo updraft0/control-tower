@@ -17,7 +17,7 @@ private val MouseButtonLeft = 0
 private val Threshold       = 0.0
 
 final class SelectionView(
-    singleSelected: Signal[Option[Long]],
+    singleSelected: Signal[Option[SystemId]],
     selection: Observer[Array[SystemId]],
     systemNodes: EventStream[CollectionCommand[Element]]
 ):

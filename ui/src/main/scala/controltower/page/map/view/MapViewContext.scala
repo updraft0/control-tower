@@ -2,8 +2,8 @@ package controltower.page.map.view
 
 import com.raquo.laminar.api.L.*
 import controltower.page.map.MapAction
-import org.updraft0.controltower.constant.{SystemId as _, *}
-import org.updraft0.controltower.protocol.{MapRole, MapWormholeConnectionWithSigs, SystemId, UserPreferences}
+import org.updraft0.controltower.constant.*
+import org.updraft0.controltower.protocol.{MapRole, MapWormholeConnectionWithSigs, UserPreferences}
 
 import java.time.Instant
 

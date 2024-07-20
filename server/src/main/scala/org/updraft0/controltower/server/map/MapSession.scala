@@ -304,7 +304,7 @@ private def toProto(msg: MapResponse): Option[protocol.MapMessage] = msg match
   case MapResponse.MapSnapshot(systems, connections, connectionRanks) =>
     Some(
       protocol.MapMessage.MapSnapshot(
-        systems = systems.map((sysId, mss) => (sysId.value, toProtoSystemSnapshot(mss))),
+        systems = systems.map((sysId, mss) => (sysId, toProtoSystemSnapshot(mss))),
         connections =
           connections.view.mapValues(c => toProtoConnectionWithSigs(c, connectionRanks(c.connection.id))).toMap
       )
@@ -329,7 +329,7 @@ private def toProto(msg: MapResponse): Option[protocol.MapMessage] = msg match
       ) =>
     Some(
       protocol.MapMessage.SystemsRemoved(
-        removedSystemIds = removedSystemIds.map(_.value).toArray,
+        removedSystemIds = removedSystemIds.toArray,
         removedConnectionIds = removedConnectionIds.toArray,
         updatedSystems = updatedSystems.map(toProtoSystemSnapshot).toArray,
         updatedConnections = updatedConnections.view

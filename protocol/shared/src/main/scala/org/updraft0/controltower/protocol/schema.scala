@@ -153,8 +153,12 @@ object jsoncodec extends OpaqueCodecs:
 
   // aux
   given [A <: AnyRef: JsonValueCodec: scala.reflect.ClassTag]: JsonValueCodec[Array[A]] = JsonCodecMaker.make
-  given JsonValueCodec[Array[ConnectionId]] =
+
+  // oops this seems to work for *any* long array?
+  given connectionIdArray: JsonValueCodec[Array[ConnectionId]] =
     JsonCodecMaker.make[Array[Long]].asInstanceOf[JsonValueCodec[Array[ConnectionId]]]
+  given systemIdArray: JsonValueCodec[Array[SystemId]] =
+    JsonCodecMaker.make[Array[Long]].asInstanceOf[JsonValueCodec[Array[SystemId]]]
 
   // constant
   given JsonValueCodec[SpaceType] = JsonCodecMaker.make(config)

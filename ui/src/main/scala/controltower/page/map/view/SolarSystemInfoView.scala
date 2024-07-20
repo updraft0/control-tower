@@ -3,10 +3,10 @@ package controltower.page.map.view
 import com.raquo.laminar.api.L.*
 import controltower.backend.{ESI, ThirdParty}
 import controltower.ui.ViewController
-import org.updraft0.controltower.constant.{SpaceType, WormholeClass, WormholeEffect}
+import org.updraft0.controltower.constant.*
 import org.updraft0.controltower.protocol.*
 
-case class SystemInfo(systemId: Long, name: Option[String])
+case class SystemInfo(systemId: SystemId, name: Option[String])
 
 /** Basic solar system information panel
   */

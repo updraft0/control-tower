@@ -6,7 +6,7 @@ import controltower.component.Modal
 import controltower.db.ReferenceDataStore
 import controltower.page.map.{MapAction, PositionController, RoleController}
 import controltower.ui.*
-import org.updraft0.controltower.constant
+import org.updraft0.controltower.constant.SystemId
 import org.updraft0.controltower.protocol.*
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -246,7 +246,7 @@ private[map] def removeSystemConfirm(system: MapSystemSnapshot, actions: WriteBu
   )
 
 private[map] def removeMultipleSystems(
-    systemIds: Array[constant.SystemId],
+    systemIds: Array[SystemId],
     actions: WriteBus[MapAction],
     onClose: Observer[Unit]
 )(using
@@ -255,7 +255,7 @@ private[map] def removeMultipleSystems(
   Modal.showConfirmation(
     "Remove multiple systems",
     span(s"Remove ${systemIds.length} selected systems from map?"),
-    actions.contramap(_ => MapAction.RemoveMultiple(systemIds.map(_.value))),
+    actions.contramap(_ => MapAction.RemoveMultiple(systemIds)),
     isDestructive = true,
     onClose = onClose
   )

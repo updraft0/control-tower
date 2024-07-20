@@ -1,6 +1,6 @@
 package org.updraft0.controltower.protocol
 
-import org.updraft0.controltower.constant.{WormholeClass, WormholeEffect}
+import org.updraft0.controltower.constant.*
 
 case class Planet(
     idx: Int,
@@ -16,14 +16,14 @@ case class Station(
     operationId: Int,
     factionId: Option[Long],
     factionName: Option[String],
-    corporationId: Long,
+    corporationId: CorporationId,
     corporationName: String
 )
 
 case class WormholeStatic(typeId: Int, name: String)
-case class Stargate(id: Int, systemId: Long, toStargateId: Long)
+case class Stargate(id: Int, systemId: SystemId, toStargateId: Long)
 case class SolarSystem(
-    id: Long,
+    id: SystemId,
     name: String,
     regionId: Long,
     regionName: String,

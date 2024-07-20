@@ -3,6 +3,7 @@ package controltower.page.map
 import com.raquo.airstream.state.Var.VarTuple
 import com.raquo.laminar.api.L
 import com.raquo.laminar.api.L.*
+import org.updraft0.controltower.constant.SystemId
 import org.updraft0.controltower.protocol.*
 
 import scala.collection.mutable
@@ -27,7 +28,7 @@ trait PositionController:
 
   def clear(): Unit
 
-  def pointInsideBox(coord: Coord): Option[Long]
+  def pointInsideBox(coord: Coord): Option[SystemId]
 
 /** Initial implementation of position controller (stateless)
   */
@@ -47,7 +48,7 @@ class VarPositionController(map: mutable.Map[SystemId, Var[Coord]], boxSize: Coo
     Var.set(map.view.values.map(v => (v -> Coord.Hidden): VarTuple[_]).toSeq*)
     map.clear()
 
-  override def pointInsideBox(coord: Coord): Option[Long] =
+  override def pointInsideBox(coord: Coord): Option[SystemId] =
     map.view.find((_, coordVar) => isInsideBox(coordVar.now(), boxSize, coord)).map(_._1)
 
 private inline def isInsideBox(boxStart: Coord, boxSize: Coord, point: Coord) =

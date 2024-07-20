@@ -9,7 +9,7 @@ import controltower.db.ReferenceDataStore
 import controltower.page.map.*
 import controltower.ui.*
 import io.laminext.websocket.*
-import org.updraft0.controltower.constant
+import org.updraft0.controltower.constant.SystemId
 import org.updraft0.controltower.protocol.*
 import org.scalajs.dom.KeyboardEvent
 import com.github.plokhotnyuk.jsoniter_scala.core.{readFromString, writeToString}
@@ -134,7 +134,7 @@ private final class MapView(
           controller.pos,
           controller.selectedSystemId.signal,
           controller.bulkSelectedSystemIds.signal,
-          controller.allLocations.signal.map(_.getOrElse(constant.SystemId(systemId), Array.empty[CharacterLocation])),
+          controller.allLocations.signal.map(_.getOrElse(SystemId(systemId), Array.empty[CharacterLocation])),
           connectingSystem.current,
           ws.isConnected,
           controller.mapSettings
@@ -350,6 +350,6 @@ object MapView:
       )
 
 enum MapNewConnectionState derives CanEqual:
-  case Start(fromSystemId: Long, initial: Coord) extends MapNewConnectionState
-  case Move(fromSystemId: Long, at: Coord)       extends MapNewConnectionState
-  case Stopped                                   extends MapNewConnectionState
+  case Start(fromSystemId: SystemId, initial: Coord) extends MapNewConnectionState
+  case Move(fromSystemId: SystemId, at: Coord)       extends MapNewConnectionState
+  case Stopped                                       extends MapNewConnectionState

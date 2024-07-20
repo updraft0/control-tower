@@ -6,8 +6,7 @@ import controltower.backend.ESI
 import controltower.component.Modal
 import controltower.page.map.{Coord, MapAction, PositionController, RoleController}
 import controltower.ui.{ViewController, onEnterPress}
-import org.updraft0.controltower.constant
-import org.updraft0.controltower.constant.{SystemId => _, *}
+import org.updraft0.controltower.constant.*
 import org.updraft0.controltower.protocol.*
 
 import scala.collection.MapView
@@ -73,8 +72,8 @@ class SystemView(
     systemId: SystemId,
     system: Signal[MapSystemSnapshot],
     pos: PositionController,
-    selectedSystem: Signal[Option[Long]],
-    bulkSelectedSystems: Signal[Array[constant.SystemId]],
+    selectedSystem: Signal[Option[SystemId]],
+    bulkSelectedSystems: Signal[Array[SystemId]],
     characters: Signal[Array[CharacterLocation]],
     connectingState: Var[MapNewConnectionState],
     isConnected: Signal[Boolean],
@@ -124,8 +123,8 @@ class SystemView(
           box.amend(
             idAttr := s"system-$systemId",
             cls    := "system",
-            cls("system-selected") <-- selectedSystem.map(_.exists(_ == systemId)),
-            cls("system-selected-bulk") <-- bulkSelectedSystems.map(_.exists(_.value == systemId)),
+            cls("system-selected") <-- selectedSystem.map(_.contains(systemId)),
+            cls("system-selected-bulk") <-- bulkSelectedSystems.map(_.contains(systemId)),
             // FIXME: this is also fired when we drag the element so selection is always changing
             onClick
               .filter(ev => !ev.ctrlKey && !ev.shiftKey && !ev.metaKey)
@@ -141,14 +140,14 @@ class SystemView(
                   .filter(RoleController.canRenameSystem)
                   .withCurrentValueOf(system)
               ) -->
-              Observer({ case (_, mss: MapSystemSnapshot) =>
+              ((_, mss) =>
                 Modal.show(
                   (closeMe, owner) => systemRenameView(systemId, mss.system.name.getOrElse(""), ctx.actions, closeMe),
                   Observer.empty[Unit],
                   true,
                   cls := "system-rename-dialog"
                 )
-              }),
+              ),
             // dragging connections handlers
             inContext(self =>
               Seq(
@@ -251,7 +250,10 @@ private[map] inline def renderLocationRow(
     shipTypes: Map[Long, ShipType]
 )(charId: CharacterId, location: CharacterLocation, sig: Signal[CharacterLocation]) =
   tr(
-    td(cls := "character-image", ESI.characterImage(charId, location.characterName, size = CharacterImageSize)),
+    td(
+      cls := "character-image",
+      ESI.characterImage(charId, location.characterName, size = MagicConstant.CharacterImageSize)
+    ),
     td(cls := "character-name", location.characterName),
     td(cls := "ship-image", child <-- sig.map(cl => ESI.typeIcon(cl.shipTypeId))),
     td(cls := "ship-type", child.text <-- sig.map(cl => shipTypes(cl.shipTypeId).name)),
@@ -355,7 +357,7 @@ private inline def systemWhStatics(ss: SolarSystem, wormholeTypes: Map[Long, Wor
       staticTooltip(whType, s"static-${ss.id}-${whType.typeId}")
     )
 
-private def systemRenameView(systemId: Long, name: String, actions: WriteBus[MapAction], closeMe: Observer[Unit]) =
+private def systemRenameView(systemId: SystemId, name: String, actions: WriteBus[MapAction], closeMe: Observer[Unit]) =
   val nameVar = Var(name)
   div(
     cls := "system-rename-view",

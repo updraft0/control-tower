@@ -5,13 +5,10 @@ import controltower.backend.ESI
 import controltower.component.*
 import controltower.page.map.{MapAction, RoleController}
 import controltower.ui.*
-import org.updraft0.controltower.constant.{ConnectionId, UnknownOrUnset}
+import org.updraft0.controltower.constant.*
 import org.updraft0.controltower.protocol.*
 
 import java.time.{Duration, Instant}
-
-// TODO: move to magic constants
-val CharacterImageSize = 32
 
 enum SignatureFilter derives CanEqual:
   case All, Wormhole, Combat, Indy, Hacking, Unscanned
@@ -375,7 +372,9 @@ private def signatureRow(
   )
   val signatureUpdatedByTd = td(
     cls := "updated-by-img",
-    child <-- sig.map(s => ESI.characterImage(s.updatedByCharacterId, "updatedBy", size = CharacterImageSize))
+    child <-- sig.map(s =>
+      ESI.characterImage(s.updatedByCharacterId, "updatedBy", size = MagicConstant.CharacterImageSize)
+    )
   )
 
   tr(
