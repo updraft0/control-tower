@@ -21,7 +21,7 @@ case class NoRolesToUpdateMap(mapId: MapId) extends RuntimeException("Insufficie
 case class MapNotFound(mapId: MapId)        extends RuntimeException("Map was not found")
 
 def createMap = Endpoints.createMap
-  .zServerSecurityLogic(validateSession)
+  .zServerSecurityLogic(validateSessionString)
   .serverLogic(user =>
     newMap =>
       dbquery
@@ -36,7 +36,7 @@ def createMap = Endpoints.createMap
   )
 
 def getMap = Endpoints.getMap
-  .zServerSecurityLogic(validateSession)
+  .zServerSecurityLogic(validateSessionString)
   .serverLogic(user =>
     userMapId =>
       dbquery
@@ -56,7 +56,7 @@ def getMap = Endpoints.getMap
   )
 
 def updateMap = Endpoints.updateMap
-  .zServerSecurityLogic(validateSession)
+  .zServerSecurityLogic(validateSessionString)
   .serverLogic(user =>
     (userMapId, mapUpdate) =>
       dbquery
@@ -87,7 +87,7 @@ def updateMap = Endpoints.updateMap
   )
 
 def deleteMap = Endpoints.deleteMap
-  .zServerSecurityLogic(validateSession)
+  .zServerSecurityLogic(validateSessionString)
   .serverLogic(user =>
     userMapId =>
       dbquery
@@ -116,7 +116,7 @@ def mapWebSocket: zio.http.Routes[EndpointEnv, zio.http.Response] =
       .cookieWithOrFail(Endpoints.SessionCookieName)(
         Response.text("Missing session cookie").status(Status.BadRequest)
       )(cookie =>
-        validateSession(protocol.SessionCookie(cookie.content)).mapError(msg =>
+        validateSessionString(protocol.SessionCookie(cookie.content)).mapError(msg =>
           Response.text(msg).status(Status.Unauthorized)
         )
       )

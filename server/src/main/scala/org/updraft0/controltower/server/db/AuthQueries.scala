@@ -19,14 +19,9 @@ object AuthQueries:
   import auth.given
   import auth.schema.*
 
-  given CanEqual[UUID, UUID] = CanEqual.derived
-
+  // note: this ignores session expiry
   private inline def getSessionById(sessionId: UUID) =
-    quote {
-      userSession
-        .filter(_.sessionId == lift(sessionId))
-        .filter(us => sql"${us.expiresAt} > (unixepoch() * 1000)".asCondition)
-    }
+    userSession.filter(_.sessionId == lift(sessionId))
 
   def getAllCharacterIds(): Result[List[CharacterId]] =
     run(quote(userCharacter.map(_.characterId)))

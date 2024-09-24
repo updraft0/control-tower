@@ -11,27 +11,42 @@ import org.updraft0.controltower.server.tracking.CharacterAuthTracker
 import sttp.tapir.ztapir.*
 import zio.{Config as _, *}
 
-def validateSession(
+enum UserSessionError derives CanEqual:
+  case InvalidCookie, DbQueryFailure, SessionNotFound, SessionExpired
+
+def validateSessionString(
     cookie: protocol.SessionCookie
 ): ZIO[SessionCrypto & javax.sql.DataSource & UserSession, String, LoggedInUser] =
+  validateSession(cookie).mapError:
+    case UserSessionError.InvalidCookie   => "invalid cookie"
+    case UserSessionError.SessionNotFound => "session not found"
+    case UserSessionError.SessionExpired  => "session expired"
+    case UserSessionError.DbQueryFailure  => "internal error"
+
+def validateSession(
+    cookie: protocol.SessionCookie
+): ZIO[SessionCrypto & javax.sql.DataSource & UserSession, UserSessionError, LoggedInUser] =
+  for
+    now           <- ZIO.clockWith(_.instant)
+    sessionCookie <- validateCookie(cookie)
+    authResult <- AuthQueries
+      .getUserCharactersBySessionId(sessionCookie.id)
+      .tapErrorCause(ZIO.logWarningCause("failed query", _))
+      .orElseFail(UserSessionError.DbQueryFailure)
+    _ <- ZIO.fail(UserSessionError.SessionNotFound).when(authResult.isEmpty)
+    _ <- ZIO.fail(UserSessionError.SessionExpired).when(authResult.exists(_._1.expiresAt.isBefore(now)))
+    (_, user, _) = authResult.get
+    user <- UserSession.setUser(LoggedInUser(user.id, sessionCookie.id))
+  yield user
+
+private inline def validateCookie(cookie: protocol.SessionCookie) =
   ZIO
     .fromEither(SessionCookie.from(cookie))
     .tapError(msg => ZIO.logWarning(s"Invalid session cookie: $msg"))
-    .foldZIO(
-      _ => ZIO.fail("Cookie is not valid"),
-      sc =>
-        AuthQueries
-          .getUserCharactersBySessionId(sc.id)
-          .tapErrorCause(ZIO.logWarningCause("failed query", _))
-          .orElseFail("Failure while trying to find session")
-          .flatMap {
-            case None               => ZIO.fail("Session is not valid")
-            case Some((_, user, _)) => UserSession.setUser(LoggedInUser(user.id, sc.id))
-          }
-    )
+    .mapError(_ => UserSessionError.InvalidCookie)
 
 def getUserInfo = Endpoints.getUserInfo
-  .zServerSecurityLogic(validateSession)
+  .zServerSecurityLogic(validateSessionString)
   .serverLogic(user =>
     _ =>
       AuthQueries
@@ -49,7 +64,7 @@ def getUserInfo = Endpoints.getUserInfo
   )
 
 def logoutUserCharacter = Endpoints.logoutUserCharacter
-  .zServerSecurityLogic(validateSession)
+  .zServerSecurityLogic(validateSessionString)
   .serverLogic(user =>
     characterId =>
       Users

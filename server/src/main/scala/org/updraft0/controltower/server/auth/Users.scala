@@ -28,7 +28,7 @@ case class CharacterAuth(
 object Users:
   type Env = Config & javax.sql.DataSource & EsiClient & SecureRandom & TokenCrypto
 
-  private val NonceLength = 12
+  private val NonceLength = 12 // FIXME  constant
 
   def loginCallback(authCode: String, sessionId: UUID): ZIO[Env, Throwable, CharacterAuth] =
     Esi.initialTokenAndUserData(authCode).mapError(_.asThrowable).flatMap { (jwt, tokenMeta) =>
@@ -39,7 +39,8 @@ object Users:
             case (None, None)                     => newUser(jwt, tokenMeta, sessionId)
             case (None, Some((user, char)))       => newSession(jwt, tokenMeta, user, char, sessionId)
             case (Some((session, user, _)), None) => addCharacterToUser(jwt, tokenMeta, user, session)
-            case (Some(_), Some((user, char)))    => updateRefreshToken(jwt, tokenMeta, user.id, char)
+            case (Some((session, _, _)), Some((user, char))) =>
+              updateRefreshToken(jwt, tokenMeta, user.id, char, session)
           }
       )
     }
@@ -131,10 +132,12 @@ object Users:
       session: UserSession
   ): ZIO[Env, Throwable, CharacterAuth] =
     for
-      now <- ZIO.clockWith(_.instant)
+      conf <- ZIO.service[Config]
+      now  <- ZIO.clockWith(_.instant)
       char <- getUserCharacterFromEsi(tokenMeta.characterId, tokenMeta.characterOwnerHash, jwt.accessToken, now)
         .logError(s"Failed to get character info for ${tokenMeta.characterId}")
         .absorbWith(err => EsiError.ClientError(err).asThrowable)
+      _     <- auth.refreshSessionExpiry(session.copy(expiresAt = now.plus(conf.auth.sessionExpiry)))
       _     <- auth.insertUserCharacter(UserCharacter(user.id, char.id))
       _     <- auth.upsertCharacter(char)
       token <- encryptJwtResponse(tokenMeta, jwt)
@@ -152,13 +155,16 @@ object Users:
       jwt: JwtAuthResponse,
       tokenMeta: EsiTokenMeta,
       userId: UserId,
-      char: AuthCharacter
+      char: AuthCharacter,
+      session: UserSession
   ): ZIO[Env, Throwable, CharacterAuth] =
     for
-      now <- ZIO.clockWith(_.instant)
+      conf <- ZIO.service[Config]
+      now  <- ZIO.clockWith(_.instant)
       char <- getUserCharacterFromEsi(tokenMeta.characterId, tokenMeta.characterOwnerHash, jwt.accessToken, now)
         .logError(s"Failed to get character info for ${tokenMeta.characterId}")
         .absorbWith(err => EsiError.ClientError(err).asThrowable)
+      _     <- auth.refreshSessionExpiry(session.copy(expiresAt = now.plus(conf.auth.sessionExpiry)))
       _     <- auth.upsertCharacter(char)
       token <- encryptJwtResponse(tokenMeta, jwt)
       _     <- auth.upsertAuthToken(token)

@@ -5,9 +5,13 @@ import org.updraft0.controltower.constant.*
 import org.updraft0.controltower.db.model.*
 import zio.ZIO
 
+import java.util.UUID
+
 object auth:
   import schema.*
   import ctx.*
+
+  given CanEqual[UUID, UUID] = CanEqual.derived
 
   // TODO: move these opaque type mappings somewhere else?
   given MappedEncoding[Long, CharacterId] = MappedEncoding(CharacterId.apply)
@@ -97,6 +101,13 @@ object auth:
 
   def insertUserSession(sess: UserSession): DbOperation[Long] =
     ctx.run(insert(schema.userSession, lift(sess)))
+
+  def refreshSessionExpiry(sess: UserSession): DbOperation[Long] =
+    ctx.run(
+      schema.userSession
+        .filter(us => us.sessionId == lift(sess.sessionId) && us.userId == lift(sess.userId))
+        .update(_.expiresAt -> lift(sess.expiresAt), _.lastSeenAt -> Some(unixepoch))
+    )
 
   def upsertAuthToken(tok: CharacterAuthToken): DbOperation[Long] =
     ctx.run(
