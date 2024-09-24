@@ -7,7 +7,7 @@ import io.getquill.context.qzio.{ZioJdbcContext, ZioJdbcUnderlyingContext}
 import scala.util.Try
 
 trait StringJsonExtensions extends Encoders with Decoders:
-  this: JdbcContextTypes[_, _] =>
+  this: JdbcContextTypes[?, ?] =>
 
   inline given [T](using JsonValueCodec[T]): MappedEncoding[JsonValue[T], String] =
     MappedEncoding(v => writeToString(v.value))

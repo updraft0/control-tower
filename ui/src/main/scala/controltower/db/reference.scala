@@ -230,7 +230,7 @@ private def openIndexedDb(
 private def inTransaction[A](
     trx: Transaction,
     name: String,
-    f: ObjectStore => Request[org.scalajs.dom.IDBStoreLike[_], A]
+    f: ObjectStore => Request[org.scalajs.dom.IDBStoreLike[?], A]
 ): Future[A] =
   val res = Promise[A]
   val req = f(trx.objectStore(name))

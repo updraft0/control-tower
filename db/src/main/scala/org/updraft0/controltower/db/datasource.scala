@@ -50,5 +50,5 @@ private[db] class MultiDbDatasource(cfg: Config, orig: DataSource, inSdeLoad: Bo
   override def setLoginTimeout(seconds: Int): Unit                           = orig.setLoginTimeout(seconds)
   override def getLoginTimeout: Int                                          = orig.getLoginTimeout
   override def unwrap[T](iface: Class[T]): T                                 = orig.unwrap(iface)
-  override def isWrapperFor(iface: Class[_]): Boolean                        = orig.isWrapperFor(iface)
+  override def isWrapperFor(iface: Class[?]): Boolean                        = orig.isWrapperFor(iface)
   override def getParentLogger: Logger                                       = orig.getParentLogger

@@ -343,7 +343,7 @@ final class MapController(val rds: ReferenceDataStore, val clock: Signal[Instant
           )
           Var.set(
             systems.view.values
-              .map(mss => (pos.systemDisplayData(mss.system.systemId) -> mss.display): VarTuple[_])
+              .map(mss => (pos.systemDisplayData(mss.system.systemId) -> mss.display): VarTuple[?])
               .toSeq*
           )
 

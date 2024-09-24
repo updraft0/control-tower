@@ -20,13 +20,13 @@ trait AirstreamStreams extends Streams[AirstreamStreams]:
 object AirstreamStreams extends AirstreamStreams
 
 // TODO: add concept of closed (again, a parameter? sigh)
-class WebSocketToAirstream[R <: AirstreamStreams with WebSockets](using owner: Owner) extends WebSocketToPipe[R]:
+class WebSocketToAirstream[R <: AirstreamStreams & WebSockets](using owner: Owner) extends WebSocketToPipe[R]:
   override type S    = AirstreamStreams
   override type F[X] = Future[X]
 
   override def apply[REQ, RESP](s: Any)(
       ws: WebSocket[F],
-      o: WebSocketBodyOutput[Any, REQ, RESP, _, AirstreamStreams]
+      o: WebSocketBodyOutput[Any, REQ, RESP, ?, AirstreamStreams]
   ): Any =
     (in: Observable[REQ]) =>
       var isClosed = false

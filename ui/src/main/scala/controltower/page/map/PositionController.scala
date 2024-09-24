@@ -44,7 +44,7 @@ class VarPositionController(map: mutable.Map[SystemId, Var[Coord]], boxSize: Coo
     }
 
   override def clear(): Unit =
-    Var.set(map.view.values.map(v => (v -> Hidden): VarTuple[_]).toSeq*)
+    Var.set(map.view.values.map(v => (v -> Hidden): VarTuple[?]).toSeq*)
     map.clear()
 
   override def pointInsideBox(coord: Coord): Option[SystemId] =

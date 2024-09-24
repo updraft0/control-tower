@@ -15,6 +15,7 @@ import org.updraft0.controltower.constant.SystemId
 import org.updraft0.controltower.protocol.*
 
 import java.time.Instant
+import scala.compiletime.uninitialized
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration.*
@@ -36,7 +37,7 @@ private final class MapView(
   private val mapTop                    = Var[Option[Element]](None)
   private val inKeyHandler              = Var(false)
   private val notInKeyHandler           = inKeyHandler.signal.map(!_)
-  private var controller: MapController = _
+  private var controller: MapController = uninitialized
 
   override def view: Element = div(
     idAttr := s"map-controller-view-${viewId}",

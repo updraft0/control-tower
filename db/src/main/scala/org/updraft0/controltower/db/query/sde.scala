@@ -9,7 +9,6 @@ import javax.sql.DataSource
 
 object sde:
   import auth.given
-  import schema.*
   import ctx.*
 
   import com.github.plokhotnyuk.jsoniter_scala.core.*
@@ -209,5 +208,5 @@ object sde:
 
   def vacuumSde: DbOperation[Long] =
     // TODO this is a bit strange
-    val vac = "VACUUM sde;"
+    inline val vac = "VACUUM sde;"
     ctx.run(quote(infix"#$vac".as[Action[Unit]]))

@@ -389,7 +389,7 @@ object parser:
     )
 
   private def parseIntKeyedMap[T](
-      c: Cursor[_ <: KeyType],
+      c: Cursor[? <: KeyType],
       f: (Int, Cursor[String]) => YamlValue[T]
   ): YamlValue[Vector[T]] =
     c.mapObject[Integer, String, T]((id, mc) => f(id, mc)).map(_.map(_._2).toVector)

@@ -463,7 +463,7 @@ object map:
 
   def vacuumMap: DbOperation[Long] =
     // TODO this is a bit strange
-    val vac = "VACUUM map;"
+    inline val vac = "VACUUM map;"
     ctx.run(quote(infix"#$vac".as[Action[Unit]]))
 
 private def whClassesFromSet(set: BitSet): Set[WormholeClass] =

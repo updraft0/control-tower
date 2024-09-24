@@ -30,7 +30,7 @@ object build {
   val commonSettings = Seq(
     organization := "org.updraft0",
     version      := "0.0.1-SNAPSHOT",
-    scalaVersion := "3.3.3",
+    scalaVersion := "3.5.1",
     manifestSetting,
     crossVersion := CrossVersion.binary,
     scalacOptions ++= Seq(
@@ -43,12 +43,13 @@ object build {
       "-language:strictEquality"
 //      "-explain"
     ),
+    ThisBuild / usePipelining := true,
     Test / scalacOptions --= Seq(
       "-language:strictEquality", // TODO fixup tests and remove this
-      "-Wunused:imports,privates,locals,implicits",
+      "-Wunused:imports,privates,locals,implicits"
     ),
     Test / scalacOptions ++= Seq(
-      "-Wunused:privates,locals,implicits",
+      "-Wunused:privates,locals,implicits"
     ),
     resolvers ++= Resolver.sonatypeOssRepos("snapshots") // FIXME
   ) ++ targetSettings

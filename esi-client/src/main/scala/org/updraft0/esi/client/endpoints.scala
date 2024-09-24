@@ -127,7 +127,7 @@ object Endpoints:
   val getCharacter = endpoint.get
     .in("v5" / "characters" / path[CharacterId])
     .out(jsonBody[Character])
-    .errorOut(oneOf[EsiError](oneOfVariant(StatusCode.NotFound, jsonBody[EsiError.NotFound]), esiErrorOut.variants: _*))
+    .errorOut(oneOf[EsiError](oneOfVariant(StatusCode.NotFound, jsonBody[EsiError.NotFound]), esiErrorOut.variants*))
     .description("Public information about a character")
 
   val getCharacterAffiliations = endpoint.post
