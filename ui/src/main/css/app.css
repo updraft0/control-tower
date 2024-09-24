@@ -5,6 +5,7 @@
 @import 'icon.css';
 
 /* controls */
+@import 'components/context-dropdown.css';
 @import 'components/option-dropdown.css';
 @import 'components/tooltip.css';
 
@@ -19,6 +20,7 @@
 @import 'views/nav-top-view.css';
 @import 'views/solar-system-info-view.css';
 @import 'views/map-connection.css';
+@import 'views/map-context-menu.css';
 @import 'views/map-system-signature-view.css';
 @import 'views/map-selection-view.css';
 @import 'views/system-view.css';
@@ -216,7 +218,7 @@ $box-height:    40px;
 .system {
     font-family: Oxygen, Arial, sans-serif;
     font-weight: 700;
-    font-size: 12px;
+    font-size: 0.75em;
     background-color: $gray-dark;
     border-radius: 5px;
     /*transition: .5s linear;*/

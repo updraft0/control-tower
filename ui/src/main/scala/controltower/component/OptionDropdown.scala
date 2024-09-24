@@ -1,6 +1,8 @@
 package controltower.component
 
 import com.raquo.laminar.api.L.*
+import org.updraft0.controltower.constant.MagicConstant
+
 import scala.concurrent.duration.{Duration, given}
 import scala.collection.mutable.ArrayBuffer
 
@@ -14,7 +16,7 @@ trait DropdownItem[E]:
 class OptionDropdown[E](
     options: Seq[E],
     current: Var[E],
-    mouseLeaveDelay: Duration = 500.millis,
+    mouseLeaveDelay: Duration = MagicConstant.DropdownDelayMs.millis,
     isDisabled: Observable[Boolean] = Val(false)
 )(using D: DropdownItem[E], @scala.annotation.unused _ce: CanEqual[E, E]):
 

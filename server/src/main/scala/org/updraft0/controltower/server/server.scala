@@ -42,9 +42,9 @@ object Server extends ZIOAppDefault:
         dbConfig,
         esiClientConfig,
         httpServerConfig,
+        locationTrackerConfig,
         mapConfig,
         metricsConfig,
-        locationTrackerConfig,
         sdeClientConfig,
         sdeConfig,
         // ESI & SDE

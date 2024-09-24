@@ -1,0 +1,35 @@
+#map-context-menu {
+    position: absolute;
+    z-index: 2000;
+
+    & ul {
+        min-width: 12em;
+
+        & li[data-action="remove-selected"], & li[data-action="disconnect"], & li[data-action="remove-current"] {
+            color: $red-darkest;
+            & i {
+                color: $red-dark;
+            }
+        }
+
+        & i.ti-circle-filled[data-mass="fresh"], & i.ti-circle-filled[data-stance="unknown"] {
+            color: $gray-light;
+        }
+
+        & i.ti-circle-filled[data-mass="reduced"] {
+            color: $orange;
+        }
+
+        & i.ti-circle-filled[data-mass="critical"] {
+            color: $red;
+        }
+
+        & i[data-stance="hostile"] {
+            color: $red;
+        }
+
+        & i[data-stance="friendly"] {
+            color: $blue;
+        }
+    }
+}

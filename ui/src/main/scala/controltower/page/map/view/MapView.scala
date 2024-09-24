@@ -1,5 +1,6 @@
 package controltower.page.map.view
 
+import com.github.plokhotnyuk.jsoniter_scala.core.{readFromString, writeToString}
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.{ReactiveElement, ReactiveHtmlElement}
 import controltower.Page
@@ -9,17 +10,16 @@ import controltower.db.ReferenceDataStore
 import controltower.page.map.*
 import controltower.ui.*
 import io.laminext.websocket.*
+import org.scalajs.dom.KeyboardEvent
 import org.updraft0.controltower.constant.SystemId
 import org.updraft0.controltower.protocol.*
-import org.scalajs.dom.KeyboardEvent
-import com.github.plokhotnyuk.jsoniter_scala.core.{readFromString, writeToString}
 
 import java.time.Instant
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration.*
-import scala.util.Try
 import scala.language.implicitConversions
+import scala.util.Try
 
 // TODO: duplication
 given equalEventTarget[El <: org.scalajs.dom.Element]: CanEqual[org.scalajs.dom.EventTarget, El] = CanEqual.derived
@@ -60,7 +60,7 @@ private final class MapView(
         else org.scalajs.dom.console.error(s"Unhandled error in MapControllerView: $ex")
       case _ => // no-op
   private def binderStarted(owner: Owner): Unit =
-    controller = new MapController(rds, time)(using owner)
+    controller = new MapController(rds, time, ws.isConnected)(using owner)
 
     // subscribe output and input
     controller.requestBus.events.addObserver(ws.send)(using owner)
@@ -137,7 +137,8 @@ private final class MapView(
           controller.allLocations.signal.map(_.getOrElse(SystemId(systemId), Array.empty[CharacterLocation])),
           connectingSystem.current,
           ws.isConnected,
-          controller.mapSettings
+          controller.mapSettings,
+          controller.mapUiEvents.writer
         )
       },
       (view, _) => view.view
@@ -154,7 +155,8 @@ private final class MapView(
             whcV.signal,
             controller.selectedConnectionId,
             controller.pos,
-            controller.BoxSize
+            controller.BoxSize,
+            controller.mapUiEvents.writer
           ),
         (view, _) => view.view
       )
@@ -166,9 +168,13 @@ private final class MapView(
 
     val selectionView =
       SelectionView(controller.selectedSystemId.signal, controller.bulkSelectedSystemIds.writer, systemNodes)
+    val contextMenuView = ContextMenuView(controller, ws.isConnected)
 
     div(
       idAttr := "map-view-inner",
+      // context menu
+      onContextMenu.preventDefault --> Observer.empty, // TODO - right now this is needed in multiple places
+      contextMenuView.view,
       // A -> add system
       modalKeyBinding(
         "KeyA",
@@ -245,12 +251,32 @@ private final class MapView(
             cls := "system-rename-dialog"
           )
       ),
+      // similarly, ui events to bring up dialogs
+      controller.mapUiEvents.events --> Observer[MapUiEvent] {
+        case MapUiEvent.AddSystemDialog =>
+          Modal.show(
+            (closeMe, owner) => systemAddView(controller.actionsBus, closeMe, rds, controller.pos)(using owner),
+            Observer.empty,
+            true,
+            cls := "system-add-dialog"
+          )
+        case MapUiEvent.RemoveConnectionDialog(conn) =>
+          removeConnection(conn, controller.actionsBus, Observer.empty)(using rds)
+        case MapUiEvent.RemoveSystemSelectionDialog(SystemSelectionState.Single(system)) =>
+          removeSystemConfirm(system, controller.actionsBus, Observer.empty)(using rds)
+        case MapUiEvent.RemoveSystemSelectionDialog(SystemSelectionState.Multiple(sIds)) =>
+          removeMultipleSystems(sIds, controller.actionsBus, Observer.empty)(using rds)
+        case MapUiEvent.RemoveSystemSelectionDialog(_) => () // no-op
+        case _: MapUiEvent.ContextMenu                 => () // no-op
+      },
+      // main map div
       div(
         idAttr := "map-parent",
         cls    := "grid",
         cls    := "g-20px",
         toolbarView.view,
         // note: the selection event handler must come before the cancel one
+        contextMenuView.eventHandlers,
         selectionView.eventHandlers,
         inContext(self =>
           onPointerUp.compose(_.withCurrentValueOf(mapCtx.userPreferences)) --> ((ev, prefs) =>

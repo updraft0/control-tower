@@ -6,7 +6,6 @@ import controltower.component.Modal
 import controltower.db.ReferenceDataStore
 import controltower.page.map.{MapAction, PositionController, RoleController}
 import controltower.ui.*
-import org.updraft0.controltower.constant.SystemId
 import org.updraft0.controltower.protocol.*
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -27,6 +26,11 @@ class ToolbarView(
   override def view: Element =
     div(
       idAttr := "map-toolbar",
+      // fix selection view popping up after click
+      onPointerDown.stopImmediatePropagation --> Observer.empty,
+      // fix custom context menu popping up after right click (not completely for some reason)
+      onContextMenu.stopImmediatePropagation --> Observer.empty,
+      // buttons
       toolbarButton(
         "add-system",
         "ti-circle-plus",
@@ -35,7 +39,7 @@ class ToolbarView(
           Modal.show(
             (closeMe, owner) => systemAddView(actions, closeMe, rds, positionController)(using owner),
             Observer.empty[Unit],
-            true,
+            clickCloses = true,
             cls := "system-add-dialog"
           )
         )
@@ -87,26 +91,7 @@ class ToolbarView(
         icon = "ti-link-off",
         disableWhenNotSelectedAndRole(selectedConnection, mapRole, RoleController.canChangeConnections, isConnected),
         onClick.stopPropagation.compose(_.sampleCollectSome(selectedConnection)) --> (conn =>
-          Modal.showConfirmation(
-            "Confirm removal",
-            span(
-              child.text <-- Signal
-                .fromFuture((for
-                  fromSystem <- rds.systemForId(conn.connection.fromSystemId)
-                  toSystem   <- rds.systemForId(conn.connection.toSystemId)
-                yield fromSystem.map(_.name) -> toSystem.map(_.name)).map {
-                  case (Some(fromName), Some(toName)) => Some(s"Remove connection from $fromName to $toName?")
-                  case _                              => None
-                })
-                .map(
-                  _.flatten.getOrElse(
-                    s"Remove connection between $$${conn.connection.fromSystemId} to $$${conn.connection.toSystemId}"
-                  )
-                )
-            ),
-            actions.contramap(_ => MapAction.RemoveConnection(conn.connection.id)),
-            isDestructive = true
-          )
+          removeConnection(conn, actions, Observer.empty)(using rds)
         )
       )
     )
@@ -224,38 +209,4 @@ private def systemAddView(
         onClick.mapToUnit --> (_ => onSubmit())
       )
     )
-  )
-
-private[map] def removeSystemConfirm(system: MapSystemSnapshot, actions: WriteBus[MapAction], onClose: Observer[Unit])(
-    using rds: ReferenceDataStore
-) =
-  Modal.showConfirmation(
-    "Confirm removal",
-    span(
-      child.text <--
-        Signal
-          .fromFuture(rds.systemForId(system.system.systemId))
-          .map(_.flatten.map(_.name).getOrElse(s"?? ${system.system.systemId}"))
-          .map(solarName =>
-            system.system.name.map(n => s"Remove system $n ($solarName)?").getOrElse(s"Remove system $solarName?")
-          )
-    ),
-    actions.contramap(_ => MapAction.Remove(system.system.systemId)),
-    isDestructive = true,
-    onClose = onClose
-  )
-
-private[map] def removeMultipleSystems(
-    systemIds: Array[SystemId],
-    actions: WriteBus[MapAction],
-    onClose: Observer[Unit]
-)(using
-    rds: ReferenceDataStore
-) =
-  Modal.showConfirmation(
-    "Remove multiple systems",
-    span(s"Remove ${systemIds.length} selected systems from map?"),
-    actions.contramap(_ => MapAction.RemoveMultiple(systemIds)),
-    isDestructive = true,
-    onClose = onClose
   )

@@ -4,8 +4,8 @@ import com.raquo.laminar.api.L.*
 import controltower.Constant
 import controltower.backend.ESI
 import controltower.component.Modal
-import controltower.page.map.{Coord, MapAction, PositionController, RoleController}
-import controltower.ui.{ViewController, onEnterPress}
+import controltower.page.map.{MapAction, PositionController, RoleController}
+import controltower.ui.*
 import org.updraft0.controltower.constant.*
 import org.updraft0.controltower.protocol.*
 
@@ -77,7 +77,8 @@ class SystemView(
     characters: Signal[Array[CharacterLocation]],
     connectingState: Var[MapNewConnectionState],
     isConnected: Signal[Boolean],
-    settings: Signal[MapSettings]
+    settings: Signal[MapSettings],
+    uiEvents: Observer[MapUiEvent]
 )(using ctx: MapViewContext)
     extends ViewController:
 
@@ -126,11 +127,13 @@ class SystemView(
             cls("system-selected") <-- selectedSystem.map(_.contains(systemId)),
             cls("system-selected-bulk") <-- bulkSelectedSystems.map(_.contains(systemId)),
             // FIXME: this is also fired when we drag the element so selection is always changing
-            onClick
-              .filter(ev => !ev.ctrlKey && !ev.shiftKey && !ev.metaKey)
+            onPointerUp
+              .filter(_.filterWith(PointerFilter.PrimaryPointer | PointerFilter.MouseButtonLeft))
               .mapToUnit --> ctx.actions.contramap(_ => MapAction.Select(Some(systemId))),
-            onClick
-              .filter(ev => ev.ctrlKey && !ev.shiftKey && !ev.metaKey)
+            onPointerUp
+              .filter(
+                _.filterWith(PointerFilter.PrimaryPointer | PointerFilter.MouseButtonLeft | PointerFilter.CtrlKey)
+              )
               .mapToUnit --> ctx.actions.contramap(_ => MapAction.ToggleBulkSelection(systemId)),
             onDblClick
               .filter(ev => !ev.ctrlKey && !ev.shiftKey && !ev.metaKey)
@@ -148,27 +151,33 @@ class SystemView(
                   cls := "system-rename-dialog"
                 )
               ),
+            // context menu
+            inContext(self =>
+              onPointerDown
+                .filter(_.filterWith(PointerFilter.PrimaryPointer | PointerFilter.MouseButtonRight))
+                .stopPropagation
+                .map(_.posRelativeToParent(self))
+                .map(c => MapUiEvent.ContextMenu(ContextMenuRequest.System(c, systemId))) --> uiEvents
+            ),
             // dragging connections handlers
             inContext(self =>
-              Seq(
+              modSeq(
                 onPointerDown.preventDefault.stopPropagation.compose(
-                  _.delay(200).filter(pev => pev.isPrimary && pev.button == MouseButtonLeft && pev.shiftKey)
-                ) --> { pev =>
-                  self.ref.setPointerCapture(pev.pointerId)
-
-                  val parent    = self.ref.parentNode.asInstanceOf[org.scalajs.dom.Element]
-                  val parentDim = parent.getBoundingClientRect()
-                  val coord     = Coord(pev.clientX - parentDim.left, pev.clientY - parentDim.top)
-                  connectingState.set(MapNewConnectionState.Start(systemId, coord))
-                },
+                  _.delay(200) // FIXME magic constant
+                    .filter(
+                      _.filterWith(
+                        PointerFilter.PrimaryPointer | PointerFilter.MouseButtonLeft | PointerFilter.ShiftKey
+                      )
+                    )
+                    .tapEach(pev => self.ref.setPointerCapture(pev.pointerId))
+                    .map(_.posRelativeToParent(self))
+                    .map(c => MapNewConnectionState.Start(systemId, c))
+                ) --> connectingState,
                 onPointerMove.preventDefault.stopPropagation.compose(
-                  _.withCurrentValueOf(connectingState.signal).filter(_._2 != MapNewConnectionState.Stopped).map(_._1)
-                ) --> { pev =>
-                  val parent    = self.ref.parentNode.asInstanceOf[org.scalajs.dom.Element]
-                  val parentDim = parent.getBoundingClientRect()
-                  val coord     = Coord(pev.clientX - parentDim.left, pev.clientY - parentDim.top)
-                  connectingState.set(MapNewConnectionState.Move(systemId, coord))
-                }
+                  _.filterWith(connectingState.signal.map(_ != MapNewConnectionState.Stopped))
+                    .map(_.posRelativeToParent(self))
+                    .map(c => MapNewConnectionState.Move(systemId, c))
+                ) --> connectingState
               )
             ),
             onPointerUp.preventDefault.stopPropagation.mapTo(MapNewConnectionState.Stopped) --> connectingState,

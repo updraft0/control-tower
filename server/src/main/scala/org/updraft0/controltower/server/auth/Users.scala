@@ -75,7 +75,7 @@ object Users:
   def refreshToken(refreshToken: Base64): ZIO[Env, Throwable, CharacterAuth] =
     Esi
       .refreshTokenAndUserData(refreshToken)
-      .mapError(_.asThrowable)
+      .mapError(_.asThrowable) // TODO: this is incorrect as we need to remove the token when it's an invalid_grant
       .flatMap((jwt, tokenMeta) => refreshTokenMinimal(jwt, tokenMeta))
 
   private def newUser(

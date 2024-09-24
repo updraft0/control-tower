@@ -3,29 +3,25 @@ package controltower.page.map.view
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.codecs.StringAsIsCodec
 import controltower.page.map.{Coord, MapAction, PositionController}
-import controltower.ui.{HVar, ViewController}
-import org.updraft0.controltower.constant.{ConnectionId, SystemId}
+import controltower.ui.*
+import org.updraft0.controltower.constant.{ConnectionId, MagicConstant, SystemId}
 import org.updraft0.controltower.protocol.MapWormholeConnectionWithSigs
 
 object ConnectionView:
-  // TODO: figure out an optimal value for this
-  val Curviness = (25, 10)
-
-  val EndRadius = 4
-
   def dataAttr(name: String) = svg.svgAttr(s"data-$name", StringAsIsCodec, namespace = None)
 
-class ConnectionView(
+final class ConnectionView(
     id: ConnectionId,
     fromSystemId: SystemId,
     toSystemId: SystemId,
     conn: Signal[MapWormholeConnectionWithSigs],
     selectedConnection: Var[Option[ConnectionId]],
     pos: PositionController,
-    systemViewSize: Coord
+    systemViewSize: Coord,
+    uiEvents: Observer[MapUiEvent]
 ) extends ViewController:
-  import svg.*
   import ConnectionView.dataAttr
+  import svg.*
 
   // TODO: direction
 
@@ -43,14 +39,21 @@ class ConnectionView(
         whc.toSignature.exists(_.eolAt.isDefined) || whc.fromSignature.exists(_.eolAt.isDefined)
       ),
       cls("selected") <-- selectedConnection.signal.map(_.exists(_ == id)),
-      onClick
-        .filter(ev => !ev.ctrlKey && !ev.shiftKey && !ev.metaKey)
+      onPointerDown
+        .filter(_.filterWith(PointerFilter.PrimaryPointer | PointerFilter.MouseButtonLeft))
         .stopPropagation
         .mapToUnit
         .compose(_.withCurrentValueOf(selectedConnection).map {
           case Some(`id`) => None
           case _          => Some(id)
         }) --> selectedConnection.writer,
+      inContext(self =>
+        onPointerDown
+          .filter(_.filterWith(PointerFilter.PrimaryPointer | PointerFilter.MouseButtonRight))
+          .stopPropagation
+          .map(_.posRelativeToParent(self))
+          .map(c => MapUiEvent.ContextMenu(ContextMenuRequest.Connection(c, id))) --> uiEvents
+      ),
       children <-- connectionWithCoords.map:
         case (conn, fromBox, toBox) =>
           val (startBox, startRank, endBox, endRank) =
@@ -75,7 +78,7 @@ class ConnectionView(
           val endPos   = Coord(endBox.x, endBox.y + (systemViewSize.y * endRank))
 
           val pathExpr =
-            s"M ${startPos.x} ${startPos.y} C ${startPos.x + ConnectionView.Curviness._1} ${startPos.y + ConnectionView.Curviness._2}, ${endPos.x - ConnectionView.Curviness._1} ${endPos.y - ConnectionView.Curviness._2}, ${endPos.x} ${endPos.y}"
+            s"M ${startPos.x} ${startPos.y} C ${startPos.x + MagicConstant.ConnectionCurviness._1} ${startPos.y + MagicConstant.ConnectionCurviness._2}, ${endPos.x - MagicConstant.ConnectionCurviness._1} ${endPos.y - MagicConstant.ConnectionCurviness._2}, ${endPos.x} ${endPos.y}"
 
           Seq(
             path(
@@ -90,13 +93,13 @@ class ConnectionView(
               cls := "connector-end",
               cx  := s"${startPos.x}",
               cy  := s"${startPos.y}",
-              r   := s"${ConnectionView.EndRadius}"
+              r   := s"${MagicConstant.ConnectionEndRadius}"
             ),
             circle(
               cls := "connector-end",
               cx  := s"${endPos.x}",
               cy  := s"${endPos.y}",
-              r   := s"${ConnectionView.EndRadius}"
+              r   := s"${MagicConstant.ConnectionEndRadius}"
             ),
             text(
               cls              := "connection-size",
@@ -121,10 +124,10 @@ class ConnectionInProgressView(
   override def view = g(
     cls := "connection-in-progress",
     onMountBind(ctx =>
-      cls("stopped") <-- state.signal(using ctx.owner).map {
+      cls("stopped") <-- state.signal.map {
         case MapNewConnectionState.Stopped => true
         case _                             => false
-      },
+      }
     ),
     cls := "wormhole-connection",
     children <-- state.rawSignal
@@ -144,7 +147,7 @@ class ConnectionInProgressView(
               cls := "connector-end",
               cx  := s"${fromSystemPos.x + systemViewSize.x}",
               cy  := s"${fromSystemPos.y + systemViewSize.y}",
-              r   := s"${ConnectionView.EndRadius}"
+              r   := s"${MagicConstant.ConnectionEndRadius}"
             )
           )
         case (_, MapNewConnectionState.Move(fromSystemId, endPos)) =>
@@ -155,7 +158,7 @@ class ConnectionInProgressView(
 
           // TODO: refactor to remove duplication
           val pathExpr =
-            s"M ${startPos.x} ${startPos.y} C ${startPos.x + ConnectionView.Curviness._1} ${startPos.y + ConnectionView.Curviness._2}, ${endPos.x - ConnectionView.Curviness._1} ${endPos.y - ConnectionView.Curviness._2}, ${endPos.x} ${endPos.y}"
+            s"M ${startPos.x} ${startPos.y} C ${startPos.x + MagicConstant.ConnectionCurviness._1} ${startPos.y + MagicConstant.ConnectionCurviness._2}, ${endPos.x - MagicConstant.ConnectionCurviness._1} ${endPos.y - MagicConstant.ConnectionCurviness._2}, ${endPos.x} ${endPos.y}"
 
           Seq(
             path(
@@ -170,7 +173,7 @@ class ConnectionInProgressView(
               cls := "connector-end",
               cx  := s"${startPos.x}",
               cy  := s"${startPos.y}",
-              r   := s"${ConnectionView.EndRadius}"
+              r   := s"${MagicConstant.ConnectionEndRadius}"
             )
           )
         case _ => nodeSeq()

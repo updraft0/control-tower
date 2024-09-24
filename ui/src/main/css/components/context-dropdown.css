@@ -1,0 +1,76 @@
+ul.context-menu {
+    list-style: none;
+    border-radius: 5px;
+    padding: 0.2em 0;
+    margin: 0.2em 0;
+
+    background-color: $gray-lighter;
+    color: $gray-darkest;
+    font-size: 0.75em;
+    font-weight: 600;
+
+    /* material design corners - TODO need to templatise this */
+    box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
+
+    & .ti {
+        align-content: end;
+    }
+
+    & li {
+        padding: 0 0.5em;
+        position: relative; /* required ofc to make height: 100% work on ::before */
+        /* TODO cursor not working */
+        cursor: pointer;
+
+        &.disabled {
+            color: $gray !important;
+            cursor: revert;
+            & * {
+                color: $gray !important;
+            }
+        }
+
+        &:hover:not(.disabled):not(.divider) {
+            background-color: $gray-light;
+        }
+
+        &:not(.divider)::before {
+            position: absolute;
+            opacity: 0;
+            content: '';
+            background-color: $green;
+            width: 2px;
+            left: -4px;
+            height: 100%;
+
+            transition: left 0.15s ease-out,opacity 0.15s ease-out;
+        }
+
+        &:hover:not(.disabled)::before {
+            opacity: 1;
+        }
+
+        &.divider {
+            height: 1px;
+            cursor: initial;
+            background-color: $gray-light;
+            margin: 0.2em 0;
+        }
+    }
+
+    & button {
+        display: inline-block;
+        background-color: transparent;
+        border: none;
+        text-align: left;
+        color: inherit;
+        font-weight: inherit;
+        width: 100%;
+    }
+
+    & i {
+        color: $gray-darkest;
+        padding-right: 0.2em;
+    }
+
+}

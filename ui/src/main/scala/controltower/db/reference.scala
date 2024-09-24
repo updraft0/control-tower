@@ -57,7 +57,7 @@ class IdbReferenceDataStore(db: Database, maxSearchHits: Int = 10) extends Refer
   override def searchSystemName(value: String): Future[List[SolarSystem]] =
     for
       trx <- solarSystemTx
-      nextValue = s"${value.dropRight(1)}${(value.charAt(value.length - 1) + 1).toChar}"
+      nextValue = if (value.nonEmpty) s"${value.dropRight(1)}${(value.charAt(value.length - 1) + 1).toChar}" else value
       values <- readCursor[SolarSystem, Index](
         trx,
         SolarSystem,

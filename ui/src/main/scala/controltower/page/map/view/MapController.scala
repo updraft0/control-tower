@@ -3,8 +3,8 @@ package controltower.page.map.view
 import com.raquo.airstream.state.Var.{VarModTuple, VarTuple}
 import com.raquo.laminar.api.L.*
 import controltower.db.ReferenceDataStore
-import controltower.page.map.{Coord, MapAction, VarPositionController}
-import controltower.ui.{HVar, writeChangesTo}
+import controltower.page.map.{MapAction, MapActionError, RoleController, VarPositionController}
+import controltower.ui.{Coord, HVar, writeChangesTo}
 import org.updraft0.controltower.constant.*
 import org.updraft0.controltower.protocol.*
 
@@ -16,9 +16,47 @@ import scala.concurrent.Future
 import scala.language.implicitConversions
 import scala.util.{Failure, Success}
 
+sealed trait ContextMenuRequestPosition:
+  val mousePosition: Coord
+
+enum ContextMenuRequest extends ContextMenuRequestPosition:
+  case System(mousePosition: Coord, systemId: SystemId)
+  case Connection(mousePosition: Coord, connectionId: ConnectionId)
+  case Generic(mousePosition: Coord)
+
+/** Map system selections tate
+  */
+enum SystemSelectionState derives CanEqual:
+  case None
+  case Single(system: MapSystemSnapshot)
+  case Multiple(ids: Array[SystemId])
+
+/** Events that only impact the UI state rather than the map itself
+  */
+enum MapUiEvent derives CanEqual:
+  case ContextMenu(menu: ContextMenuRequest)
+  // bring up dialogs
+  case AddSystemDialog
+  case RemoveSystemSelectionDialog(selection: SystemSelectionState)
+  case RemoveConnectionDialog(connection: MapWormholeConnectionWithSigs)
+
+/** Signal-based version of [[controltower.page.map.RoleController]]
+  */
+trait ActionRoleController:
+  val canAddSystem: Signal[Boolean]
+  val canEditSignatures: Signal[Boolean]
+  val canRemoveSystem: Signal[Boolean]
+  val canRenameSystem: Signal[Boolean]
+  val canRepositionSystem: Signal[Boolean]
+  val canPinUnpinSystem: Signal[Boolean]
+  val canUpdateIntelStance: Signal[Boolean]
+  val canChangeConnections: Signal[Boolean]
+
 /** Single place where the state of the map is tracked (without rendering)
   */
-class MapController(rds: ReferenceDataStore, val clock: Signal[Instant])(using Owner):
+final class MapController(val rds: ReferenceDataStore, val clock: Signal[Instant], val isConnected: Signal[Boolean])(
+    using Owner
+):
 
   // cached static data that is not assumed to change
   private val cacheSolarSystem = mutable.Map.empty[SystemId, SolarSystem]
@@ -43,7 +81,11 @@ class MapController(rds: ReferenceDataStore, val clock: Signal[Instant])(using O
   val bulkSelectedSystemIds = Var[Array[SystemId]](Array.empty[SystemId])
   val selectedConnectionId  = Var[Option[ConnectionId]](None)
 
-  val lastError = Var[Option[String]](None)
+  val mapUiEvents = EventBus[MapUiEvent]()
+
+  // TODO: display errors somewhere
+  val actionErrors = EventBus[MapActionError]()
+  val lastError    = Var[Option[String]](None)
 
   // derived data
   val mapMetaSignal: Signal[MapMessage.MapMeta] = mapMeta.signal.map(_.get).recoverIgnoreErrors
@@ -56,6 +98,24 @@ class MapController(rds: ReferenceDataStore, val clock: Signal[Instant])(using O
     mapMeta.signal.map(_.map(_.character.characterId).getOrElse(CharacterId.Invalid))
   val mapSettings: Signal[MapSettings] =
     mapMeta.signal.map(_.map(_.info.settings).getOrElse(MapController.DefaultMapSettings))
+
+  val roleController: ActionRoleController = new ActionRoleController:
+    override val canAddSystem: Signal[Boolean] =
+      mapRole.map(RoleController.canAddSystem).combineWith(isConnected).map(_ && _)
+    override val canEditSignatures: Signal[Boolean] =
+      mapRole.map(RoleController.canEditSignatures).combineWith(isConnected).map(_ && _)
+    override val canRemoveSystem: Signal[Boolean] =
+      mapRole.map(RoleController.canRemoveSystem).combineWith(isConnected).map(_ && _)
+    override val canRenameSystem: Signal[Boolean] =
+      mapRole.map(RoleController.canRenameSystem).combineWith(isConnected).map(_ && _)
+    override val canRepositionSystem: Signal[Boolean] =
+      mapRole.map(RoleController.canRepositionSystem).combineWith(isConnected).map(_ && _)
+    override val canPinUnpinSystem: Signal[Boolean] =
+      mapRole.map(RoleController.canPinUnpinSystem).combineWith(isConnected).map(_ && _)
+    override val canUpdateIntelStance: Signal[Boolean] =
+      mapRole.map(RoleController.canUpdateIntelStance).combineWith(isConnected).map(_ && _)
+    override val canChangeConnections: Signal[Boolean] =
+      mapRole.map(RoleController.canChangeConnections).combineWith(isConnected).map(_ && _)
 
   val selectedSystem: Signal[Option[MapSystemSnapshot]] =
     selectedSystemId.signal
@@ -71,11 +131,25 @@ class MapController(rds: ReferenceDataStore, val clock: Signal[Instant])(using O
         case (Some(connectionId), conns) => conns.get(connectionId)
         case (None, _)                   => None
 
+  // TODO: use this instead of the multiple selection support
+  val systemSelectionState = selectedSystem.signal
+    .combineWith(bulkSelectedSystemIds)
+    .map:
+      case (_, arr) if arr.nonEmpty => SystemSelectionState.Multiple(arr)
+      case (Some(system), _)        => SystemSelectionState.Single(system)
+      case (_, _)                   => SystemSelectionState.None
+
   private val allSystemChanges     = EventBus[CollectionCommand[MapSystemSnapshot]]()
   private val allConnectionChanges = EventBus[CollectionCommand[MapWormholeConnectionWithSigs]]()
 
   val allSystemChangesStream     = allSystemChanges.events
   val allConnectionChangesStream = allConnectionChanges.events
+
+  def connectionSignal(connectionId: ConnectionId): Signal[Option[MapWormholeConnectionWithSigs]] =
+    allConnections.signal.map(_.get(connectionId))
+
+  def systemSignal(systemId: SystemId): Signal[Option[MapSystemSnapshot]] =
+    allSystems.signal.map(_.get(systemId))
 
   // observers etc:
   val actionsBus: WriteBus[MapAction] = requestBus.writer.contracomposeWriter[MapAction](handleMapAction)
@@ -117,55 +191,92 @@ class MapController(rds: ReferenceDataStore, val clock: Signal[Instant])(using O
     )
     pos.clear()
 
+  private inline def updateConnectionSignatureAttr(
+      all: Map[ConnectionId, MapWormholeConnectionWithSigs],
+      cId: ConnectionId,
+      f: MapSystemSignature.Wormhole => MapSystemSignature.Wormhole
+  ) =
+    all
+      .get(cId)
+      .flatMap: wss =>
+        (wss.fromSignature, wss.toSignature) match
+          case (Some(from), _) =>
+            Some(MapRequest.AddSystemSignature(wss.connection.fromSystemId, f(from).asNew))
+          case (_, Some(to)) =>
+            Some(MapRequest.AddSystemSignature(wss.connection.toSystemId, f(to).asNew))
+          case (None, None) =>
+            actionErrors.writer.onNext(MapActionError.UnableToChangeConnectionNoLinkedSignature)
+            None
+
   private def handleMapAction(op: EventStream[MapAction]): EventStream[MapRequest] =
-    op.withCurrentValueOf(allSystems.current)
+    op.withCurrentValueOf(allSystems.current, allConnections.current)
       .collectOpt:
-        case (MapAction.AddSignature(systemId, newSig), _) => Some(MapRequest.AddSystemSignature(systemId, newSig))
-        case (MapAction.AddConnection(fromSystemId, toSystemId), _) =>
+        case (MapAction.AddSignature(systemId, newSig), _, _) =>
+          Some(MapRequest.AddSystemSignature(systemId, newSig))
+        case (MapAction.AddConnection(fromSystemId, toSystemId), _, _) =>
           Some(MapRequest.AddSystemConnection(SystemId(fromSystemId), SystemId(toSystemId)))
-        case (MapAction.Direct(req), _) => Some(req)
-        case (MapAction.IntelChange(systemId, newStance), allSystems) =>
+        case (MapAction.ConnectionEolToggle(connectionId), _, allConnections) =>
+          updateConnectionSignatureAttr(
+            allConnections,
+            connectionId,
+            mss => if (mss.eolAt.isEmpty) mss.copy(eolAt = Some(Instant.now())) else mss.copy(eolAt = None)
+          )
+        case (MapAction.ConnectionMassStatusChange(connectionId, massStatus), _, allConnections) =>
+          updateConnectionSignatureAttr(
+            allConnections,
+            connectionId,
+            _.copy(massStatus = massStatus)
+          )
+        case (MapAction.ConnectionMassSizeChange(connectionId, massSize), _, allConnections) =>
+          updateConnectionSignatureAttr(
+            allConnections,
+            connectionId,
+            _.copy(massSize = massSize)
+          )
+        case (MapAction.Direct(req), _, _) =>
+          Some(req)
+        case (MapAction.IntelChange(systemId, newStance), allSystems, _) =>
           allSystems
             .get(systemId)
             .flatMap(mss =>
               Option.when(mss.system.stance != newStance)(MapRequest.UpdateSystem(systemId, stance = Some(newStance)))
             )
-        case (MapAction.Rename(systemId, newName), _) =>
-          Some(
-            MapRequest
-              .UpdateSystem(systemId, name = Some(newName))
-          )
-        case (MapAction.Remove(systemId), _) =>
+        case (MapAction.Rename(systemId, newName), _, _) =>
+          Some(MapRequest.UpdateSystem(systemId, name = Some(newName)))
+        case (MapAction.Remove(systemId), _, _) =>
           Some(MapRequest.RemoveSystem(systemId))
-        case (MapAction.RemoveMultiple(systemIds), _) =>
+        case (MapAction.RemoveMultiple(systemIds), _, _) =>
           // reset selection
           bulkSelectedSystemIds.set(Array.empty)
           Some(MapRequest.RemoveSystems(systemIds))
-        case (MapAction.RemoveConnection(connectionId), _) =>
+        case (MapAction.RemoveConnection(connectionId), _, _) =>
           Some(MapRequest.RemoveSystemConnection(connectionId))
-        case (MapAction.RemoveSignatures(systemId, sigIds), _) =>
+        case (MapAction.RemoveSignatures(systemId, sigIds), _, _) =>
           Some(MapRequest.RemoveSystemSignatures(systemId, sigIds.toList))
-        case (MapAction.RemoveAllSignatures(systemId), _) =>
+        case (MapAction.RemoveAllSignatures(systemId), _, _) =>
           Some(MapRequest.RemoveAllSystemSignatures(systemId))
-        case (MapAction.Reposition(systemId, x, y), allSystemsNow) =>
+        case (MapAction.Reposition(systemId, x, y), allSystemsNow, _) =>
           val displayData = pos.systemDisplayData(systemId).now()
           Some(MapRequest.UpdateSystem(systemId, displayData))
-        case (MapAction.UpdateSignatures(systemId, replaceAll, scanned), _) =>
+        case (MapAction.UpdateSignatures(systemId, replaceAll, scanned), _, _) =>
           Some(MapRequest.UpdateSystemSignatures(systemId, replaceAll, scanned))
-        case (MapAction.Select(systemIdOpt), _) =>
+        case (MapAction.Select(systemIdOpt), _, _) =>
           Var.set(
             (selectedSystemId, systemIdOpt),
             (selectedConnectionId, None)
           )
           None
-        case (MapAction.ToggleBulkSelection(systemId), _) =>
+        case (MapAction.SelectUnpinned, allSystems, _) =>
+          bulkSelectedSystemIds.set(allSystems.values.filterNot(_.system.isPinned).map(_.system.systemId).toArray)
+          None
+        case (MapAction.ToggleBulkSelection(systemId), _, _) =>
           bulkSelectedSystemIds.update(arr =>
             arr.indexOf(SystemId(systemId)) match
               case -1  => arr.appended(SystemId(systemId))
               case idx => arr.filterNot(_ == SystemId(systemId))
           )
           None
-        case (MapAction.TogglePinned(systemId), allSystems) =>
+        case (MapAction.TogglePinned(systemId), allSystems, _) =>
           allSystems.get(systemId).map(sys => MapRequest.UpdateSystem(systemId, isPinned = Some(!sys.system.isPinned)))
 
   private def handleIncomingMessage(msg: MapMessage): Unit =

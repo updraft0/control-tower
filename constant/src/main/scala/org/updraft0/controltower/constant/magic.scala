@@ -12,3 +12,14 @@ object MagicConstant:
 
   // Images
   val CharacterImageSize: Int = 32
+
+  // Systems
+  // TODO use
+  val Jita: SystemId = SystemId(30000142)
+
+  // UI elements
+  val DropdownDelayMs: Int = 500
+
+  // TODO: figure out an optimal value for this
+  val ConnectionCurviness: (Int, Int) = (25, 10)
+  val ConnectionEndRadius: Int        = 4

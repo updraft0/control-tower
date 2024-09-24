@@ -3,8 +3,10 @@ package controltower.page.map.view
 import com.raquo.laminar.api.L.*
 import controltower.page.map.Coord
 import controltower.page.map.view.SelectionState.Selecting
+import controltower.ui.*
 import org.updraft0.controltower.constant.SystemId
 import org.scalajs.dom
+
 import scala.collection.mutable
 
 enum SelectionState derives CanEqual:
@@ -13,8 +15,10 @@ enum SelectionState derives CanEqual:
 
 case class ObserverState(rootElement: dom.Element, elements: mutable.ArrayBuffer[Element])
 
-private val MouseButtonLeft = 0
-private val Threshold       = 0.0
+// really magic constants FIXME move
+private val Threshold            = 0.0
+private val ThrottleMs           = 100
+private val ObserverDisconnectMs = 80
 
 final class SelectionView(
     singleSelected: Signal[Option[SystemId]],
@@ -26,12 +30,12 @@ final class SelectionView(
     case _: SelectionState.Selecting => true
     case _                           => false
 
-  private val observerState = Var[ObserverState](null)
+  private val observerState = Var[ObserverState | Null](null)
 
   def eventHandlers: Modifier[HtmlElement] =
     modSeq(
       onPointerDown
-        .filter(pev => pev.isPrimary && pev.button == MouseButtonLeft && !pev.shiftKey && !pev.ctrlKey && !pev.metaKey)
+        .filter(_.filterWith(PointerFilter.MouseButtonLeft | PointerFilter.PrimaryPointer))
         .compose(_.withCurrentValueOf(observerState.signal))
         --> { (pev, obsState) =>
           val parentBounds = obsState.rootElement.getBoundingClientRect()
@@ -56,7 +60,7 @@ final class SelectionView(
           case _ => ()
       },
       onPointerMove.compose(
-        _.throttle(100)
+        _.throttle(ThrottleMs)
           .filterWith(stateSelecting)
           .mapToUnit
           .withCurrentValueOf(state.signal, observerState.signal, singleSelected)
@@ -85,9 +89,10 @@ final class SelectionView(
               { (entries, _) =>
                 val systemIds = entries.view
                   .filter(e =>
-                    e.isIntersecting && e.target.id.startsWith("system-") && singleSelectedOpt.forall(sId =>
-                      !e.target.id.endsWith(sId.toString)
-                    )
+                    e.isIntersecting &&
+                      e.target.id.startsWith("system-") &&
+                      singleSelectedOpt.forall(sId => !e.target.id.endsWith(sId.toString)) &&
+                      !e.target.classList.contains("pinned-box") // manual fix for excluding isPinned systems
                   )
                   .map(e => SystemId(e.target.id.stripPrefix("system-").toLong))
                   .toArray
@@ -99,12 +104,12 @@ final class SelectionView(
             targets.foreach((t: Element) => observer.observe(t.ref))
 
             // hacky - wait for the intersection observer to compute intersections and then kill it
-            scala.scalajs.js.timers.setTimeout(80)(observer.disconnect())
+            scala.scalajs.js.timers.setTimeout(ObserverDisconnectMs)(observer.disconnect())
 
           case _ => ()
       },
       onPointerCancel.mapTo(SelectionState.Stopped) --> state,
-      onPointerUp.mapTo(SelectionState.Stopped) --> state,
+      onClick.mapTo(SelectionState.Stopped) --> state,
       onPointerUp.filter { pev =>
         // very hacky again - we do not propagate events that have the capture on the selection rectangle
         val tgt = org.scalajs.dom.document.querySelector("div.selection-rectangle")
@@ -147,7 +152,7 @@ final class SelectionView(
             { _ =>
               Var.update(
                 state         -> ((_: SelectionState) => SelectionState.Stopped),
-                observerState -> { (obs: ObserverState) => null }
+                observerState -> { (_: ObserverState) => null }
               )
               selection.onNext(Array.empty)
             }

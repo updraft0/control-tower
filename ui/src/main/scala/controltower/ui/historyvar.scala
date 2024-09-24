@@ -6,16 +6,16 @@ import com.raquo.laminar.api.L.*
   */
 final class HVar[A](value: Var[(Option[A], A)]):
 
-  def signal(using Owner): Signal[A]          = current.signal
-  def rawSignal: StrictSignal[(Option[A], A)] = value.signal
+  inline def signal: Signal[A]                       = value.signal.map(_._2)
+  inline def rawSignal: StrictSignal[(Option[A], A)] = value.signal
 
-  def current(using Owner): Var[A] = value.zoom { case ((_, a)) =>
+  inline def current(using Owner): Var[A] = value.zoom { case ((_, a)) =>
     a
   } { case ((_, prevA), newA) =>
     Some(prevA) -> newA
   }
 
-  protected[ui] def raw: Var[(Option[A], A)] = value
+  protected[ui] inline def raw: Var[(Option[A], A)] = value
 
 object HVar:
   def apply[A](initial: A): HVar[A] = new HVar[A](Var(None -> initial))

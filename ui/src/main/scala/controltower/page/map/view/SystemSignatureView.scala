@@ -378,7 +378,10 @@ private def signatureRow(
   )
 
   tr(
-    onClick.filter(_.ctrlKey).stopPropagation.mapToUnit --> selectedSigs.toggle(sigId),
+    onPointerUp
+      .filter(_.filterWith(PointerFilter.PrimaryPointer | PointerFilter.MouseButtonLeft | PointerFilter.CtrlKey))
+      .stopPropagation
+      .mapToUnit --> selectedSigs.toggle(sigId),
     cls("selected") <-- isSelected,
     display <-- sig.combineWith(filter).map((s, f) => isVisibleWithFilter(f, s)).map(toDisplayValue),
     td(cls := "signature-id", sigId.convert.take(3)),

@@ -2,10 +2,8 @@ package controltower.page.map.view
 
 import org.updraft0.controltower.constant.MagicConstant
 import com.raquo.laminar.api.L.*
-import controltower.page.map.Coord
-
-private val MouseButtonLeft  = 0
-private val MouseButtonRight = 2
+import controltower.page.map.Hidden
+import controltower.ui.*
 
 case class DragState(isDragging: Boolean, initial: Coord)
 
@@ -28,12 +26,12 @@ private def inDraggable(
     f: HtmlElement => Unit,
     gridSnap: Int = MagicConstant.GridSnapPx
 ): HtmlElement =
-  // FIXME initial position is always Coord.Hidden so we always send a display update first time the element is clicked
-  val initialState = DragState(isDragging = false, initial = Coord.Hidden)
+  // FIXME initial position is always Hidden so we always send a display update first time the element is clicked
+  val initialState = DragState(isDragging = false, initial = Hidden)
   val downMouse    = Var[Option[Coord]](None)
   val stateVar     = Var(initialState)
   div(
-    display <-- position.signal.map(c => if (c == Coord.Hidden) "none" else ""),
+    display <-- position.signal.map(c => if (c == Hidden) "none" else ""),
     left <-- position.signal.map(c => s"${c.x}px"),
     top <-- position.signal.map(c => s"${c.y}px"),
     cls <-- canDrag.map {
@@ -43,9 +41,7 @@ private def inDraggable(
     inContext(self =>
       modSeq(
         onPointerDown
-          .filter(pev =>
-            pev.isPrimary && pev.button == MouseButtonLeft && !pev.altKey && !pev.shiftKey && !pev.ctrlKey && !pev.metaKey
-          )
+          .filter(_.filterWith(PointerFilter.PrimaryPointer | PointerFilter.MouseButtonLeft))
           .compose(
             _.withCurrentValueOf(canDrag).filter(_._2).map(_._1).withCurrentValueOf(position.signal)
           ) --> { (pev, currentPos) =>

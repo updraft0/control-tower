@@ -5,14 +5,13 @@ import com.raquo.laminar.api.L
 import com.raquo.laminar.api.L.*
 import org.updraft0.controltower.constant.SystemId
 import org.updraft0.controltower.protocol.*
+import controltower.ui.Coord
 
 import scala.collection.mutable
 
-case class Coord(x: Double, y: Double) derives CanEqual
+export controltower.ui.Coord
 
-object Coord:
-  val Hidden = Coord(-1, -1)
-  val Origin = Coord(0, 0)
+val Hidden: Coord = Coord(-1, -1)
 
 /** Determines positions on the map
   */
@@ -36,16 +35,16 @@ class VarPositionController(map: mutable.Map[SystemId, Var[Coord]], boxSize: Coo
   override def newSystemDisplay: SystemDisplayData = SystemDisplayData.Manual(0, 0)
 
   override def systemPosition(systemId: SystemId): Var[Coord] =
-    map.getOrElseUpdate(systemId, Var(Coord.Hidden))
+    map.getOrElseUpdate(systemId, Var(Hidden))
 
   override def systemDisplayData(systemId: SystemId)(using Owner): Var[Option[SystemDisplayData]] =
-    systemPosition(systemId).zoom(c => Option.when(c != Coord.Hidden)(SystemDisplayData.Manual(c.x.toInt, c.y.toInt))) {
+    systemPosition(systemId).zoom(c => Option.when(c != Hidden)(SystemDisplayData.Manual(c.x.toInt, c.y.toInt))) {
       case (coord, Some(m: SystemDisplayData.Manual)) => Coord(m.x, m.y)
-      case (_, _)                                     => Coord.Hidden
+      case (_, _)                                     => Hidden
     }
 
   override def clear(): Unit =
-    Var.set(map.view.values.map(v => (v -> Coord.Hidden): VarTuple[_]).toSeq*)
+    Var.set(map.view.values.map(v => (v -> Hidden): VarTuple[_]).toSeq*)
     map.clear()
 
   override def pointInsideBox(coord: Coord): Option[SystemId] =
