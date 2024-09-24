@@ -1,6 +1,6 @@
 package org.updraft0.controltower.constant
 
-/** Magic constants (that are hard to put anywhere else)
+/** Magic constants live here instead of being sprinkled around the codebase. Might as well keep them in one place.
   */
 object MagicConstant:
   // The grid snapping of a system map
@@ -14,7 +14,6 @@ object MagicConstant:
   val CharacterImageSize: Int = 32
 
   // Systems
-  // TODO use
   val Jita: SystemId = SystemId(30000142)
 
   // UI elements

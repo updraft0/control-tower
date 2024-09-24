@@ -929,8 +929,9 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
   private def isPotentialWormholeJump(state: MapState, fromSystemId: SystemId, toSystemId: SystemId) =
     val differentSystem = fromSystemId != toSystemId
     val noGate          = !state.hasGateBetween(fromSystemId, toSystemId)
+    val notJita         = fromSystemId != MagicConstant.Jita && toSystemId != MagicConstant.Jita
     val isTarget        = state.refSystem(fromSystemId).zip(state.refSystem(toSystemId)).exists(isTargetForJumps)
-    differentSystem && noGate && isTarget
+    differentSystem && noGate && notJita && isTarget
 
   private def isKnownSpace(state: MapState, systemId: SystemId) =
     state.refSystem(systemId).exists(_.whClass.spaceType == SpaceType.Known)
