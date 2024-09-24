@@ -16,6 +16,7 @@ import zio.*
 
 import java.time.Instant
 import java.util.UUID
+import java.util.concurrent.TimeoutException
 
 type MapEnv     = MapConfig & javax.sql.DataSource & LocationTracker & MapPermissionTracker
 type ShipTypeId = Int
@@ -24,7 +25,8 @@ case class MapConfig(
     cleanupPeriod: Duration,
     staleConnectionRemovalInterval: Duration,
     eolConnectionRemovalInterval: Duration,
-    hardDeletionInterval: Duration
+    hardDeletionInterval: Duration,
+    queryTimeout: Duration
 )
 
 private[map] case class MapSolarSystem(
@@ -47,7 +49,8 @@ private[map] case class MapState(
       CharacterId,
       (SystemId, ShipTypeId)
     ], // manual cache of location systems - used to prevent too many updates
-    ref: MapRef
+    ref: MapRef,
+    queryTimeout: Duration
 ):
   // TODO this should be loaded from DB
   val displayType: model.MapDisplayType = model.MapDisplayType.Manual
@@ -191,7 +194,8 @@ object MapState:
       systems: List[MapSystemWithAll],
       connections: List[MapWormholeConnectionWithSigs],
       connectionRanks: List[MapWormholeConnectionRank],
-      ref: MapRef
+      ref: MapRef,
+      queryTimeout: Duration
   ): MapState =
     new MapState(
       systems.map(msa => msa.sys.systemId -> msa).toMap,
@@ -199,7 +203,8 @@ object MapState:
       connectionRanks.map(whr => whr.connectionId -> whr).toMap,
       locations = Map.empty,
       locationsOnline = Map.empty,
-      ref
+      ref,
+      queryTimeout = queryTimeout
     )
 
 case class MapSessionId(characterId: CharacterId, sessionId: UUID) derives CanEqual
@@ -341,7 +346,7 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
         .repeat(Schedule.fixed(config.cleanupPeriod))
         .ignoreLogged
         .forkScoped
-    yield MapState(systems, connections, connectionRanks, mapRef)).orDie
+    yield MapState(systems, connections, connectionRanks, mapRef, config.queryTimeout)).orDie
 
   override def handle(
       mapId: MapId,
@@ -432,8 +437,14 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
               // fall-through case
               case Identified(None, _) =>
                 ZIO.logWarning("non-identified request not processed").as(state -> Chunk.empty)
+            ,
+            timeoutOpt = Some(state.queryTimeout)
           )) @@ Log.MapId(mapId)
       )
+      .logError("map operation failed")
+      .catchSome { case _: TimeoutException =>
+        ZIO.succeed((state, Chunk(Identified(in.sessionId, MapResponse.Error("Action took too long, try again")))))
+      }
       .orDie
 
   private inline def identified[R, E, A](sid: MapSessionId, op: String, f: ZIO[R, E, A]): ZIO[R, E, A] =
