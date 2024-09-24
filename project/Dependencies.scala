@@ -8,25 +8,25 @@ import sbt.Keys.libraryDependencies
 object Dependencies {
 
   object Versions {
-    val brotli             = "1.16.0"
+    val brotli             = "1.17.0"
     val flyway             = "9.21.1"
-    val jsoniter           = "2.30.7"
+    val jsoniter           = "2.30.11"
     val jwt                = "10.0.1"
-    val laminar            = "17.0.0"
+    val laminar            = "17.1.0"
     val laminext           = "0.17.0"
     val `native-converter` = "0.9.0"
     val quill              = "4.8.5"
     val `scala-java-time`  = "2.6.0"
     val `sjs-dom`          = "2.8.0+45-53f9a1a2-SNAPSHOT" // FIXME wait for 2.9.0 release
-    val snakeyaml          = "2.7"
+    val snakeyaml          = "2.8"
     val sqlite             = "3.46.0.0"
-    val sttp               = "3.9.7"
-    val tapir              = "1.10.14"
+    val sttp               = "3.9.8"
+    val tapir              = "1.11.5"
     val waypoint           = "8.0.0"
-    val zio                = "2.1.6"
+    val zio                = "2.1.9"
     val `zio-config`       = "4.0.2"
-    val `zio-logging`      = "2.3.0"
-    val `zio-metrics`      = "2.2.1"
+    val `zio-logging`      = "2.3.1"
+    val `zio-metrics`      = "2.3.1"
   }
 
   val flyway = Seq(
