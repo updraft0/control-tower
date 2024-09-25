@@ -792,13 +792,12 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
       else Chunk.empty
     ZIO.foldLeft(changes)((nextState, locationsUpdate)):
       case ((st, responses), asm: LocationUpdateAction.AddMapSystem)
-          if asm.adjacentTo.isEmpty && !st.hasSystem(asm.system) && !isKnownSpace(st, asm.system) =>
+          if !st.hasSystem(asm.system) && shouldAddSystemToMap(st, asm.system) && asm.adjacentTo.isEmpty =>
         addSystemFromLocation(mapId, st, responses, asm).orDie
       case ((st, responses), asm: LocationUpdateAction.AddMapSystem)
-          if asm.adjacentTo.exists(fromSystemId =>
-            !st
-              .hasConnection(fromSystemId, asm.system) && isPotentialWormholeJump(st, fromSystemId, asm.system)
-          ) && !st.hasSystem(asm.system) =>
+          if !st.hasSystem(asm.system) && asm.adjacentTo.exists(fromSystemId =>
+            !st.hasConnection(fromSystemId, asm.system) && isPotentialWormholeJump(st, fromSystemId, asm.system)
+          ) =>
         addSystemFromLocation(mapId, st, responses, asm).orDie
       case ((st, responses), amc: LocationUpdateAction.AddMapConnection)
           if !st
@@ -933,8 +932,8 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
     val isTarget        = state.refSystem(fromSystemId).zip(state.refSystem(toSystemId)).exists(isTargetForJumps)
     differentSystem && noGate && notJita && isTarget
 
-  private def isKnownSpace(state: MapState, systemId: SystemId) =
-    state.refSystem(systemId).exists(_.whClass.spaceType == SpaceType.Known)
+  private inline def shouldAddSystemToMap(state: MapState, systemId: SystemId) =
+    state.refSystem(systemId).map(_.whClass.spaceType).exists(st => st == SpaceType.Wormhole || st == SpaceType.Pochven)
 
   private[map] def isTargetForJumps(fromSystem: MapSolarSystem, toSystem: MapSolarSystem) =
     (fromSystem.whClass.spaceType, toSystem.whClass.spaceType) match
