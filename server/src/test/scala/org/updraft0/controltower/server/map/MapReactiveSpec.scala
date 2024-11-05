@@ -439,15 +439,13 @@ object MapReactiveSpec extends ZIOSpecDefault:
                 None,
                 MapResponse.SystemSnapshot(`SystemId2`, _, `EmptyConnections`, `EmptyConnectionRanks`)
               ) =>
-            true
-        )) &&
+            true)) &&
         assert(oneResponses)(hasAt(1)(matches:
           case Identified(
                 None,
                 MapResponse.SystemSnapshot(`SystemId5`, _, `EmptyConnections`, `EmptyConnectionRanks`)
               ) =>
-            true
-        )) &&
+            true)) &&
         assert(oneResponses)(hasAt(2)(matches:
           case Identified(
                 None,
@@ -461,28 +459,28 @@ object MapReactiveSpec extends ZIOSpecDefault:
                   rank
                 )
               ) =>
-            true
-        )) &&
-        assert(oneResponses)(hasAt(3)(matches:
-          case Identified(
-                None,
-                MapResponse.SystemSnapshot(
-                  `SystemId2`,
-                  MapSystemWithAll(
-                    _,
-                    _,
-                    _,
-                    _,
-                    sigs,
-                    connections
-                  ),
-                  connectionMap,
-                  connectionRanks
-                )
-              ) =>
-            sigs.length == 1 && connections.length == 1 && connectionMap.size == 1 && connectionRanks.size == 1 &&
-            connections(0) == connectionMap(oneConnectionId).connection && sigs(0).signatureId == SigId("ABC-222")
-        )) && assertTrue(twoResponses.size == 1) &&
+            true)) &&
+        assert(oneResponses)(
+          hasAt(3)(matches:
+            case Identified(
+                  None,
+                  MapResponse.SystemSnapshot(
+                    `SystemId2`,
+                    MapSystemWithAll(
+                      _,
+                      _,
+                      _,
+                      _,
+                      sigs,
+                      connections
+                    ),
+                    connectionMap,
+                    connectionRanks
+                  )
+                ) =>
+              sigs.length == 1 && connections.length == 1 && connectionMap.size == 1 && connectionRanks.size == 1 &&
+              connections(0) == connectionMap(oneConnectionId).connection && sigs(0).signatureId == SigId("ABC-222"))
+        ) && assertTrue(twoResponses.size == 1) &&
         assert(twoResponses)(hasAt(0)(matches:
           case Identified(
                 None,
@@ -504,8 +502,7 @@ object MapReactiveSpec extends ZIOSpecDefault:
             connections(0) == connectionMap(oneConnectionId).connection && sigs(0).signatureId == SigId("ABC-222") &&
             sigs(0).wormholeConnectionId.contains(oneConnectionId) &&
             connectionMap(oneConnectionId).toSignature.contains(sigs(0)) &&
-            sigs(0).wormholeMassSize.contains(WormholeMassSize.S)
-        )) && assertTrue(threeResponses.size == 1) &&
+            sigs(0).wormholeMassSize.contains(WormholeMassSize.S))) && assertTrue(threeResponses.size == 1) &&
         assert(threeResponses)(hasAt(0)(matches:
           case Identified(
                 None,
@@ -527,8 +524,7 @@ object MapReactiveSpec extends ZIOSpecDefault:
             connections(0) == connectionMap(oneConnectionId).connection && sigs(0).signatureId == SigId("DEF-678") &&
             sigs(0).wormholeConnectionId.contains(oneConnectionId) &&
             connectionMap(oneConnectionId).fromSignature.contains(sigs(0)) &&
-            sigs(0).wormholeMassSize.contains(WormholeMassSize.S)
-        )) && assertTrue(fourResponses.size == 3) &&
+            sigs(0).wormholeMassSize.contains(WormholeMassSize.S))) && assertTrue(fourResponses.size == 3) &&
         assert(fourResponses)(hasAt(0)(matches:
           case Identified(
                 None,
@@ -536,22 +532,19 @@ object MapReactiveSpec extends ZIOSpecDefault:
                   MapWormholeConnection(`oneConnectionId`, _, `SystemId5`, `SystemId2`, true, _, _, _, _) :: Nil
                 )
               ) =>
-            true
-        )) &&
+            true)) &&
         assert(fourResponses)(hasAt(1)(matches:
           case Identified(
                 None,
                 MapResponse.SystemSnapshot(`SystemId2`, _, `EmptyConnections`, `EmptyConnectionRanks`)
               ) =>
-            true
-        )) &&
+            true)) &&
         assert(fourResponses)(hasAt(2)(matches:
           case Identified(
                 None,
                 MapResponse.SystemSnapshot(`SystemId5`, _, `EmptyConnections`, `EmptyConnectionRanks`)
               ) =>
-            true
-        ))
+            true))
     )
   ).provideSome[Scope](testMapLayer) @@ TestAspect.withLiveEnvironment)
 

@@ -60,7 +60,7 @@ def updateMap = Endpoints.updateMap
   .serverLogic(user =>
     (userMapId, mapUpdate) =>
       dbquery
-        .transaction(
+        .transactionLoose(
           for
             allMaps <- MapPolicy.allowedMapIdsForUser(user.userId)
             withAdmin = allMaps.find((_, id, role) => id == userMapId && role == model.MapRole.Admin)

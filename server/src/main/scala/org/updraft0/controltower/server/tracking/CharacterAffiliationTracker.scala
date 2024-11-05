@@ -2,7 +2,7 @@ package org.updraft0.controltower.server.tracking
 
 import org.updraft0.controltower.constant.CharacterId
 import org.updraft0.controltower.server.Log
-import org.updraft0.controltower.server.auth.Users
+import org.updraft0.controltower.server.auth.{EsiError, Users, asThrowable}
 import org.updraft0.esi.client.{EsiClient, ServerStatusResponse}
 import zio.*
 import zio.stream.ZStream
@@ -35,6 +35,7 @@ object CharacterAffiliationTracker:
           ZIO.logWarning("Not refreshing due to server not having enough players online or being VIP")
         case Right(s) =>
           Users.allCharacters
+            .mapError(esiToThrowable)
             .flatMap(allChars =>
               ZStream
                 .fromChunk(allChars)
@@ -49,6 +50,15 @@ object CharacterAffiliationTracker:
       .serviceWithZIO[EsiClient](_.getCharacterAffiliations(charIds.toList))
       .tapError(ex => ZIO.logWarning(s"Updating character affiliations for $charIds failed due to $ex"))
       .orElseFail(new RuntimeException("Updating character affiliations failed due to ESI error"))
-      .flatMap(xs => Users.updateAffiliations(xs.map(ca => (ca.characterId, ca.corporationId, ca.allianceId))))
+      .flatMap(xs =>
+        Users
+          .updateAffiliations(xs.map(ca => (ca.characterId, ca.corporationId, ca.allianceId)))
+          .mapError(esiToThrowable)
+      )
+
+  private def esiToThrowable(e: Users.Error): Throwable =
+    e match
+      case sqlx: java.sql.SQLException => sqlx
+      case esi: EsiError               => esi.asThrowable
 
 extension (v: ServerStatusResponse) def isOnlineEnough: Boolean = v.players > 100 && v.vip.forall(!_)

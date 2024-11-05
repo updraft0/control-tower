@@ -510,8 +510,7 @@ private def toProtoConnectionType(value: model.MapSystemSignature): protocol.Wor
         case model.WormholeK162Type.Hisec     => protocol.WormholeK162Type.Hisec
         case model.WormholeK162Type.Losec     => protocol.WormholeK162Type.Losec
         case model.WormholeK162Type.Nullsec   => protocol.WormholeK162Type.Nullsec
-        case model.WormholeK162Type.Thera     => protocol.WormholeK162Type.Thera
-      )
+        case model.WormholeK162Type.Thera     => protocol.WormholeK162Type.Thera)
     case (None, Some(typeId)) => protocol.WormholeConnectionType.Known(typeId)
     case _                    => protocol.WormholeConnectionType.Unknown
 

@@ -357,7 +357,7 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
       .clockWith(_.instant)
       .flatMap(now =>
         (query
-          .transaction(
+          .transactionLoose(
             in match
               case Identified(Some(id), MapRequest.MapSnapshot) if state.locationsOnline.nonEmpty =>
                 // the check for non-empty locations prevents a race where the map startup has not yet received roles

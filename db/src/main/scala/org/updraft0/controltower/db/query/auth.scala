@@ -3,7 +3,7 @@ package org.updraft0.controltower.db.query
 import io.getquill.*
 import org.updraft0.controltower.constant.*
 import org.updraft0.controltower.db.model.*
-import zio.ZIO
+import zio.{Chunk, ZIO}
 
 import java.util.UUID
 
@@ -136,3 +136,6 @@ object auth:
     ctx.run(
       quote(schema.characterAuthToken.filter(_.characterId == lift(characterId)).delete)
     )
+
+  def deleteCharacterAuthTokens(ids: Chunk[CharacterId]): DbOperation[Long] =
+    ctx.run(quote(schema.characterAuthToken.filter(cat => liftQuery(ids).contains(cat.characterId)).delete))

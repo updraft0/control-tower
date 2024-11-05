@@ -22,3 +22,6 @@ object MagicConstant:
   // TODO: figure out an optimal value for this
   val ConnectionCurviness: (Int, Int) = (25, 10)
   val ConnectionEndRadius: Int        = 4
+
+  // Auth
+  val NonceLength = 12
