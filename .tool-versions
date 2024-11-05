@@ -1,4 +1,4 @@
 java graalvm-community-23.0.0
-sbt 1.10.2
+sbt 1.10.5
 nodejs 18.18.1
 yarn 1.22.19

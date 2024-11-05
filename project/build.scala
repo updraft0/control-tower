@@ -30,7 +30,7 @@ object build {
   val commonSettings = Seq(
     organization := "org.updraft0",
     version      := "0.0.1-SNAPSHOT",
-    scalaVersion := "3.5.1",
+    scalaVersion := "3.5.2",
     manifestSetting,
     crossVersion := CrossVersion.binary,
     scalacOptions ++= Seq(
