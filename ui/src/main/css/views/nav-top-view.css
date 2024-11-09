@@ -9,7 +9,7 @@ div#nav-top-view {
 
     display: flex;
 
-    padding: 0px 0px 0px 5px;
+    padding: 0 0 0 5px;
 
     & > * {
         align-self: center;
@@ -27,8 +27,8 @@ div#nav-top-view {
         border: none;
         border-radius: 2px;
         font-size: 1.1em;
-        height: 1.3em;
-        width: 1em;
+        height: 1.2em;
+        width: 1.2em;
 
         &:hover:not(:disabled) {
             background: $teal-dark;

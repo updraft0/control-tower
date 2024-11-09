@@ -47,7 +47,7 @@ object MapPolicy:
   def allowedMapIdsForUser(userId: UserId): RIO[Env, List[(CharacterId, MapId, model.MapRole)]] =
     AuthQueries.getUserCharactersById(userId).flatMap {
       case None => ZIO.succeed(List.empty[(CharacterId, MapId, model.MapRole)])
-      case Some((_, chars)) =>
+      case Some((_, chars, _)) =>
         allowedMapIdsForCharacters(chars.map(_.id)).map(_.toList.flatMap((k, v) => v.map(mp => (k, mp._1, mp._2))))
     }
 

@@ -1,19 +1,66 @@
 .landing-page {
+    $character-image-width: 132px; /* 128 + 4px margin */
 
-    & #map-selection {
-        margin-left: 6em;
-        margin-right: 6em;
-        display: grid;
-        grid-auto-columns: max-content;
-        grid-template-columns: 1fr 1fr 1fr 1fr 1fr; /* TODO hmnn is this really better? */
+    & a.login-to-eve {
+        display: block;
+        text-align: center;
     }
 
-    & table {
-        display: inline-block;
-        border-collapse: collapse;
+    #map-selection {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: stretch;
     }
 
-    & td.character {
+    & div.topnav {
+        height: 1.4em;
+        margin-bottom: 4px;
+        user-select: none;
+
+        /* darker look */
+        border: 1px solid $gray-darkest;
+        background-color: $gray-darkest;
+        border-radius: 2px;
+
+        display: flex;
+
+        padding: 0 0 0 5px;
+
+        & > * {
+            text-decoration: none;
+            align-self: center;
+            margin-left: 2px;
+            color: $gray-light;
+        }
+
+        /* nav buttons */
+        & button.navitem {
+            background-color: inherit;
+            color: $gray-lighter;
+            border: none;
+            border-radius: 2px;
+            font-size: 1.1em;
+            height: 1.2em;
+            width: 1.2em;
+
+            &:hover:not(:disabled) {
+                background: $teal-dark;
+                color: $orange;
+            }
+
+            &:disabled {
+                color: $gray;
+            }
+        }
+    }
+
+    & div.character-and-maps {
+        margin: 2em 3em;
+
+        flex: 0 0 calc($character-image-width * 2.5);
+        min-height: $character-image-width;
+
+        display: inline-flex;
 
         & img.character-image {
             display: block;
@@ -22,68 +69,96 @@
             border-top-right-radius: 7px;
         }
 
-        & div {
+        & .expired-auth {
+            & img.character-image, & div.character-name {
+                border-color: $red-dark;
+            }
+        }
+
+        & div.character-name {
+            max-width: $character-image-width;
             background: $gray-darker;
             color: $gray-lighter;
-            display: block;
-            border-bottom: 2px solid $gray;
-            border-left: 2px solid $gray;
-            border-right: 2px solid $gray;
-            height: 100%;
-            width: 100%;
+            border: 2px solid $gray;
+            border-top: none;
 
-
-            & button.logout {
+            & button {
                 display: inline-block;
                 border: none;
-                color: $red;
                 font-size: 1em;
-                margin-left: 2px;
 
-                &:hover {
-                    color: $orange;
+                &.logout {
+                    color: $red;
+                    &:hover {
+                        color: $orange;
+                    }
                 }
             }
 
-            & mark {
+            & a.login {
+                margin-left: 2px;
+                display: inline-block;
+                border: none;
+                font-size: 1em;
+                color: $green-dark;
+                text-decoration: none;
+                &:hover {
+                    color: $green;
+                }
+            }
+
+            & mark.name {
                 margin-left: 2px;
                 background-color: inherit;
                 color: $gray-lighter;
                 text-align: center;
-                user-select: none;
             }
         }
-
-
     }
 
-    & td.map-link {
-        & a, & button.new-map {
-            display: block;
-            height: 2em;
-            min-width: 6em;
-            max-width: 12em;
-            text-align: center;
-            border-radius: 4px;
-            text-decoration: none;
-            font-weight: bold;
-            font-size: 0.9em;
-            padding-left: 2px;
-            padding-right: 2px;
+    & div.maps {
+        display: inline-flex;
+        flex-direction: column;
+        flex-wrap: wrap;
+        align-items: stretch;
+        justify-content: center;
+        margin-left: 1em;
 
-            border: 2px solid $gray-darker;
-            color: $gray-lighter;
-            background: $teal-darkest;
+        & div.map-link {
+            margin-bottom: 0.3em;
 
-            &:hover {
-                border: 2px solid $orange;
+            & a, & button.new-map {
+                display: block;
+                min-height: 2em;
+                min-width: 6em;
+                text-align: left;
+                border-radius: 4px;
+                text-decoration: none;
+                font-weight: bold;
+                font-size: 0.9em;
+                padding-left: 2px;
+                padding-right: 2px;
+
+                border: 2px solid $gray-darker;
+                color: $gray-lighter;
+                background: $teal-darkest;
+
+                &:hover {
+                    border: 2px solid $green-dark;
+                }
+            }
+
+            & button.new-map {
+                background: $green-dark;
+                color: $gray-lightest;
+                width: 100%;
+
+                &:hover {
+                    border-color: $gray-lightest;
+                }
             }
         }
-
-        & button.new-map {
-            background: $green-dark;
-            color: $gray-lightest;
-        }
     }
+
 
 }

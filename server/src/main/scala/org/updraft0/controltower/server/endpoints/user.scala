@@ -55,11 +55,14 @@ def getUserInfo = Endpoints.getUserInfo
         .orElseFail("Failure while trying to find user")
         .flatMap {
           case None => ZIO.fail("No user found")
-          case Some(user, characters) =>
+          case Some(user, characters, withAuthTokens) =>
             MapPolicy
               .getMapsForCharacters(characters.map(_.id))
               .tapErrorCause(ZIO.logWarningCause("failed map policy lookup", _))
-              .mapBoth(_ => "Failure while trying to find map policies", toUserInfo(user, characters, _))
+              .mapBoth(
+                _ => "Failure while trying to find map policies",
+                toUserInfo(user, characters, withAuthTokens, _)
+              )
         }
   )
 
@@ -87,6 +90,7 @@ def allUserEndpoints: List[ZServerEndpoint[EndpointEnv, Any]] =
 private def toUserInfo(
     user: model.AuthUser,
     characters: List[model.AuthCharacter],
+    withAuthTokens: List[CharacterId],
     mapsPerCharacter: Map[CharacterId, List[(model.MapModel, model.MapRole)]]
 ): protocol.UserInfo =
   protocol.UserInfo(
@@ -97,7 +101,8 @@ private def toUserInfo(
         name = ac.name,
         characterId = ac.id,
         corporationId = ac.corporationId,
-        allianceId = ac.allianceId
+        allianceId = ac.allianceId,
+        authTokenFresh = withAuthTokens.contains(ac.id)
       )
     },
     maps = toUserCharacterMaps(mapsPerCharacter)

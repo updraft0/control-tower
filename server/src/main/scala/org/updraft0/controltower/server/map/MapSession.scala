@@ -187,10 +187,10 @@ object MapSession:
           ctx.ourQ.offer(
             protocol.MapMessage
               .MapMeta(
-                toProtoCharacter(ctx.character),
+                toProtoCharacter(ctx.character, authTokenFresh = true /* lie through our teeth */ ),
                 toMapInfo(map),
                 toProtocolRole(role),
-                protocol.UserPreferences.Default
+                protocol.UserPreferences.Default /* TODO load preferences */
               )
           )
         case _ => ZIO.logError("BUG: map not set")
@@ -346,12 +346,13 @@ private def toProto(msg: MapResponse): Option[protocol.MapMessage] = msg match
       )
     )
 
-private def toProtoCharacter(char: model.AuthCharacter) =
+private def toProtoCharacter(char: model.AuthCharacter, authTokenFresh: Boolean) =
   protocol.UserCharacter(
     name = char.name,
     characterId = char.id,
     corporationId = char.corporationId,
-    allianceId = char.allianceId
+    allianceId = char.allianceId,
+    authTokenFresh = authTokenFresh
   )
 
 private def toAddSystem(msg: protocol.MapRequest.AddSystem) =

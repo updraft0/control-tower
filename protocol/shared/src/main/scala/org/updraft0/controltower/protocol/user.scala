@@ -9,7 +9,8 @@ case class UserCharacter(
     name: String,
     characterId: CharacterId,
     corporationId: CorporationId,
-    allianceId: Option[AllianceId]
+    allianceId: Option[AllianceId],
+    authTokenFresh: Boolean
 )
 case class UserCharacterMap(characterId: CharacterId, mapId: MapId, mapName: String, mapRole: MapRole)
 

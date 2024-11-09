@@ -10,14 +10,15 @@ import zio.*
 import javax.sql.DataSource
 import java.util.UUID
 
-case class CharacterMapRole(characterId: CharacterId, mapId: MapId, role: model.MapRole)
-
 /** Queries for user/auth related operations
   */
 object AuthQueries:
   import ctx.*
   import auth.given
   import auth.schema.*
+
+  @scala.annotation.unused // ??
+  private inline val ThirtyDaysInSeconds = 30 * 24 * 60
 
   // note: this ignores session expiry
   private inline def getSessionById(sessionId: UUID) =
@@ -29,24 +30,22 @@ object AuthQueries:
   def getCharacterByName(name: String): Result[Option[model.AuthCharacter]] =
     run(quote(character.filter(_.name == lift(name)))).map(_.headOption)
 
-  def getUserCharacterByIdAndCharId(
-      userId: UserId,
-      characterId: CharacterId
-  ): Result[Option[(model.AuthUser, model.AuthCharacter)]] =
-    getUserCharactersById(userId).map(_.flatMap((u, chars) => chars.find(_.id == characterId).map(c => (u -> c))))
-
   def getUserCharactersById(
       userId: UserId
-  ): Result[Option[(model.AuthUser, List[model.AuthCharacter])]] =
+  ): Result[Option[(model.AuthUser, List[model.AuthCharacter], List[CharacterId])]] =
     run(quote {
       for
         user           <- user.filter(_.id == lift(userId))
         userCharacters <- userCharacter.join(_.userId == user.id)
         characters     <- character.join(_.id == userCharacters.characterId)
-      yield (user, characters)
+        authTokenCharacters <- characterAuthToken
+          .filter(_.updatedAt.exists(_ > unixepochMinusSeconds(ThirtyDaysInSeconds)))
+          .leftJoin(_.characterId == userCharacters.characterId)
+          .map(_.map(_.characterId))
+      yield (user, characters, authTokenCharacters)
     }).map {
       case Nil => None
-      case xs  => Some(xs.head._1, xs.map(_._2))
+      case xs  => Some(xs.head._1, xs.map(_._2), xs.flatMap(_._3))
     }
 
   def getUserCharactersBySessionId(
