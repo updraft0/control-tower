@@ -17,8 +17,8 @@ case class ObserverState(rootElement: dom.Element, elements: mutable.ArrayBuffer
 
 // really magic constants FIXME move
 private val Threshold            = 0.0
-private val ThrottleMs           = 100
-private val ObserverDisconnectMs = 80
+private val ThrottleMs           = 40
+private val ObserverDisconnectMs = 30
 
 final class SelectionView(
     singleSelected: Signal[Option[SystemId]],
@@ -41,8 +41,12 @@ final class SelectionView(
           val parentBounds = obsState.rootElement.getBoundingClientRect()
           val bbox         = Coord(parentBounds.x, parentBounds.y)
           val mouseCoord   = Coord(x = pev.clientX - bbox.x, y = pev.clientY - bbox.y)
+          val parentDims   = Coord(obsState.rootElement.clientWidth, obsState.rootElement.clientHeight)
 
-          state.set(SelectionState.Selecting(mouseCoord, mouseCoord, bbox))
+          // the clientWidth does not contain the borders/scrollbars but the mouse position does, check so that we don't
+          // start the selection box when the click is targeted to the scrollbar
+          if (mouseCoord.x < parentDims.x && mouseCoord.y < parentDims.y)
+            state.set(SelectionState.Selecting(mouseCoord, mouseCoord, bbox))
         },
       onPointerMove.compose(
         _.filterWith(stateSelecting)
