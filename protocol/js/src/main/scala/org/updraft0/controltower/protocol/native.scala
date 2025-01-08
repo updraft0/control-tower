@@ -14,7 +14,7 @@ object native:
   given NativeConverter[WormholeClass] with
     extension (wc: WormholeClass) def toNative: js.Any = wc.value.toDouble
     def fromNative(ps: ParseState): WormholeClass =
-      val idx = ps.json.asInstanceOf[Any] match
+      val idx = ps.json.asInstanceOf[Matchable] match
         case i: Int    => i
         case s: String => s.toIntOption.getOrElse(ps.fail("Int"))
         case _         => ps.fail("Int")
@@ -22,7 +22,7 @@ object native:
   given NativeConverter[WormholeEffect] with
     extension (we: WormholeEffect) def toNative: js.Any = we.typeId.toDouble
     def fromNative(ps: ParseState): WormholeEffect =
-      val idx = ps.json.asInstanceOf[Any] match
+      val idx = ps.json.asInstanceOf[Matchable] match
         case i: Int    => i.toLong
         case s: String => s.toLongOption.getOrElse(ps.fail("Long"))
         case _         => ps.fail("Long")

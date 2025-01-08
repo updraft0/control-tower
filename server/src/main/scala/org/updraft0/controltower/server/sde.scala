@@ -5,7 +5,7 @@ import org.updraft0.controltower.db.query
 import zio.*
 import org.updraft0.esi.client.SdeClient
 import org.updraft0.controltower.sdeloader
-import org.updraft0.controltower.sde.{read => readSdeZip, group => groupEntries}
+import org.updraft0.controltower.sde.{read as readSdeZip, group as groupEntries}
 import zio.stream.ZSink
 
 import java.nio.file.Files

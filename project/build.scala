@@ -40,7 +40,8 @@ object build {
       "-Wunused:imports,privates,locals,implicits",
       "-Werror",
       "-language:implicitConversions",
-      "-language:strictEquality"
+      "-language:strictEquality",
+      "-source:future"
 //      "-explain"
     ),
     ThisBuild / usePipelining := true,

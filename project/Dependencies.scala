@@ -23,7 +23,7 @@ object Dependencies {
     val sttp               = "3.10.1"
     val tapir              = "1.11.8"
     val waypoint           = "8.0.1"
-    val zio                = "2.1.11"
+    val zio                = "2.1.14"
     val `zio-config`       = "4.0.2"
     val `zio-logging`      = "2.3.2"
     val `zio-metrics`      = "2.3.1"

@@ -10,7 +10,8 @@ import sttp.ws.{WebSocket, WebSocketClosed, WebSocketFrame}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.reflect.ClassTag
+import scala.language.adhocExtensions
+import scala.reflect.TypeTest
 import scala.util.{Failure, Success, Try}
 
 trait AirstreamStreams extends Streams[AirstreamStreams]:
@@ -61,9 +62,9 @@ class WebSocketToAirstream[R <: AirstreamStreams & WebSockets](using owner: Owne
           )
         )
 
-      def concatOrDecode[A <: WebSocketFrame: ClassTag](acc: Option[WebSocketFrame], frame: A, last: Boolean)(
+      def concatOrDecode[A <: WebSocketFrame](acc: Option[WebSocketFrame], frame: A, last: Boolean)(
           f: (A, A) => A
-      ): Try[(Option[WebSocketFrame], Either[Unit, Option[RESP]])] =
+      )(using TypeTest[WebSocketFrame, A]): Try[(Option[WebSocketFrame], Either[Unit, Option[RESP]])] =
         if (last)
           (acc match
             case None       => decode(frame).map(Right(_))

@@ -1,6 +1,6 @@
 package org.updraft0.controltower.server.auth
 
-import java.{util => ju}
+import java.util as ju
 
 opaque type Base64 = String
 
