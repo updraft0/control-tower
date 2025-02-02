@@ -31,6 +31,9 @@ To run using [docker-compose]:
 Current minimum runtime requirements are 4GB RAM and 1 CPU, because the full [SDE][eve-online-sde] is imported and 
 parsing hundreds of megabytes of YAML is memory consuming.
 
+For development, it may be useful to override the env variables `CT_DB_PATH` to something appropriate and set 
+`CT_HTTP_UI_PORT=8091` to match the vite frontend port.
+
 ## Features
 
 The feature list is intended as an overview of capabilities and current roadmap - for more details see the project view.
