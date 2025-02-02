@@ -14,8 +14,9 @@ export default defineConfig({
                 preserveHeaderKeyCase: true,
                 autoRewrite: true,
                 secure: false,
-                localAddress: '127.0.0.1',
-                target: 'http://localhost4:8092',
+                // localAddress: '127.0.0.1',
+                // this can be unreliable if localhost resolves to an ipv6 address
+                target: 'http://localhost:8092',
                 ws: true
             }
         },

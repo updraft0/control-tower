@@ -8,24 +8,24 @@ import sbt.Keys.libraryDependencies
 object Dependencies {
 
   object Versions {
-    val brotli             = "1.17.0"
-    val flyway             = "9.21.1"
-    val jsoniter           = "2.31.1"
+    val brotli             = "1.18.0"
+    val flyway             = "11.3.0"
+    val jsoniter           = "2.33.1"
     val jwt                = "10.0.1"
-    val laminar            = "17.1.0"
+    val laminar            = "17.2.0"
     val laminext           = "0.17.0"
     val `native-converter` = "0.9.0"
     val quill              = "4.8.6"
     val `scala-java-time`  = "2.6.0"
     val `sjs-dom`          = "2.8.0+45-53f9a1a2-SNAPSHOT" // FIXME wait for 2.9.0 release
-    val snakeyaml          = "2.8"
+    val snakeyaml          = "2.9"
     val sqlite             = "3.46.1.3"
     val sttp               = "3.10.1"
-    val tapir              = "1.11.8"
+    val tapir              = "1.11.13"
     val waypoint           = "8.0.1"
     val zio                = "2.1.14"
-    val `zio-config`       = "4.0.2"
-    val `zio-logging`      = "2.3.2"
+    val `zio-config`       = "4.0.3"
+    val `zio-logging`      = "2.4.0"
     val `zio-metrics`      = "2.3.1"
   }
 
