@@ -41,7 +41,13 @@ class PasteSignaturesView(
       .map(parseLines)
       .withCurrentValueOf(time)
       .map { (res, now) =>
-        res.filterOrElse(_.nonEmpty, "No signatures pasted").flatMap(_.map(parseLineToSignature(_, now)).sequence)
+        res
+          .flatMap(
+            _.filter(includeSignatureLine)
+              .map(parseLineToSignature(_, now))
+              .sequence
+          )
+          .filterOrElse(_.nonEmpty, "No signatures pasted")
       }
       .combineWith(shouldReplace.signal)
       .map {
@@ -62,7 +68,10 @@ class PasteSignaturesView(
       input(
         cls := "signature-replace",
         tpe := "checkbox",
-        onInput.mapToChecked --> shouldReplace
+        controlled(
+          checked <-- shouldReplace,
+          onInput.mapToChecked --> shouldReplace
+        )
       ),
       textArea(
         cls         := "signature-paste",
@@ -239,6 +248,9 @@ def parseLineToSignature(line: ParsedLine, now: Instant): Either[String, NewSyst
     )
     group <- signatureGroupFor(line)
   yield signatureFrom(sigId, group, line, now)
+
+private def includeSignatureLine(line: ParsedLine) =
+  line.tpe == "Cosmic Signature" || line.tpe == "Cosmic Anomaly" || line.group == "Combat Site"
 
 // TODO: ghost sites?
 private def signatureGroupFor(line: ParsedLine) = (line.tpe, line.group) match

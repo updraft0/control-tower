@@ -182,7 +182,7 @@ lazy val ui = project
       "dev.zio" %%% "zio-test-magnolia" % Versions.zio % Test
     )
   )
-  .dependsOn(protocol.js)
+  .dependsOn(protocol.js, `test-deps`.js % Test)
 
 lazy val root = project
   .in(file("."))

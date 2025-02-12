@@ -705,6 +705,7 @@ private[map] def pasteSignaturesView(
   val shouldReplace   = Var(false)
   val addAll          = PasteSignaturesView(mss.signatures, time, updates.writer, shouldReplace)
   div(
+    ctx.userPreferences.map(_.sig.replaceSignaturesByDefault) --> shouldReplace,
     cls := "system-paste-signatures-view",
     cls := "dialog-view",
     h2(cls := "dialog-header", s"Paste system signatures [${mss.system.name.getOrElse(solarSystem.name)}]"),
