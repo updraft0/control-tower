@@ -50,27 +50,38 @@ object AuthQueries:
 
   def getUserCharactersBySessionId(
       sessionId: UUID
-  ): Result[Option[(model.UserSession, model.AuthUser, List[model.AuthCharacter])]] =
+  ): Result[Option[(model.UserSession, model.AuthUser, Option[model.UserPreference], List[model.AuthCharacter])]] =
     run(quote {
       for
         sess           <- getSessionById(sessionId)
         user           <- user.join(_.id == sess.userId)
         userCharacters <- userCharacter.join(_.userId == user.id)
         characters     <- character.join(_.id == userCharacters.characterId)
-      yield (sess, user, characters)
+        pref           <- userPreference.leftJoin(_.userId == user.id)
+      yield (sess, user, pref, characters)
     }).map {
       case Nil => None
-      case xs  => Some(xs.head._1, xs.head._2, xs.map(_._3))
+      case xs  => Some(xs.head._1, xs.head._2, xs.head._3, xs.map(_._4))
     }
 
-  def getUserByCharacterId(characterId: CharacterId): Result[Option[(model.AuthUser, model.AuthCharacter)]] =
+  def getUserByCharacterId(
+      characterId: CharacterId
+  ): Result[Option[(model.AuthUser, Option[model.UserPreference], model.AuthCharacter)]] =
     run(quote {
       (for
         charJoin <- userCharacter.filter(_.characterId == lift(characterId))
         user     <- user.join(_.id == charJoin.userId)
         char     <- character.join(_.id == charJoin.characterId)
-      yield (user, char)).groupByMap((u, c) => (u, c))((u, c) => (u, c))
+        pref     <- userPreference.leftJoin(_.userId == charJoin.userId)
+      yield (user, pref, char)).groupByMap((u, p, c) => (u, p, c))((u, p, c) => (u, p, c))
     }).map {
+      case Nil      => None
+      case h :: Nil => Some(h)
+      case _        => None
+    }
+
+  def getUserPreference(userId: UserId): Result[Option[model.UserPreference]] =
+    run(quote { userPreference.filter(_.userId == lift(userId)) }).map {
       case Nil      => None
       case h :: Nil => Some(h)
       case _        => None
@@ -185,6 +196,15 @@ object AuthQueries:
         )
       )
     ).map(_.sum)
+
+  def updateUserPreference(pref: model.UserPreference): Result[Long] =
+    run(
+      quote(
+        userPreference
+          .insertValue(lift(pref))
+          .onConflictUpdate(_.userId)((t, e) => t.preferenceJson -> e.preferenceJson)
+      )
+    )
 
   // deletes
   def deleteMapPolicyMembers(mapId: MapId): Result[Long] =

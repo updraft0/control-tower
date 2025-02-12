@@ -138,7 +138,12 @@ def mapWebSocket: zio.http.Routes[EndpointEnv, zio.http.Response] =
                 .mapError(Response.unauthorized)
               (mapId, mapRole) = mapTup
               sessionMsgs <- ZIO.serviceWithZIO[MapPermissionTracker](_.subscribeSession(mapId, characterOpt.get.id))
-              resp        <- MapSession(mapId, characterOpt.get, user.userId, mapRole, sessionMsgs).toResponse
+              dbPrefs <- AuthQueries
+                .getUserPreference(user.userId)
+                .logError("failed to lookup user preferences, using defaults")
+                .orElseSucceed(None)
+              prefs <- loadPreferences(user.userId, dbPrefs)
+              resp  <- MapSession(mapId, characterOpt.get, user.userId, mapRole, sessionMsgs, prefs).toResponse
             yield resp
         else ZIO.fail(Response.notFound("Not a map websocket endpoint"))
       }

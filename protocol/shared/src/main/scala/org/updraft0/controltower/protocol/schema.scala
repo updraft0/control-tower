@@ -58,11 +58,13 @@ object schema:
   given Schema[WormholeStatic] = Schema.derived
 
   // user
-  given Schema[MapRole]          = Schema.derived
-  given Schema[UserCharacter]    = Schema.derived
-  given Schema[UserCharacterMap] = Schema.derived
-  given Schema[UserInfo]         = Schema.derived
-  given Schema[UserPreferences]  = Schema.derived
+  given Schema[MapRole]              = Schema.derived
+  given Schema[UserCharacter]        = Schema.derived
+  given Schema[UserCharacterMap]     = Schema.derived
+  given Schema[UserInfo]             = Schema.derived
+  given Schema[MapPreferences]       = Schema.derived
+  given Schema[SignaturePreferences] = Schema.derived
+  given Schema[UserPreferences]      = Schema.derived
 
   // map
   given Schema[MapInfo]                = Schema.derived
@@ -195,11 +197,13 @@ object jsoncodec extends OpaqueCodecs:
   given JsonValueCodec[WormholeStatic] = JsonCodecMaker.make(config)
 
   // user
-  given JsonValueCodec[MapRole]          = JsonCodecMaker.make(config)
-  given JsonValueCodec[UserCharacter]    = JsonCodecMaker.make(config)
-  given JsonValueCodec[UserCharacterMap] = JsonCodecMaker.make(config)
-  given JsonValueCodec[UserInfo]         = JsonCodecMaker.make(config)
-  given JsonValueCodec[UserPreferences]  = JsonCodecMaker.make(config)
+  given JsonValueCodec[MapRole]              = JsonCodecMaker.make(config)
+  given JsonValueCodec[UserCharacter]        = JsonCodecMaker.make(config)
+  given JsonValueCodec[UserCharacterMap]     = JsonCodecMaker.make(config)
+  given JsonValueCodec[UserInfo]             = JsonCodecMaker.make(config)
+  given JsonValueCodec[MapPreferences]       = JsonCodecMaker.make(config)
+  given JsonValueCodec[SignaturePreferences] = JsonCodecMaker.make(config)
+  given JsonValueCodec[UserPreferences]      = JsonCodecMaker.make(config)
 
   // map
   given JsonValueCodec[MapInfo]                = JsonCodecMaker.make(config)

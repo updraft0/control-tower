@@ -59,10 +59,10 @@ object Users:
     (AuthQueries.getUserCharactersBySessionId(sessionId) <*>
       AuthQueries.getUserByCharacterId(CharacterId(characterId)))
       .map {
-        case (None, None)                             => LoginState.NewUser
-        case (None, Some((user, char)))               => LoginState.NewSession(user, char)
-        case (Some((session, user, _)), None)         => LoginState.UserAddCharacter(session, user)
-        case (Some((session, _, _)), Some((user, _))) => LoginState.RefreshToken(session, user)
+        case (None, None)                                   => LoginState.NewUser
+        case (None, Some((user, pref, char)))               => LoginState.NewSession(user, char)
+        case (Some((session, user, _, _)), None)            => LoginState.UserAddCharacter(session, user)
+        case (Some((session, _, _, _)), Some((user, _, _))) => LoginState.RefreshToken(session, user)
       }
 
   private def loginComplete(jwt: JwtAuthResponse, tokenMeta: EsiTokenMeta, sessionId: UUID, state: LoginState) =
@@ -102,7 +102,7 @@ object Users:
       AuthQueries
         .getUserCharactersBySessionId(sessionId)
         .flatMap:
-          case Some((user, _, chars)) if chars.exists(_.id == characterId) =>
+          case Some((user, _, _, chars)) if chars.exists(_.id == characterId) =>
             auth
               .removeCharacterFromUser(user.userId, characterId)
               .map(count => if (count > 0) true else false)

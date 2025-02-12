@@ -1,15 +1,16 @@
 package org.updraft0.controltower.server.endpoints
 
-import org.updraft0.controltower.constant.CharacterId
+import org.updraft0.controltower.constant.{CharacterId, UserId}
 import org.updraft0.controltower.db.model
 import org.updraft0.controltower.protocol
-import org.updraft0.controltower.protocol.Endpoints
+import org.updraft0.controltower.protocol.{Endpoints, UserPreferences}
 import org.updraft0.controltower.server.Server.EndpointEnv
 import org.updraft0.controltower.server.auth.*
 import org.updraft0.controltower.server.db.AuthQueries
 import org.updraft0.controltower.server.tracking.CharacterAuthTracker
 import sttp.tapir.ztapir.*
 import zio.{Config as _, *}
+import com.github.plokhotnyuk.jsoniter_scala
 
 enum UserSessionError derives CanEqual:
   case InvalidCookie, DbQueryFailure, SessionNotFound, SessionExpired
@@ -35,7 +36,7 @@ def validateSession(
       .orElseFail(UserSessionError.DbQueryFailure)
     _ <- ZIO.fail(UserSessionError.SessionNotFound).when(authResult.isEmpty)
     _ <- ZIO.fail(UserSessionError.SessionExpired).when(authResult.exists(_._1.expiresAt.isBefore(now)))
-    (_, user, _) = authResult.get
+    (_, user, _, _) = authResult.get
     user <- UserSession.setUser(LoggedInUser(user.id, sessionCookie.id))
   yield user
 
@@ -49,21 +50,23 @@ def getUserInfo = Endpoints.getUserInfo
   .zServerSecurityLogic(validateSessionString)
   .serverLogic(user =>
     _ =>
-      AuthQueries
-        .getUserCharactersById(user.userId)
-        .tapErrorCause(ZIO.logWarningCause("failed query", _))
-        .orElseFail("Failure while trying to find user")
-        .flatMap {
-          case None => ZIO.fail("No user found")
-          case Some(user, characters, withAuthTokens) =>
-            MapPolicy
-              .getMapsForCharacters(characters.map(_.id))
-              .tapErrorCause(ZIO.logWarningCause("failed map policy lookup", _))
-              .mapBoth(
-                _ => "Failure while trying to find map policies",
-                toUserInfo(user, characters, withAuthTokens, _)
-              )
-        }
+      for
+        usersById <- AuthQueries
+          .getUserCharactersById(user.userId)
+          .tapErrorCause(ZIO.logWarningCause("failed query", _))
+          .orElseFail("Failure while trying to find user")
+          .someOrFail("No user found")
+        (user, characters, withAuthTokens) = usersById
+        res <- MapPolicy
+          .getMapsForCharacters(characters.map(_.id))
+          .tapErrorCause(ZIO.logWarningCause("failed map policy lookup", _))
+          .mapError(_ => "Failure while trying to find map policies")
+        prefs <- AuthQueries
+          .getUserPreference(user.id)
+          .tapErrorCause(ZIO.logWarningCause("failed map policy lookup", _))
+          .mapError(_ => "Failure while trying to load user preferences")
+        preferences <- loadPreferences(user.id, prefs)
+      yield toUserInfo(user, characters, withAuthTokens, res, preferences)
   )
 
 def logoutUserCharacter = Endpoints.logoutUserCharacter
@@ -81,9 +84,23 @@ def logoutUserCharacter = Endpoints.logoutUserCharacter
         }
   )
 
+def updatePreferences = Endpoints.updatePreferences
+  .zServerSecurityLogic(validateSessionString)
+  .serverLogic(user =>
+    prefs =>
+      import protocol.jsoncodec.given
+      val prefsJson = jsoniter_scala.core.writeToString(prefs)
+      AuthQueries
+        .updateUserPreference(model.UserPreference(user.userId, prefsJson))
+        .tapErrorCause(ZIO.logWarningCause("failed query", _))
+        .orElseFail("Failure while trying to update user preferences")
+        .as(())
+  )
+
 def allUserEndpoints: List[ZServerEndpoint[EndpointEnv, Any]] =
   List(
     getUserInfo.widen[EndpointEnv],
+    updatePreferences.widen[EndpointEnv],
     logoutUserCharacter.widen[EndpointEnv]
   )
 
@@ -91,7 +108,8 @@ private def toUserInfo(
     user: model.AuthUser,
     characters: List[model.AuthCharacter],
     withAuthTokens: List[CharacterId],
-    mapsPerCharacter: Map[CharacterId, List[(model.MapModel, model.MapRole)]]
+    mapsPerCharacter: Map[CharacterId, List[(model.MapModel, model.MapRole)]],
+    preferences: UserPreferences
 ): protocol.UserInfo =
   protocol.UserInfo(
     userId = user.id,
@@ -105,7 +123,8 @@ private def toUserInfo(
         authTokenFresh = withAuthTokens.contains(ac.id)
       )
     },
-    maps = toUserCharacterMaps(mapsPerCharacter)
+    maps = toUserCharacterMaps(mapsPerCharacter),
+    preferences = preferences
   )
 
 private def toUserCharacterMaps(mapsPerCharacter: Map[CharacterId, List[(model.MapModel, model.MapRole)]]) =
@@ -120,3 +139,13 @@ private def toProtocol(role: model.MapRole) =
     case model.MapRole.Editor => protocol.MapRole.Editor
     case model.MapRole.Viewer => protocol.MapRole.Viewer
     case model.MapRole.Admin  => protocol.MapRole.Admin
+
+private def loadPreferences(userId: UserId, prefsOpt: Option[model.UserPreference]): UIO[UserPreferences] =
+  import protocol.jsoncodec.given
+  prefsOpt match
+    case None => ZIO.succeed(UserPreferences.Default)
+    case Some(prefs) =>
+      ZIO
+        .attempt(jsoniter_scala.core.readFromString[UserPreferences](prefs.preferenceJson))
+        .logError("unable to deserialize preferences, falling back to defaults")
+        .orElseSucceed(UserPreferences.Default)

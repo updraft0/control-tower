@@ -284,7 +284,7 @@ private final class MapView(
             // TODO: unsure about the checks against self.ref - should always be true?
 
             // note: this click handler cleans up any selection
-            if (prefs.clickResetsSelection && ev.currentTarget == self.ref)
+            if (prefs.map.clickResetsSelection && ev.currentTarget == self.ref)
               Var.set(controller.selectedSystemId -> None, controller.selectedConnectionId -> None)
 
             if (ev.currentTarget == self.ref)

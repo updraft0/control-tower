@@ -60,6 +60,7 @@ object auth:
     inline def characterAuthToken = quote(querySchema[CharacterAuthToken]("auth.character_auth_token"))
     inline def user               = quote(querySchema[AuthUser]("auth.user"))
     inline def userCharacter      = quote(querySchema[UserCharacter]("auth.user_character"))
+    inline def userPreference     = quote(querySchema[UserPreference]("auth.user_preference"))
     inline def userSession        = quote(querySchema[UserSession]("auth.user_session"))
     inline def mapPolicy          = quote(querySchema[MapPolicy]("auth.map_policy"))
     inline def mapPolicyMember    = quote(querySchema[MapPolicyMember]("auth.map_policy_member"))
@@ -139,3 +140,10 @@ object auth:
 
   def deleteCharacterAuthTokens(ids: Chunk[CharacterId]): DbOperation[Long] =
     ctx.run(quote(schema.characterAuthToken.filter(cat => liftQuery(ids).contains(cat.characterId)).delete))
+
+  def upsertUserPreference(pref: UserPreference): DbOperation[Long] =
+    ctx.run(
+      schema.userPreference
+        .insertValue(lift(pref))
+        .onConflictUpdate(_.userId)((t, e) => t.preferenceJson -> e.preferenceJson)
+    )

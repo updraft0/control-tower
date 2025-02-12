@@ -19,6 +19,8 @@ import org.updraft0.controltower.server.tracking.{
   ServerStatusTracker
 }
 import com.github.plokhotnyuk.jsoniter_scala.core.{readFromString, writeToString}
+import org.updraft0.controltower.protocol.UserPreferences
+
 import scala.util.Try
 import zio.*
 import zio.http.ChannelEvent.UserEvent
@@ -59,9 +61,14 @@ object MapSession:
 
   private val ServerStatusInterval = 1.minute
 
+  // TODO: refresh user preferences when they are altered without creating a new session
+
+  /** Context for a map session
+    */
   private case class Context(
       mapId: MapId,
       character: model.AuthCharacter,
+      prefs: UserPreferences,
       sessionId: MapSessionId,
       userId: UserId,
       mapRole: Ref[model.MapRole],
@@ -76,7 +83,8 @@ object MapSession:
       character: model.AuthCharacter,
       userId: UserId,
       initialRole: model.MapRole,
-      sessionMessages: Dequeue[MapSessionMessage]
+      sessionMessages: Dequeue[MapSessionMessage],
+      prefs: UserPreferences
   ) = Handler.webSocket: chan =>
     inContext(mapId, character.id, userId)(
       for
@@ -92,7 +100,7 @@ object MapSession:
         _ <- ZIO
           .serviceWith[LocationTracker](_.inbound)
           .flatMap(_.offer(LocationTrackingRequest.AddCharacters(Chunk(character.id))))
-        ctx = Context(mapId, character, sid, userId, mapRole, mapQ, resQ, ourQ, sessionMessages)
+        ctx = Context(mapId, character, prefs, sid, userId, mapRole, mapQ, resQ, ourQ, sessionMessages)
         // close the scope (and the subscription) if the websocket is closed
         close <- ZIO.serviceWith[Scope.Closeable](scope => scope.close(Exit.succeed(())))
         _ <- chan.awaitShutdown
@@ -190,7 +198,7 @@ object MapSession:
                 toProtoCharacter(ctx.character, authTokenFresh = true /* lie through our teeth */ ),
                 toMapInfo(map),
                 toProtocolRole(role),
-                protocol.UserPreferences.Default /* TODO load preferences */
+                ctx.prefs
               )
           )
         case _ => ZIO.logError("BUG: map not set")

@@ -85,6 +85,12 @@ object Endpoints:
     .out(jsonBody[UserInfo])
     .description("Return basic user information including their characters and maps")
 
+  val updatePreferences = user
+    .in("preferences")
+    .put
+    .in(jsonBody[UserPreferences])
+    .description("Update user preferences")
+
   val logoutUserCharacter = user
     .in("character" / path[CharacterId]("characterId"))
     .delete

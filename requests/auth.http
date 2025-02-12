@@ -13,6 +13,24 @@ Cookie: CT-Session={{ctsessionid}}
 ###
 
 
+# Use this to test updating user preferences
+# @name UpdatePreferences
+PUT {{api}}/user/preferences
+Cookie: CT-Session={{ctsessionid}}
+Content-Type: application/json
+
+{
+  "map": {
+    "click_resets_selection": true
+  },
+  "sig": {
+    "replace_signatures_by_default": true
+  }
+}
+
+###
+
+
 # Use this debug the login CORS/secure cookie auth flow
 # @no-redirect
 # @no-cookie-jar

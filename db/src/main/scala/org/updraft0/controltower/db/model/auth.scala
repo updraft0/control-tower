@@ -63,3 +63,8 @@ case class MapPolicyMember(
     updatedByUserId: UserId,
     updatedAt: Instant
 )
+
+case class UserPreference(
+    userId: UserId,
+    preferenceJson: String
+)
