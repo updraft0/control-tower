@@ -1,0 +1,41 @@
+dialog#edit-user-preferences {
+    color: $gray-lighter;
+    background-color: $dialog-bg-dark;
+    padding: 0.5em;
+    width: 40vw;
+
+    & span.header {
+        font-size: 2em;
+        text-align: center;
+    }
+
+    & div.srf-form {
+        div[id] {
+            display: block;
+
+            div > span {
+                font-size: 1.2em;
+            }
+
+            text-align: left;
+            font-size: 1em;
+        }
+    }
+
+    & button.update {
+        /* FIXME duplication */
+        background-color: $green-dark;
+        border: 0;
+        border-radius: 3px;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, .6);
+        transition: background-color 0.3s;
+        font-weight: bold;
+
+        font-size: 1.1rem;
+        color: $gray-lightest;
+
+        &:hover {
+            filter: brightness(130%);
+        }
+    }
+}

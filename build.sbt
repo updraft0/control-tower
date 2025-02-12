@@ -163,6 +163,8 @@ lazy val ui = project
       // laminext
       "io.laminext" %%% "core"      % Versions.laminext,
       "io.laminext" %%% "websocket" % Versions.laminext,
+      // form derivation
+      "dev.cheleb" %%% "laminar-form-derivation" % Versions.`laminar-form-derivation`,
       // sttp
       "com.softwaremill.sttp.tapir" %%% "tapir-sttp-client" % Versions.tapir,
       "io.github.cquiroz" %%% "scala-java-time" % Versions.`scala-java-time`, // implementations of java.time classes for Scala.JS

@@ -13,6 +13,7 @@ object Dependencies {
     val jsoniter           = "2.33.1"
     val jwt                = "10.0.1"
     val laminar            = "17.2.0"
+    val `laminar-form-derivation` = "0.24.0"
     val laminext           = "0.17.0"
     val `native-converter` = "0.9.0"
     val quill              = "4.8.6"

@@ -4,10 +4,11 @@ import com.raquo.laminar.api.L.*
 import controltower.*
 import controltower.backend.{ControlTowerBackend, ESI}
 import controltower.component.*
-import controltower.dialog.EditMapView
+import controltower.dialog.{EditMapView, EditUserPreferencesView}
 import org.scalajs.dom
 import org.updraft0.controltower.protocol.*
 import sttp.model.Uri
+import scala.util.{Success, Failure}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -17,20 +18,22 @@ object LandingPage:
   def renderPage(using ct: ControlTowerBackend) =
     val userInfo = Var[Option[UserInfo]](None)
 
-    ct.getUserInfo().foreach {
-      case Left(msg) =>
-        dom.console.debug(s"error loading user info: $msg")
-        userInfo.set(None)
-      case Right(value) => userInfo.set(Some(value))
-    }
     div(
       cls := "landing-page",
-      topNav,
+      onMountCallback(_ => loadUserInfo(userInfo)),
+      topNav(userInfo),
       child <-- userInfo.signal.map(
         _.map(renderCharacterMapSelection).getOrElse(emptyNode)
       ),
       renderLogin(ct.loginUrl)
     )
+
+  private def loadUserInfo(userInfo: Var[Option[UserInfo]])(using ct: ControlTowerBackend) =
+    ct.getUserInfo()
+      .onComplete:
+        case Failure(ex)           => dom.console.error("error loading user info", ex)
+        case Success(Left(msg))    => dom.console.error(s"error loading user info because: $msg")
+        case Success(Right(value)) => userInfo.set(Some(value))
 
   private def renderCharacterMapSelection(userInfo: UserInfo)(using ControlTowerBackend) =
     val charMaps = userInfo.maps.groupBy(_.characterId)
@@ -92,7 +95,7 @@ object LandingPage:
       cls := "ti-logout",
       onClick.preventDefault --> Modal.showConfirmation(
         s"Logout ${char.name}?",
-        s"Are you sure you want to logout '${char.name}' from the map",
+        s"Are you sure you want to logout '${char.name}' from all maps",
         onOk = Observer(_ =>
           ct.logoutUserCharacter(char.characterId)
             .onComplete(_ => Routes.router.pushState(Page.Landing))
@@ -126,9 +129,24 @@ object LandingPage:
       map.mapName
     )
 
-  private def topNav =
+  private def topNav(userInfo: Var[Option[UserInfo]])(using ControlTowerBackend) =
     div(
       cls := "topnav",
       span("ControlTower"),
-      button(cls := "navitem", cls := "ti", cls := "ti-map-cog", Routes.navigateTo(Page.MapEditor))
+      button(cls := "navitem", cls := "ti", cls := "ti-map-cog", Routes.navigateTo(Page.MapEditor)),
+      button(
+        cls := "navitem",
+        cls := "ti",
+        cls := "ti-user-cog",
+        onClick.preventDefault.mapToUnit.compose(_.withCurrentValueOf(userInfo)) --> { userOpt =>
+          userOpt.map(user =>
+            Modal.show(
+              (closeMe, _) => EditUserPreferencesView(user.userId, user.preferences, closeMe),
+              Observer(_ => loadUserInfo(userInfo)),
+              clickCloses = true,
+              idAttr := "edit-user-preferences"
+            )
+          )
+        }
+      )
     )

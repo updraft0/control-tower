@@ -14,6 +14,7 @@
 
 /* dialogs */
 @import 'views/edit-map.css';
+@import 'views/user-preferences-dialog.css';
 
 /* map views */
 @import 'views/connection-info-view.css';

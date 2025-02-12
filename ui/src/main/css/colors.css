@@ -116,3 +116,6 @@ $brand-info:                  $blue-dark !default;
 $brand-warning:               $orange !default;
 $brand-danger:                $red-dark !default;
 $brand-hint:                  $yellow-dark !default;
+
+/* backgrounds */
+$dialog-bg-dark:              #353739;

@@ -39,6 +39,8 @@ class ControlTowerBackend(
   val getMap: MapId => Future[Either[String, MapInfoWithPermissions]] = (id) => callSecure(Endpoints.getMap)(id)
   val updateMap: (MapId, MapInfoWithPermissions) => Future[Either[String, MapInfoWithPermissions]] = (id, mapInfo) =>
     callSecure(Endpoints.updateMap)(id -> mapInfo)
+  val updatePreferences: UserPreferences => Future[Either[String, Unit]] =
+    callSecure(Endpoints.updatePreferences)
 
   // endregion
 
