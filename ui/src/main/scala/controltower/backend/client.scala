@@ -13,7 +13,7 @@ import sttp.tapir.client.sttp.{SttpClientInterpreter, WebSocketToPipe}
 
 import scala.concurrent.Future
 
-class ControlTowerBackend(
+final class ControlTowerBackend(
     // no default hardcoding of backend urls - rely on frontend proxy to route appropriately
     val backendUrlOpt: Option[Uri] = None,
     val wsUrlOpt: Option[Uri] = None

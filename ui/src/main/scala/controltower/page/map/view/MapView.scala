@@ -10,6 +10,7 @@ import controltower.db.ReferenceDataStore
 import controltower.page.map.*
 import controltower.ui.*
 import io.laminext.websocket.*
+import org.scalajs.dom
 import org.scalajs.dom.KeyboardEvent
 import org.updraft0.controltower.constant.SystemId
 import org.updraft0.controltower.protocol.*
@@ -178,7 +179,7 @@ private final class MapView(
       contextMenuView.view,
       // A -> add system
       modalKeyBinding(
-        "KeyA",
+        "a",
         controller.mapRole.map(RoleController.canAddSystem).combineWith(ws.isConnected).map(_ && _),
         _.map(ev => (ev, ())),
         (_, onClose) =>
@@ -208,7 +209,7 @@ private final class MapView(
       ),
       // P -> paste system signatures
       modalKeyBinding(
-        "KeyP",
+        "p",
         controller.mapRole.map(RoleController.canEditSignatures).combineWith(ws.isConnected).map(_ && _),
         _.filterWith(controller.selectedSystem, _.isDefined)
           .withCurrentValueOf(controller.selectedSystem)
@@ -231,9 +232,24 @@ private final class MapView(
           )
         }
       ),
+      // paste system signatures without confirmation // TODO why is event handler only fired on document level
+      clipboardEventBinding[(SystemId, Instant)](
+        documentEvents(_.onPaste),
+        controller.mapRole.map(RoleController.canEditSignatures).combineWith(ws.isConnected).map(_ && _),
+        _.filterWith(controller.selectedSystemId, _.isDefined)
+          .withCurrentValueOf(controller.selectedSystemId, time)
+          .map((ev, opt, now) => (ev, (opt.get, now))),
+        { case (clipboard, (systemId, now), onClose) =>
+          parseLines(clipboard)
+            .flatMap(_.map(parseLineToSignature(_, now)).sequence)
+            .foreach: sigs =>
+              controller.actionsBus.onNext(MapAction.UpdateSignatures(systemId, false, sigs.toArray))
+          onClose.onNext(())
+        }
+      ),
       // R -> rename system
       modalKeyBinding(
-        "KeyR",
+        "r",
         controller.mapRole.map(RoleController.canRenameSystem).combineWith(ws.isConnected).map(_ && _),
         _.filterWith(controller.selectedSystem, _.isDefined)
           .withCurrentValueOf(controller.selectedSystem)
@@ -332,20 +348,43 @@ private final class MapView(
     )
 
   private def modalKeyBinding[B](
-      code: String,
+      key: String,
       shouldEnable: Signal[Boolean],
       compose: EventStream[KeyboardEvent] => EventStream[(KeyboardEvent, B)],
-      action: (B, Observer[Unit]) => Unit
+      action: (B, Observer[Unit]) => Unit,
+      ctrlOn: Boolean = false,
+      shiftOn: Boolean = false,
+      metaOn: Boolean = false
   ) =
     documentEvents(
       _.onKeyDown
-        .filter(ev => !ev.repeat && ev.code == code && !ev.ctrlKey && !ev.shiftKey && !ev.metaKey)
+        .filter(ev =>
+          !ev.repeat && ev.key == key &&
+            ((ctrlOn && ev.ctrlKey) || (!ctrlOn && !ev.ctrlKey)) &&
+            ((shiftOn && ev.shiftKey) || (!shiftOn && !ev.shiftKey)) &&
+            ((metaOn && ev.metaKey) || (!metaOn && !ev.metaKey))
+        )
     ).compose(es =>
       compose(es).filterWith(Modal.Shown.signal.map(!_)).filterWith(shouldEnable).filterWith(notInKeyHandler.signal)
     ) --> { (ev, b) =>
       ev.preventDefault()
       inKeyHandler.set(true)
       action(b, Observer(_ => inKeyHandler.set(false)))
+    }
+
+  private def clipboardEventBinding[B](
+      event: EventStream[dom.ClipboardEvent],
+      shouldEnable: Signal[Boolean],
+      compose: EventStream[dom.ClipboardEvent] => EventStream[(dom.ClipboardEvent, B)],
+      action: (String, B, Observer[Unit]) => Unit
+  ) =
+    event.compose(es =>
+      compose(es).filterWith(Modal.Shown.signal.map(!_)).filterWith(shouldEnable).filterWith(notInKeyHandler.signal)
+    ) --> { (ev, b) =>
+      ev.preventDefault()
+      inKeyHandler.set(true)
+      val s = ev.clipboardData.getData("text")
+      action(s, b, Observer(_ => inKeyHandler.set(false)))
     }
 
 object MapView:
