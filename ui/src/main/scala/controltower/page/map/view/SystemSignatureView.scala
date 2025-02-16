@@ -13,6 +13,8 @@ import java.time.{Duration, Instant}
 enum SignatureFilter derives CanEqual:
   case All, Wormhole, Combat, Indy, Hacking, Unscanned
 
+val StaleSignatureInterval: Duration = Duration.ofDays(1)
+
 enum ConnectionTarget derives CanEqual:
   def idOpt: Option[ConnectionId] =
     this match
@@ -124,16 +126,10 @@ private inline def sigView(
                 .combineWith(currentFilter.signal)
                 .map((sigs, filter) => s"${sigs.count(isVisibleWithFilter(filter, _))}/${sigs.length}")
             ),
-            // TODO not sure this is necessary!
-//            button(
-//              idAttr := "sig-select-all",
-//              typ    := "button",
-//              cls    := "ti",
-//              cls    := "ti-select-all"
-//            ),
             button(
               idAttr := "sig-paste-signatures",
               typ    := "button",
+              title  := "Paste signatures",
               cls    := "ti",
               cls    := "ti-clipboard-plus",
               disabled <-- canEdit.map(!_),
@@ -158,6 +154,7 @@ private inline def sigView(
             button(
               idAttr := "sig-add-signature",
               typ    := "button",
+              title  := "Add a signature",
               cls    := "ti",
               cls    := "ti-plus",
               disabled <-- canEdit.map(!_),
@@ -181,6 +178,7 @@ private inline def sigView(
             button(
               idAttr := "sig-edit-signature",
               typ    := "button",
+              title  := "Edit signature",
               disabled <-- canEdit.combineWith(selected.signal).map(!_ || _.size != 1),
               cls := "ti",
               cls := "ti-pencil",
@@ -205,8 +203,33 @@ private inline def sigView(
               )
             ),
             button(
+              idAttr := "sig-remove-stale",
+              typ    := "button",
+              title  := "Remove stale signatures",
+              cls    := "sig-destructive",
+              cls    := "ti",
+              cls    := "ti-hours-24",
+              disabled <-- canEdit.map(!_),
+              onClick.stopPropagation.mapToUnit.compose(
+                _.withCurrentValueOf(time, signatures, solarSystem)
+              ) --> ((now: Instant, signatures: List[MapSystemSignature], solarSystem) =>
+                val staleAt = now.minus(StaleSignatureInterval)
+                val stale   = signatures.filter(_.updatedAt.isBefore(staleAt))
+
+                if (stale.nonEmpty)
+                  Modal.showConfirmation(
+                    s"Remove ${stale.size} signatures?",
+                    s"Confirm removal of signatures in ${solarSystem.name}?",
+                    Observer(_ => actions.onNext(MapAction.RemoveSignatures(solarSystem.id, stale.map(_.id).toSet))),
+                    true,
+                    selected.clearUpdater
+                  )
+              )
+            ),
+            button(
               idAttr := "sig-remove-selected",
               typ    := "button",
+              title  := "Remove selected signatures",
               disabled <-- canEdit.combineWith(selected.signal).map(!_ || _.isEmpty),
               cls := "sig-destructive",
               cls := "ti",
@@ -225,6 +248,7 @@ private inline def sigView(
             button(
               idAttr := "sig-remove-all-signatures",
               typ    := "button",
+              title  := "Remove all signatures",
               cls    := "sig-destructive",
               cls    := "ti",
               cls    := "ti-clear-all",

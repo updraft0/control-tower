@@ -190,6 +190,23 @@ private final class MapView(
             cls := "system-add-dialog"
           )
       ),
+      // C -> cleanup stale signatures in system
+      modalKeyBinding[(MapSystemSnapshot, Instant)](
+        "c",
+        controller.mapRole.map(RoleController.canEditSignatures).combineWith(ws.isConnected).map(_ && _),
+        _.filterWith(controller.selectedSystem, _.isDefined)
+          .withCurrentValueOf(controller.selectedSystem, time)
+          .map((ev, opt, now) => (ev, (opt.get, now))),
+        { case ((system, now), onClose) =>
+          val staleAt = now.minus(StaleSignatureInterval)
+          val stale   = system.signatures.filter(_.updatedAt.isBefore(staleAt))
+
+          if (stale.nonEmpty)
+            controller.actionsBus.onNext(MapAction.RemoveSignatures(system.system.systemId, stale.map(_.id).toSet))
+
+          onClose.onNext(())
+        }
+      ),
       // delete -> remove system
       modalKeyBinding(
         "Delete",
