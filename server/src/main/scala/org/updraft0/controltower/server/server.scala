@@ -4,7 +4,7 @@ import org.updraft0.controltower.db
 import org.updraft0.controltower.protocol.Endpoints
 import org.updraft0.controltower.server.auth.{SessionCrypto, TokenCrypto, UserSession}
 import org.updraft0.controltower.server.endpoints.*
-import org.updraft0.controltower.server.map.{MapConfig, MapPermissionTracker, MapReactive}
+import org.updraft0.controltower.server.map.{IntelDataSource, MapConfig, MapPermissionTracker, MapReactive}
 import org.updraft0.controltower.server.tracking.*
 import org.updraft0.esi.client.{EsiClient, SdeClient}
 import org.updraft0.minireactive.MiniReactive
@@ -24,7 +24,7 @@ import java.security.SecureRandom
 object Server extends ZIOAppDefault:
   type EndpointEnv = Config & javax.sql.DataSource & SessionCrypto & EsiClient & SdeClient & UserSession &
     MapReactive.Service & TokenCrypto & SecureRandom & MapPermissionTracker & CharacterAuthTracker & LocationTracker &
-    ServerStatusTracker
+    ServerStatusTracker & IntelDataSource
 
   override val bootstrap =
     Runtime.disableFlags(RuntimeFlag.FiberRoots) >>> Runtime.enableRuntimeMetrics >>> desktopLogger
@@ -54,6 +54,8 @@ object Server extends ZIOAppDefault:
         SessionCrypto.layer,
         TokenCrypto.layer,
         ZLayer(ZIO.attempt(new SecureRandom())),
+        // Misc data sources
+        IntelDataSource.layer,
         // trackers are background processes
         CharacterAffiliationTracker.layer,
         CharacterAuthTracker.layer,
@@ -109,5 +111,5 @@ object Server extends ZIOAppDefault:
         .options
     )
       .toHttp(
-        allReferenceEndpoints ++ allAuthEndpoints ++ allMapEndpoints ++ allUserEndpoints
+        allReferenceEndpoints ++ allAuthEndpoints ++ allMapEndpoints ++ allSearchEndpoints ++ allUserEndpoints
       )

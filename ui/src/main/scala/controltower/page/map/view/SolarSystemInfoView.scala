@@ -35,8 +35,8 @@ private val IgnoredSpaceTypes = Set(SpaceType.Known, SpaceType.Pochven)
 private inline def solarSystemInfo(
     solarSystem: SolarSystem,
     name: Option[String],
-    wormholeTypes: Map[Long, WormholeType],
-    starTypes: Map[Long, StarType]
+    wormholeTypes: Map[TypeId, WormholeType],
+    starTypes: Map[TypeId, StarType]
 ) =
   nodeSeq(
     tr(
@@ -114,7 +114,7 @@ private inline def effectInfo(wormholeClass: WormholeClass, effect: WormholeEffe
     effectTooltip(wormholeClass, effect, s"system-effect-${effect.typeId}")
   )
 
-private inline def staticInfo(wormholeTypes: Map[Long, WormholeType], static: WormholeStatic) =
+private inline def staticInfo(wormholeTypes: Map[TypeId, WormholeType], static: WormholeStatic) =
   val whType = wormholeTypes(static.typeId)
   nodeSeq(
     mark(

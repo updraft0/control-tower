@@ -23,6 +23,9 @@ enum WormholeK162Type extends Enum[WormholeK162Type] derives CanEqual:
 enum IntelStance extends Enum[IntelStance] derives CanEqual:
   case Unknown, Friendly, Hostile
 
+enum IntelGroup extends Enum[IntelGroup] derives CanEqual:
+  case Unknown, HQ, Farm, Staging
+
 enum MapDisplayType extends Enum[MapDisplayType] derives CanEqual:
   case Manual
 
@@ -60,32 +63,6 @@ case class MapSystem(
 
 case class MapSystemDisplay(mapId: MapId, systemId: SystemId, displayType: MapDisplayType, data: SystemDisplayData)
 
-case class MapSystemStructure(
-    mapId: MapId,
-    systemId: SystemId,
-    name: String,
-    isDeleted: Boolean,
-    ownerCorporationId: Option[CorporationId],
-    structureType: Option[String], // TODO improve categorisation
-    location: Option[String],
-    createdAt: Instant,
-    createdByCharacterId: CharacterId,
-    updatedAt: Instant,
-    updatedByCharacterId: CharacterId
-)
-
-case class MapSystemNote(
-    id: Long,
-    mapId: MapId,
-    systemId: SystemId,
-    note: String,
-    isDeleted: Boolean,
-    createdAt: Instant,
-    createdByCharacterId: CharacterId,
-    updatedAt: Instant,
-    updatedByCharacterId: CharacterId
-)
-
 case class MapWormholeConnection(
     id: ConnectionId,
     mapId: MapId,
@@ -101,7 +78,7 @@ case class MapWormholeConnection(
 case class MapWormholeConnectionJump(
     connectionId: ConnectionId,
     characterId: CharacterId,
-    shipTypeId: Int,
+    shipTypeId: TypeId,
     massOverride: Option[Long],
     createdAt: Instant
 )
@@ -115,7 +92,7 @@ case class MapSystemSignature(
     signatureTypeName: Option[String],
     wormholeIsEol: Option[Boolean],
     wormholeEolAt: Option[Instant],
-    wormholeTypeId: Option[Long],
+    wormholeTypeId: Option[TypeId],
     wormholeMassSize: Option[WormholeMassSize],
     wormholeMassStatus: Option[WormholeMassStatus],
     wormholeK162Type: Option[WormholeK162Type],
@@ -132,7 +109,7 @@ case class Alliance(
     ticker: String,
     creatorCharacterId: CharacterId,
     creatorCorporationId: CorporationId,
-    executorCorporationId: CorporationId,
+    executorCorporationId: Option[CorporationId],
     createdAt: Instant,
     updatedAt: Instant
 )
@@ -147,6 +124,91 @@ case class Corporation(
     homeStationId: Long,
     memberCount: Int,
     url: Option[String],
+    createdAt: Instant,
+    updatedAt: Instant
+)
+
+case class IntelSystemStructure(
+    id: IntelStructureId,
+    mapId: MapId,
+    systemId: SystemId,
+    name: Option[String],
+    ownerCorporationId: Option[CorporationId],
+    itemTypeId: TypeId,
+    nearestPlanetIdx: Option[Int],
+    nearestMoonIdx: Option[Int],
+    isOnline: Option[Boolean],
+    isDeleted: Boolean,
+    createdAt: Instant,
+    createdByCharacterId: CharacterId,
+    updatedAt: Instant,
+    updatedByCharacterId: CharacterId,
+    deletedAt: Option[Instant],
+    deletedByCharacterId: Option[CharacterId]
+)
+
+case class IntelSystem(
+    mapId: MapId,
+    systemId: SystemId,
+    primaryCorporationId: Option[CorporationId],
+    primaryAllianceId: Option[AllianceId],
+    intelGroup: IntelGroup,
+    isEmpty: Boolean,
+    createdAt: Instant,
+    createdByCharacterId: CharacterId,
+    updatedAt: Instant,
+    updatedByCharacterId: CharacterId
+)
+
+case class IntelSystemNote(
+    id: IntelNoteId,
+    mapId: MapId,
+    systemId: SystemId,
+    note: String,
+    isPinned: Boolean,
+    isDeleted: Boolean,
+    originalId: Option[IntelNoteId],
+    createdAt: Instant,
+    createdByCharacterId: CharacterId,
+    deletedAt: Option[Instant],
+    deletedByCharacterId: Option[CharacterId]
+)
+
+case class IntelSystemPing(
+    id: IntelPingId,
+    mapId: MapId,
+    systemId: SystemId,
+    pingUserId: Option[UserId],
+    pingMapGlobal: Option[Boolean],
+    pingNote: Option[String],
+    isDeleted: Boolean,
+    createdAt: Instant,
+    createdByCharacterId: CharacterId,
+    deletedAt: Option[Instant],
+    deletedByCharacterId: Option[CharacterId]
+)
+
+case class IntelGroupStance(
+    mapId: MapId,
+    corporationId: Option[CorporationId],
+    allianceId: Option[AllianceId],
+    stance: IntelStance,
+    createdAt: Instant,
+    createdByCharacterId: CharacterId,
+    updatedAt: Instant,
+    updatedByCharacterId: CharacterId
+)
+
+case class IntelCharacter(
+    id: CharacterId,
+    bloodlineId: Int,
+    corporationId: CorporationId,
+    factionId: Option[Int],
+    gender: String,
+    name: String,
+    raceId: Int,
+    securityStatus: Option[Float],
+    title: Option[String],
     createdAt: Instant,
     updatedAt: Instant
 )

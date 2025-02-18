@@ -41,8 +41,11 @@ object build {
       "-Werror",
       "-language:implicitConversions",
       "-language:strictEquality",
-      "-source:future"
+      "-source:future",
+      "-Xmax-inlines", "64",
 //      "-explain"
+      "-explain-cyclic", // explain-psychic
+      "-Ydebug-cyclic",
     ),
     ThisBuild / usePipelining := true,
     Test / scalacOptions --= Seq(

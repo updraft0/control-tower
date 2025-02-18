@@ -2,7 +2,7 @@ package controltower.page.map.view
 
 import com.raquo.laminar.api.L.*
 import controltower.ui.*
-import org.updraft0.controltower.constant.{UnknownOrUnset, WormholeClass}
+import org.updraft0.controltower.constant.{SigId, TypeId, UnknownOrUnset, WormholeClass}
 import org.updraft0.controltower.protocol.*
 import java.time.Instant
 
@@ -36,7 +36,7 @@ private object SignatureId:
 class AddEditSignatureView(
     solarSystem: SolarSystem,
     signatureGroups: Map[SignatureGroup, List[SignatureClassified]],
-    wormholeTypes: Map[Long, WormholeType],
+    wormholeTypes: Map[TypeId, WormholeType],
     existing: Option[MapSystemSignature],
     validationError: Var[Option[String]],
     onAdd: Observer[NewSystemSignature],
@@ -283,7 +283,7 @@ private def getWormholeType(mss: MapSystemSignature): Option[WormholeConnectionT
 private[map] def wormholeTypesList(
     solarSystem: SolarSystem,
     signatureGroups: Map[SignatureGroup, List[SignatureClassified]],
-    wormholeTypes: Map[Long, WormholeType]
+    wormholeTypes: Map[TypeId, WormholeType]
 ) =
   val selectableWormholeTypes = signatureGroups
     .get(SignatureGroup.Wormhole)

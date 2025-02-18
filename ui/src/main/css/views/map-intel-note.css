@@ -1,0 +1,92 @@
+dialog.system-add-note-dialog, dialog.system-edit-note-dialog {
+    min-width: 30em;
+    width: fit-content;
+
+    fieldSet {
+        border: none;
+
+        p {
+            margin: 0;
+            padding: 0;
+        }
+    }
+
+    label {
+        color: $gray-lighter;
+    }
+
+    textarea {
+        width: 100%;
+        min-height: 3lh;
+        resize: none;
+
+        border: 1px solid $teal-dark;
+        border-radius: 2px;
+
+        &:focus-visible {
+            border-color: $orange-dark;
+            outline: none;
+        }
+    }
+
+    button.add-note {
+        margin-left: 1em;
+        margin-bottom: 0.5lh;
+        background-color: $green-dark;
+        color: $gray-lightest;
+
+        &:hover {
+            background-color: $green;
+        }
+    }
+}
+
+section#intel-notes-view {
+    min-width: 600px;
+
+    table {
+        margin-bottom: 0.5em;
+
+        tr.pinned {
+            background-color: $teal-darker;
+        }
+
+        td img.character-image {
+            height: 26px;
+            width: 26px;
+        }
+
+        td[data-col="CreatedAt"] span {
+            color: $gray-lighter;
+        }
+
+        td[data-col="Note"] {
+            width: 100%;
+        }
+
+        td[data-col="Note"] p {
+            user-select: text;
+
+            margin-top: 0;
+            margin-bottom: 0;
+        }
+
+        tbody td button {
+            border: none;
+            background-color: transparent;
+
+            &:enabled i, span {
+                font-size: 1.25em;
+                color: $teal-lighter;
+
+                &.ti-trash {
+                    color: $red-dark;
+                }
+            }
+
+            &:enabled:hover i, span {
+                color: $orange-dark;
+            }
+        }
+    }
+}

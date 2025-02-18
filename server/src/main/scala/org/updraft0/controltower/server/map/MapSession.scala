@@ -9,7 +9,8 @@ import org.updraft0.controltower.server.db.{
   MapQueries,
   MapSystemWithAll,
   MapWormholeConnectionRank,
-  MapWormholeConnectionWithSigs
+  MapWormholeConnectionWithSigs,
+  ReferenceQueries
 }
 import org.updraft0.controltower.server.endpoints.{toMapInfo, toProtocolRole}
 import org.updraft0.controltower.server.tracking.{
@@ -23,6 +24,7 @@ import org.updraft0.controltower.protocol.UserPreferences
 
 import scala.util.Try
 import zio.*
+import zio.query.*
 import zio.http.ChannelEvent.UserEvent
 import zio.http.{ChannelEvent, Handler, WebSocketChannelEvent, WebSocketFrame}
 import zio.logging.LogAnnotation
@@ -46,7 +48,7 @@ enum MapSessionMessage:
   *   socket closure (here we do `Channel.awaitShutdown` to close the manually-created scope and release the resources)
   */
 object MapSession:
-  type Env = MapReactive.Service & javax.sql.DataSource & LocationTracker & ServerStatusTracker
+  type Env = MapReactive.Service & javax.sql.DataSource & LocationTracker & ServerStatusTracker & IntelDataSource
 
   private val jsonContent  = LogAnnotation[String]("json", (_, b) => b, identity)
   private val errorMessage = LogAnnotation[String]("error", (_, b) => b, identity)
@@ -65,7 +67,7 @@ object MapSession:
 
   /** Context for a map session
     */
-  private case class Context(
+  private[map] case class Context(
       mapId: MapId,
       character: model.AuthCharacter,
       prefs: UserPreferences,
@@ -75,7 +77,8 @@ object MapSession:
       mapQ: Enqueue[Identified[MapRequest]],
       resQ: Dequeue[Identified[MapResponse]],
       ourQ: Queue[protocol.MapMessage],
-      metaQ: Dequeue[MapSessionMessage]
+      metaQ: Dequeue[MapSessionMessage],
+      structureTypes: Map[TypeId, protocol.StructureType]
   )
 
   def apply(
@@ -100,7 +103,8 @@ object MapSession:
         _ <- ZIO
           .serviceWith[LocationTracker](_.inbound)
           .flatMap(_.offer(LocationTrackingRequest.AddCharacters(Chunk(character.id))))
-        ctx = Context(mapId, character, prefs, sid, userId, mapRole, mapQ, resQ, ourQ, sessionMessages)
+        structureTypes <- ReferenceQueries.getStructureTypesAsProto
+        ctx = Context(mapId, character, prefs, sid, userId, mapRole, mapQ, resQ, ourQ, sessionMessages, structureTypes)
         // close the scope (and the subscription) if the websocket is closed
         close <- ZIO.serviceWith[Scope.Closeable](scope => scope.close(Exit.succeed(())))
         _ <- chan.awaitShutdown
@@ -108,20 +112,19 @@ object MapSession:
           .zipRight(close)
           .forkDaemon
         // run the receive from websocket -> queue of inbox and receive from outbox --> websocket in parallel, in scope
-        recv <- (chan.receive.flatMap(decodeMessage(_)) <*> mapRole.get)
-          .flatMap {
+        recv <- chan.receive
+          .flatMap(ev => decodeMessage(ev) <*> mapRole.get)
+          .flatMap:
             case (Right(msg), mapRole) if isAllowed(msg, mapRole) => processMessage(ctx, msg).unit
-            case (Right(msg), mapRole) => ourQ.offer(protocol.MapMessage.Error("Permission denied")).ignoreLogged
-            case (Left(error), _)      => ourQ.offer(protocol.MapMessage.Error(error)).ignoreLogged
-          }
+            case (Right(msg), mapRole) => ourQ.offer(protocol.MapMessage.Error("Permission denied"))
+            case (Left(error), _)      => ourQ.offer(protocol.MapMessage.Error(error))
           .forever
           .forkScoped
         send <- resQ.take
-          .map(filterToProto(sid)(_))
-          .flatMap {
+          .flatMap(filterToProto(ctx)(_))
+          .flatMap:
             case Some(msg) => chan.send(ChannelEvent.Read(WebSocketFrame.Text(writeToString(msg))))
             case None      => ZIO.unit
-          }
           .forever
           .forkScoped
         sendOurs <- ourQ.take
@@ -162,7 +165,7 @@ object MapSession:
       f: ZIO[R & Scope.Closeable & MapSessionId, Throwable, Any]
   ): ZIO[R, Throwable, Any] =
     for
-      sessionId <- ZIO.attempt(UUID.randomUUID()).map(MapSessionId(characterId, _))
+      sessionId <- ZIO.attempt(UUID.randomUUID()).map(MapSessionId(characterId, _, userId))
       scope     <- Scope.make
       res <- f
         .tapError(ex => ZIO.logErrorCause("Map session failed unexpectedly", Cause.fail(ex)))
@@ -217,7 +220,7 @@ object MapSession:
           Identified(
             Some(ctx.sessionId),
             MapRequest.RenameSystem(
-              systemId = SystemId(upd.systemId),
+              systemId = upd.systemId,
               name = upd.name.get
             )
           )
@@ -227,7 +230,7 @@ object MapSession:
           Identified(
             Some(ctx.sessionId),
             MapRequest.UpdateSystemDisplay(
-              systemId = SystemId(upd.systemId),
+              systemId = upd.systemId,
               displayData = toDisplayData(upd.displayData.get)
             )
           )
@@ -237,7 +240,7 @@ object MapSession:
           Identified(
             Some(ctx.sessionId),
             MapRequest.UpdateSystemAttribute(
-              systemId = SystemId(upd.systemId),
+              systemId = upd.systemId,
               pinned = upd.isPinned,
               intelStance = upd.stance.map(toIntelStance)
             )
@@ -245,40 +248,111 @@ object MapSession:
         )
       )
     case protocol.MapRequest.RemoveSystem(systemId) =>
-      ctx.mapQ.offer(Identified(Some(ctx.sessionId), MapRequest.RemoveSystem(SystemId(systemId))))
+      ctx.mapQ.offer(Identified(Some(ctx.sessionId), MapRequest.RemoveSystem(systemId)))
     case protocol.MapRequest.RemoveSystems(systemIds) =>
       NonEmptyChunk
         .fromChunk(Chunk.fromArray(systemIds))
         .fold(ZIO.unit)(systemIds =>
-          ctx.mapQ.offer(Identified(Some(ctx.sessionId), MapRequest.RemoveSystems(systemIds.map(SystemId(_)))))
+          ctx.mapQ.offer(Identified(Some(ctx.sessionId), MapRequest.RemoveSystems(systemIds)))
         )
     // signatures
     case addSig: protocol.MapRequest.AddSystemSignature =>
       ctx.mapQ.offer(
         Identified(
           Some(ctx.sessionId),
-          MapRequest.AddSystemSignature(SystemId(addSig.systemId), toNewMapSystemSignature(addSig.sig))
+          MapRequest.AddSystemSignature(addSig.systemId, toNewMapSystemSignature(addSig.sig))
         )
       )
     case protocol.MapRequest.UpdateSystemSignatures(systemId, replaceAll, scanned) =>
       ctx.mapQ.offer(
         Identified(
           Some(ctx.sessionId),
-          MapRequest.UpdateSystemSignatures(SystemId(systemId), replaceAll, scanned.map(toNewMapSystemSignature).toList)
+          MapRequest.UpdateSystemSignatures(systemId, replaceAll, scanned.map(toNewMapSystemSignature).toList)
         )
       )
     case protocol.MapRequest.RemoveSystemSignatures(systemId, sigIds) =>
       ctx.mapQ.offer(
         Identified(
           Some(ctx.sessionId),
-          MapRequest.RemoveSystemSignatures(SystemId(systemId), Chunk.from(sigIds).nonEmptyOrElse(None)(Some(_)))
+          MapRequest.RemoveSystemSignatures(systemId, Chunk.from(sigIds).nonEmptyOrElse(None)(Some(_)))
         )
       )
     case protocol.MapRequest.RemoveAllSystemSignatures(systemId) =>
       ctx.mapQ.offer(
         Identified(
           Some(ctx.sessionId),
-          MapRequest.RemoveSystemSignatures(SystemId(systemId), None)
+          MapRequest.RemoveSystemSignatures(systemId, None)
+        )
+      )
+    // intel
+    case protocol.MapRequest.AddIntelSystemStructure(systemId, structure) =>
+      ctx.mapQ.offer(
+        Identified(
+          Some(ctx.sessionId),
+          MapRequest.AddIntelSystemStructure(systemId, toNewIntelSystemStructure(structure))
+        )
+      )
+    case protocol.MapRequest.AddIntelSystemPing(systemId, target, note) =>
+      ctx.mapQ.offer(
+        Identified(
+          Some(ctx.sessionId),
+          MapRequest.AddIntelSystemPing(systemId, toPingTarget(target), note)
+        )
+      )
+    case protocol.MapRequest.AddIntelSystemNote(systemId, note, isPinned) =>
+      ctx.mapQ.offer(
+        Identified(
+          Some(ctx.sessionId),
+          MapRequest.AddIntelSystemNote(systemId, note, isPinned)
+        )
+      )
+    case usi: protocol.MapRequest.UpdateSystemIntel =>
+      ctx.mapQ.offer(
+        Identified(
+          Some(ctx.sessionId),
+          toUpdateSystemIntel(usi)
+        )
+      )
+    case usn: protocol.MapRequest.UpdateSystemIntelNote =>
+      ctx.mapQ.offer(
+        Identified(
+          Some(ctx.sessionId),
+          MapRequest.UpdateSystemIntelNote(usn.systemId, usn.id, usn.note, usn.isPinned)
+        )
+      )
+    case protocol.MapRequest.UpdateIntelSystemStructure(systemId, structure) =>
+      ctx.mapQ.offer(
+        Identified(
+          Some(ctx.sessionId),
+          MapRequest.UpdateSystemIntelStructure(toIntelSystemStructure(ctx.mapId, structure))
+        )
+      )
+    case protocol.MapRequest.UpdateIntelGroupStance(target, stance) =>
+      ctx.mapQ.offer(
+        Identified(
+          Some(ctx.sessionId),
+          MapRequest.UpdateIntelGroupStance(toStanceTarget(target), toIntelStance(stance))
+        )
+      )
+    case protocol.MapRequest.RemoveIntelSystemStructure(systemId, id) =>
+      ctx.mapQ.offer(
+        Identified(
+          Some(ctx.sessionId),
+          MapRequest.RemoveIntelSystemStructure(systemId, id)
+        )
+      )
+    case protocol.MapRequest.RemoveIntelSystemPing(systemId, id) =>
+      ctx.mapQ.offer(
+        Identified(
+          Some(ctx.sessionId),
+          MapRequest.RemoveIntelSystemPing(systemId, id)
+        )
+      )
+    case protocol.MapRequest.RemoveIntelSystemNote(systemId, id) =>
+      ctx.mapQ.offer(
+        Identified(
+          Some(ctx.sessionId),
+          MapRequest.RemoveIntelSystemNote(systemId, id)
         )
       )
 
@@ -299,60 +373,86 @@ private def isAllowed(msg: protocol.MapRequest, role: model.MapRole): Boolean = 
   case (_, model.MapRole.Viewer)                                             => false
   case (_, _)                                                                => true
 
-private def filterToProto(sessionId: MapSessionId)(msg: Identified[MapResponse]): Option[protocol.MapMessage] =
-  if (msg.sessionId.forall(_ == sessionId)) toProto(msg.value) else None
+private def filterToProto(ctx: MapSession.Context)(
+    msg: Identified[MapResponse]
+): URIO[IntelDataSource, Option[protocol.MapMessage]] =
+  if (msg.sessionId.forall(_ == ctx.sessionId)) toProto(ctx, msg.value) else ZIO.none
 
-private def toProto(msg: MapResponse): Option[protocol.MapMessage] = msg match
-  case MapResponse.ConnectionSnapshot(whc, rank) =>
-    Some(protocol.MapMessage.ConnectionSnapshot(toProtoConnectionWithSigs(whc, rank)))
-  case MapResponse.ConnectionsRemoved(whcs) =>
-    Some(protocol.MapMessage.ConnectionsRemoved(whcs.map(toProtoConnection).toArray))
-  case MapResponse.ConnectionJumped(jump) => Some(protocol.MapMessage.ConnectionJumped(toProtoConnectionJump(jump)))
-  case MapResponse.Error(message)         => Some(protocol.MapMessage.Error(message))
-  case MapResponse.MapSnapshot(systems, connections, connectionRanks) =>
-    Some(
-      protocol.MapMessage.MapSnapshot(
-        systems = systems.map((sysId, mss) => (sysId, toProtoSystemSnapshot(mss))),
-        connections =
-          connections.view.mapValues(c => toProtoConnectionWithSigs(c, connectionRanks(c.connection.id))).toMap
+private def toProto(ctx: MapSession.Context, msg: MapResponse): URIO[IntelDataSource, Option[protocol.MapMessage]] =
+  msg match
+    case MapResponse.ConnectionSnapshot(whc, rank) =>
+      ZIO.some(protocol.MapMessage.ConnectionSnapshot(toProtoConnectionWithSigs(whc, rank)))
+    case MapResponse.ConnectionsRemoved(whcs) =>
+      ZIO.some(protocol.MapMessage.ConnectionsRemoved(whcs.map(toProtoConnection).toArray))
+    case MapResponse.ConnectionJumped(jump) =>
+      ZIO.some(protocol.MapMessage.ConnectionJumped(toProtoConnectionJump(jump)))
+    case MapResponse.Error(message) =>
+      ZIO.some(protocol.MapMessage.Error(message))
+    case MapResponse.MapSnapshot(systems, connections, connectionRanks) =>
+      ZQuery
+        .foreachBatched(systems)((sysId, mss) => toProtoSystemSnapshot(mss)(using ctx).map(r => sysId -> r))
+        .map: systems =>
+          Some(
+            protocol.MapMessage.MapSnapshot(
+              systems = systems,
+              connections =
+                connections.view.mapValues(c => toProtoConnectionWithSigs(c, connectionRanks(c.connection.id))).toMap
+            )
+          )
+        .run
+    case MapResponse.SystemSnapshot(systemId, sys, connections, connectionRanks) =>
+      toProtoSystemSnapshot(sys)(using ctx)
+        .map: system =>
+          Some(
+            protocol.MapMessage.SystemSnapshot(
+              systemId = systemId,
+              system = system,
+              connections =
+                connections.view.mapValues(c => toProtoConnectionWithSigs(c, connectionRanks(c.connection.id))).toMap
+            )
+          )
+        .run
+    case MapResponse.SystemDisplayUpdate(systemId, name, displayData) =>
+      ZIO.some(protocol.MapMessage.SystemDisplayUpdate(systemId, name, toProtoDisplay(displayData)))
+    case MapResponse.SystemsRemoved(
+          removedSystemIds,
+          removedConnectionIds,
+          updatedSystems,
+          updatedConnections,
+          updatedConnectionRanks
+        ) =>
+      ZQuery
+        .foreachBatched(updatedSystems)(toProtoSystemSnapshot(_)(using ctx))
+        .map: systems =>
+          Some(
+            protocol.MapMessage.SystemsRemoved(
+              removedSystemIds = removedSystemIds.toArray,
+              removedConnectionIds = removedConnectionIds.toArray,
+              updatedSystems = systems.toArray,
+              updatedConnections = updatedConnections.view
+                .mapValues(c => toProtoConnectionWithSigs(c, updatedConnectionRanks(c.connection.id)))
+                .toMap
+            )
+          )
+        .run
+    case MapResponse.CharacterLocations(locationMap) =>
+      ZIO.some(
+        protocol.MapMessage.CharacterLocations(
+          locationMap
+            .groupMap(_._2.system)((cId, inS) => toProtoCharacterLocation(cId, inS))
+            .transform((_, i) => i.toArray)
+        )
       )
-    )
-  case MapResponse.SystemSnapshot(systemId, sys, connections, connectionRanks) =>
-    Some(
-      protocol.MapMessage.SystemSnapshot(
-        systemId = systemId,
-        system = toProtoSystemSnapshot(sys),
-        connections =
-          connections.view.mapValues(c => toProtoConnectionWithSigs(c, connectionRanks(c.connection.id))).toMap
+    case ping: MapResponse.Ping =>
+      ZIO.when(ping.mapGlobal.isDefined || ping.userId.contains(ctx.userId))(
+        ZIO.succeed(
+          protocol.MapMessage.Notification(protocol.NotificationMessage.SystemPing(ping.id, ping.systemId, ping.note))
+        )
       )
-    )
-  case MapResponse.SystemDisplayUpdate(systemId, name, displayData) =>
-    Some(protocol.MapMessage.SystemDisplayUpdate(systemId, name, toProtoDisplay(displayData)))
-  case MapResponse.SystemsRemoved(
-        removedSystemIds,
-        removedConnectionIds,
-        updatedSystems,
-        updatedConnections,
-        updatedConnectionRanks
-      ) =>
-    Some(
-      protocol.MapMessage.SystemsRemoved(
-        removedSystemIds = removedSystemIds.toArray,
-        removedConnectionIds = removedConnectionIds.toArray,
-        updatedSystems = updatedSystems.map(toProtoSystemSnapshot).toArray,
-        updatedConnections = updatedConnections.view
-          .mapValues(c => toProtoConnectionWithSigs(c, updatedConnectionRanks(c.connection.id)))
-          .toMap
+    case MapResponse.StanceUpdate(stances) =>
+      ZIO.some(
+        protocol.MapMessage.IntelStanceUpdate(stances.map(toProtoGroupStance).toArray)
       )
-    )
-  case MapResponse.CharacterLocations(locationMap) =>
-    Some(
-      protocol.MapMessage.CharacterLocations(
-        locationMap
-          .groupMap(_._2.system)((cId, inS) => toProtoCharacterLocation(cId, inS))
-          .transform((_, i) => i.toArray)
-      )
-    )
 
 private def toProtoCharacter(char: model.AuthCharacter, authTokenFresh: Boolean) =
   protocol.UserCharacter(
@@ -365,7 +465,7 @@ private def toProtoCharacter(char: model.AuthCharacter, authTokenFresh: Boolean)
 
 private def toAddSystem(msg: protocol.MapRequest.AddSystem) =
   MapRequest.AddSystem(
-    systemId = SystemId(msg.systemId),
+    systemId = msg.systemId,
     name = msg.name,
     isPinned = msg.isPinned,
     displayData = toDisplayData(msg.displayData),
@@ -448,15 +548,26 @@ private def toWhK162Type(tpe: protocol.WormholeK162Type) = tpe match
   case protocol.WormholeK162Type.Nullsec   => model.WormholeK162Type.Nullsec
   case protocol.WormholeK162Type.Thera     => model.WormholeK162Type.Thera
 
-private def toProtoSystemSnapshot(value: MapSystemWithAll): protocol.MapSystemSnapshot =
-  protocol.MapSystemSnapshot(
+private def toProtoSystemSnapshot(
+    value: MapSystemWithAll
+)(using ctx: MapSession.Context): ZQuery[IntelDataSource, Nothing, protocol.MapSystemSnapshot] =
+  for
+    corp       <- IntelDataSource.getCorporationByIdOrNone(value.intel.flatMap(_.primaryCorporationId))
+    alliance   <- IntelDataSource.getAllianceByIdOrNone(value.intel.flatMap(_.primaryAllianceId))
+    structures <- ZQuery.foreachBatched(value.structures)(lookupProtoIntelStructure(_, ctx.structureTypes))
+  yield protocol.MapSystemSnapshot(
     system = toProtoSystem(value.sys, value.display),
     display = value.display.map(toProtoDisplay),
-    structures = value.structures.map(toProtoStructure).toArray,
-    notes = value.notes.map(toProtoNote).toArray,
     signatures = value.signatures.map(toProtoSignature(value.sys.systemId, _)).toArray,
-    connections = value.connections.map(toProtoConnection).toArray
+    connections = value.connections.map(toProtoConnection).toArray,
+    intel = value.intel.map(toProtoIntelSystem(_, corp, alliance)),
+    notes = value.notes.map(toProtoIntelNote).toArray,
+    structures = structures.toArray,
+    pings = value.pings.filter(mapOrCurrentUser(_)).map(toProtoIntelPing).toArray
   )
+
+private def mapOrCurrentUser(ping: model.IntelSystemPing)(using ctx: MapSession.Context) =
+  ping.pingMapGlobal.contains(true) || ping.pingUserId.contains(ctx.userId)
 
 private def toProtoSystem(value: model.MapSystem, displayData: Option[model.SystemDisplayData]): protocol.MapSystem =
   protocol.MapSystem(
@@ -559,26 +670,115 @@ private def toProtoGroup(value: model.SignatureGroup): protocol.SignatureGroup =
     case model.SignatureGroup.Relic    => protocol.SignatureGroup.Relic
     case model.SignatureGroup.Wormhole => protocol.SignatureGroup.Wormhole
 
-private def toProtoNote(value: model.MapSystemNote): protocol.MapSystemNote =
-  protocol.MapSystemNote(
+private def toProtoIntelSystem(
+    value: model.IntelSystem,
+    corporation: Option[model.Corporation],
+    alliance: Option[model.Alliance]
+): protocol.IntelSystem =
+  protocol.IntelSystem(
+    primaryCorporation = corporation.map(toProtoCorporation(_, alliance)),
+    primaryAlliance = alliance.map(toProtoAlliance),
+    isEmpty = value.isEmpty,
+    intelGroup = toProtoIntelGroup(value.intelGroup),
+    updatedAt = value.updatedAt,
+    updatedByCharacterId = value.updatedByCharacterId
+  )
+
+private def toProtoIntelGroup(value: model.IntelGroup): protocol.IntelGroup =
+  value match
+    case model.IntelGroup.Unknown => protocol.IntelGroup.Unknown
+    case model.IntelGroup.HQ      => protocol.IntelGroup.HQ
+    case model.IntelGroup.Farm    => protocol.IntelGroup.Farm
+    case model.IntelGroup.Staging => protocol.IntelGroup.Staging
+
+private def toProtoIntelNote(value: model.IntelSystemNote): protocol.IntelSystemNote =
+  protocol.IntelSystemNote(
     id = value.id,
     note = value.note,
+    isPinned = value.isPinned,
+    isDeleted = value.isDeleted,
+    originalId = value.originalId,
+    createdAt = value.createdAt,
+    createdByCharacterId = value.createdByCharacterId,
+    deletedAt = value.deletedAt,
+    deletedByCharacterId = value.deletedByCharacterId
+  )
+
+private def toProtoIntelPing(value: model.IntelSystemPing): protocol.IntelSystemPing =
+  protocol.IntelSystemPing(
+    id = value.id,
+    pingTarget = toProtoPingTarget(value.pingUserId, value.pingMapGlobal),
+    pingNote = value.pingNote,
+    isDeleted = value.isDeleted,
+    createdAt = value.createdAt,
+    createdByCharacterId = value.createdByCharacterId,
+    deletedAt = value.deletedAt,
+    deletedByCharacterId = value.deletedByCharacterId
+  )
+
+private def toProtoPingTarget(userOpt: Option[UserId], mapOpt: Option[Boolean]): protocol.IntelSystemPingTarget =
+  if (userOpt.isDefined)
+    protocol.IntelSystemPingTarget.User
+  else if (mapOpt.isDefined)
+    protocol.IntelSystemPingTarget.Map
+  else
+    throw new IllegalStateException("BUG: unreachable in toProtoPingTarget")
+
+private def lookupProtoIntelStructure(
+    value: model.IntelSystemStructure,
+    structureTypesById: Map[TypeId, protocol.StructureType]
+) =
+  for
+    ownerCorporation <- IntelDataSource.getCorporationByIdOrNone(value.ownerCorporationId)
+    ownerAlliance    <- IntelDataSource.getAllianceByIdOrNone(ownerCorporation.flatMap(_.allianceId))
+  yield toProtoIntelStructure(value, structureTypesById, ownerCorporation, ownerAlliance)
+
+private def toProtoIntelStructure(
+    value: model.IntelSystemStructure,
+    structureTypesById: Map[TypeId, protocol.StructureType],
+    ownerCorporation: Option[model.Corporation],
+    ownerAlliance: Option[model.Alliance]
+): protocol.IntelSystemStructure =
+  protocol.IntelSystemStructure(
+    id = value.id,
+    systemId = value.systemId,
+    `type` = structureTypesById(value.itemTypeId),
+    name = value.name,
+    ownerCorporation = ownerCorporation.map(toProtoCorporation(_, ownerAlliance)),
+    nearestPlanetIdx = value.nearestPlanetIdx,
+    nearestMoonIdx = value.nearestMoonIdx,
+    isOnline = value.isOnline,
     createdAt = value.createdAt,
     createdByCharacterId = value.createdByCharacterId,
     updatedAt = value.updatedAt,
     updatedByCharacterId = value.updatedByCharacterId
   )
 
-private def toProtoStructure(value: model.MapSystemStructure): protocol.MapSystemStructure =
-  protocol.MapSystemStructure(
+def toProtoCharacter(value: model.IntelCharacter): protocol.UserCharacter =
+  protocol.UserCharacter(
     name = value.name,
-    structureType = value.structureType,
-    owner = None /* TODO */,
-    location = value.location,
-    createdAt = value.createdAt,
-    createdByCharacterId = value.createdByCharacterId,
-    updatedAt = value.updatedAt,
-    updatedByCharacterId = value.updatedByCharacterId
+    characterId = value.id,
+    corporationId = value.corporationId,
+    allianceId = None,
+    authTokenFresh = false // N/A
+  )
+
+def toProtoCorporation(value: model.Corporation, alliance: Option[model.Alliance]): protocol.Corporation =
+  protocol.Corporation(
+    id = value.id,
+    name = value.name,
+    ticker = value.ticker,
+    alliance = alliance.map(toProtoAlliance),
+    memberCount = value.memberCount,
+    createdAt = value.createdAt
+  )
+
+def toProtoAlliance(value: model.Alliance): protocol.Alliance =
+  protocol.Alliance(
+    id = value.id,
+    name = value.name,
+    ticker = value.ticker,
+    createdAt = value.createdAt
   )
 
 private def toProtoConnection(value: model.MapWormholeConnection): protocol.MapWormholeConnection =
@@ -642,3 +842,72 @@ private def toProtoCharacterLocation(
     stationId = inSystem.stationId,
     updatedAt = inSystem.updatedAt
   )
+
+private def toProtoGroupStance(value: model.IntelGroupStance): protocol.IntelGroupStance =
+  protocol.IntelGroupStance(
+    target = value.allianceId
+      .map(protocol.StanceTarget.Alliance.apply)
+      .orElse(value.corporationId.map(protocol.StanceTarget.Corporation.apply))
+      .get,
+    stance = toProtoStance(value.stance),
+    createdAt = value.createdAt,
+    createdByCharacterId = value.createdByCharacterId,
+    updatedAt = value.updatedAt,
+    updatedByCharacterId = value.updatedByCharacterId
+  )
+
+private def toNewIntelSystemStructure(value: protocol.NewIntelSystemStructure): NewIntelSystemStructure =
+  NewIntelSystemStructure(
+    typeId = value.`type`.typeAndName._1,
+    name = value.name,
+    ownerCorporation = value.ownerCorporation,
+    nearestPlanetIdx = value.nearestPlanetIdx,
+    nearestMoonIdx = value.nearestMoonIdx,
+    isOnline = value.isOnline
+  )
+
+private def toPingTarget(value: protocol.IntelSystemPingTarget): IntelSystemPingTarget =
+  value match
+    case protocol.IntelSystemPingTarget.User => IntelSystemPingTarget.User
+    case protocol.IntelSystemPingTarget.Map  => IntelSystemPingTarget.Map
+
+private def toUpdateSystemIntel(value: protocol.MapRequest.UpdateSystemIntel): MapRequest.UpdateSystemIntel =
+  MapRequest.UpdateSystemIntel(
+    systemId = value.systemId,
+    primaryCorporation = value.primaryCorporation,
+    primaryAlliance = value.primaryAlliance,
+    isEmpty = value.isEmpty,
+    intelGroup = toIntelGroup(value.intelGroup)
+  )
+
+private def toIntelGroup(value: protocol.IntelGroup): model.IntelGroup =
+  value match
+    case protocol.IntelGroup.Unknown => model.IntelGroup.Unknown
+    case protocol.IntelGroup.HQ      => model.IntelGroup.HQ
+    case protocol.IntelGroup.Farm    => model.IntelGroup.Farm
+    case protocol.IntelGroup.Staging => model.IntelGroup.Staging
+
+private def toIntelSystemStructure(mapId: MapId, value: protocol.IntelSystemStructure): model.IntelSystemStructure =
+  model.IntelSystemStructure(
+    id = value.id,
+    mapId = mapId,
+    systemId = value.systemId,
+    name = value.name,
+    ownerCorporationId = value.ownerCorporation.map(_.id),
+    itemTypeId = value.`type`.typeAndName._1,
+    nearestPlanetIdx = value.nearestPlanetIdx,
+    nearestMoonIdx = value.nearestMoonIdx,
+    isOnline = value.isOnline,
+    isDeleted = false,
+    createdAt = value.createdAt,
+    createdByCharacterId = value.createdByCharacterId,
+    updatedAt = value.updatedAt,
+    updatedByCharacterId = value.updatedByCharacterId,
+    deletedAt = None,
+    deletedByCharacterId = None
+  )
+
+private def toStanceTarget(target: protocol.StanceTarget): StanceTarget =
+  target match
+    case protocol.StanceTarget.Alliance(id)    => StanceTarget.Alliance(id)
+    case protocol.StanceTarget.Corporation(id) => StanceTarget.Corporation(id)

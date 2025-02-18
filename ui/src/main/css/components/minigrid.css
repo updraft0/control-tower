@@ -1,0 +1,136 @@
+table.mini-grid {
+    td, th {
+        padding: 0.125em 0.25em;
+    }
+
+    text-align: left;
+
+    th {
+        font-weight: bold;
+        border-bottom: thin solid $gray;
+
+        button {
+            margin: 1px;
+            background: transparent;
+            border: none;
+            display: inline-flex;
+            width: 100%;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            text-align: left;
+            cursor: pointer;
+            outline: none;
+        }
+
+        & button :first-child {
+            flex: 1;
+        }
+
+        &[aria-sort="none"] button span::after {
+            content: "\eb5a"; /* <> */
+            filter: brightness(50%);
+            font-size: 100%;
+        }
+
+        &[aria-sort="none"]:hover button span::after {
+            content: "\eee2";
+            color: $orange-dark;
+            filter: brightness(120%);
+        }
+
+        &[aria-sort="ascending"] button span::after {
+            content: "\eee2"; /* < */
+            filter: brightness(50%);
+            font-size: 100%;
+        }
+
+        &[aria-sort="ascending"]:hover button span::after {
+            content: "\eee3";
+            color: $orange-dark;
+            filter: brightness(120%);
+        }
+
+        &[aria-sort="descending"] button span::after {
+            content: "\eee3"; /* < */
+            filter: brightness(50%);
+            font-size: 100%;
+        }
+
+        &[aria-sort="descending"]:hover button span::after {
+            content: "\eee2";
+            color: $orange-dark;
+            filter: brightness(120%);
+        }
+    }
+
+    thead tr {
+        background-color: $gray-darkest;
+
+        i {
+            color: $gray-light;
+        }
+    }
+
+    thead td, thead th {
+        padding-bottom: 0;
+        padding-top: 0;
+    }
+
+    thead tr.toolbar {
+
+        div.toolbar {
+            display: flex;
+
+            font-size: 0.75rem;
+
+            :first-child {
+                flex: 1;
+            }
+
+            span.size {
+                color: $gray-light;
+                font-weight: bold;
+                display: block;
+            }
+
+            button {
+                border: none;
+                background-color: transparent;
+                font-size: 1.75em;
+
+                &:enabled {
+                    i, span {
+                        color: $teal-lightest;
+                    }
+
+                    &:hover {
+                        i, span {
+                            color: $orange-dark;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    tbody tr {
+
+        &:nth-child(even) {
+            background-color: $gray-dark;
+            border-bottom: 1px solid $gray;
+        }
+
+        &:nth-child(odd) {
+            background-color: $gray-darker;
+            border-bottom: 1px solid $gray;
+        }
+    }
+
+    td {
+        &[data-tpe="Number"] {
+            text-align: right;
+        }
+    }
+}

@@ -12,7 +12,7 @@ object SystemProtocolSpec extends ZIOSpecDefault:
         val value = Station(
           id = 60000361,
           name = "Jita IV - Moon 6 - Ytiri Storage",
-          typeId = 1531,
+          typeId = TypeId(1531),
           operationId = 26,
           factionId = Some(500001L),
           factionName = Some("Caldari State"),

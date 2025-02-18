@@ -16,3 +16,5 @@ trait MapViewContext:
   def userPreferences: Signal[UserPreferences]
   def systemName(id: SystemId): Signal[Option[String]]
   def connection(id: ConnectionId): Signal[Option[MapWormholeConnectionWithSigs]]
+  def isWsConnected: Signal[Boolean]
+  def roleController: ActionRoleController

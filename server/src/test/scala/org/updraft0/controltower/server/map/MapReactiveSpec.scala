@@ -22,8 +22,10 @@ import java.util.UUID
 
 object MapReactiveSpec extends ZIOSpecDefault:
 
-  val DummySession  = MapSessionId(CharacterId(12345), UUID.fromString("40000000-3000-2000-1000-000000000000"))
-  val DummySession2 = MapSessionId(CharacterId(67890), UUID.fromString("50000000-6000-7000-8000-900000000000"))
+  val DummySession =
+    MapSessionId(CharacterId(12345), UUID.fromString("40000000-3000-2000-1000-000000000000"), UserId(1))
+  val DummySession2 =
+    MapSessionId(CharacterId(67890), UUID.fromString("50000000-6000-7000-8000-900000000000"), UserId(1))
 
   val Time1 = Instant.ofEpochMilli(201000L)
   val Time2 = Instant.ofEpochMilli(202000L)
@@ -244,7 +246,7 @@ object MapReactiveSpec extends ZIOSpecDefault:
         SignatureGroup.Wormhole,
         wormholeMassSize = WormholeMassSize.S,
         wormholeMassStatus = WormholeMassStatus.Fresh,
-        wormholeTypeId = Some(34439)
+        wormholeTypeId = Some(TypeId(34439))
       )
       val expected = modelSignature(
         MapId1,
@@ -253,7 +255,7 @@ object MapReactiveSpec extends ZIOSpecDefault:
         signatureGroup = SignatureGroup.Wormhole,
         wormholeMassSize = Some(WormholeMassSize.S),
         wormholeMassStatus = Some(WormholeMassStatus.Fresh),
-        wormholeTypeId = Some(34439),
+        wormholeTypeId = Some(TypeId(34439)),
         createdAt = Time1,
         createdByCharacterId = CharacterId(42L),
         updatedAt = Time2,
@@ -271,7 +273,7 @@ object MapReactiveSpec extends ZIOSpecDefault:
         signatureGroup = SignatureGroup.Wormhole,
         wormholeMassSize = Some(WormholeMassSize.S),
         wormholeMassStatus = Some(WormholeMassStatus.Fresh),
-        wormholeTypeId = Some(34439),
+        wormholeTypeId = Some(TypeId(34439)),
         wormholeConnectionId = Some(ConnectionId(1234L)),
         createdAt = Time1,
         createdByCharacterId = CharacterId(42L),
@@ -296,7 +298,7 @@ object MapReactiveSpec extends ZIOSpecDefault:
         signatureGroup = SignatureGroup.Wormhole,
         wormholeIsEol = Some(true),
         wormholeEolAt = Some(Time1),
-        wormholeTypeId = Some(34439),
+        wormholeTypeId = Some(TypeId(34439)),
         createdAt = Time1,
         createdByCharacterId = CharacterId(42L),
         updatedAt = Time1,
@@ -327,7 +329,8 @@ object MapReactiveSpec extends ZIOSpecDefault:
         updatedAt = Time1,
         updatedByCharacterId = CharacterId(42L)
       )
-      val newSig = NewMapSystemSignature(SigId("WHO-008"), SignatureGroup.Wormhole, wormholeTypeId = Some(34439))
+      val newSig =
+        NewMapSystemSignature(SigId("WHO-008"), SignatureGroup.Wormhole, wormholeTypeId = Some(TypeId(34439)))
       val expected = modelSignature(
         MapId1,
         SystemId1,
@@ -335,7 +338,7 @@ object MapReactiveSpec extends ZIOSpecDefault:
         signatureGroup = SignatureGroup.Wormhole,
         wormholeMassSize = Some(WormholeMassSize.S),
         wormholeMassStatus = Some(WormholeMassStatus.Fresh),
-        wormholeTypeId = Some(34439),
+        wormholeTypeId = Some(TypeId(34439)),
         wormholeConnectionId = Some(ConnectionId(1234L)),
         createdAt = Time1,
         createdByCharacterId = CharacterId(42L),
@@ -355,7 +358,7 @@ object MapReactiveSpec extends ZIOSpecDefault:
         signatureGroup = SignatureGroup.Wormhole,
         wormholeIsEol = Some(true),
         wormholeEolAt = Some(Time1),
-        wormholeTypeId = Some(34439),
+        wormholeTypeId = Some(TypeId(34439)),
         createdAt = Time1,
         createdByCharacterId = CharacterId(42L),
         updatedAt = Time1,
@@ -404,7 +407,7 @@ object MapReactiveSpec extends ZIOSpecDefault:
               NewMapSystemSignature(
                 SigId("ABC-222"),
                 SignatureGroup.Wormhole,
-                wormholeTypeId = Some(34140),
+                wormholeTypeId = Some(TypeId(34140)),
                 wormholeMassSize = WormholeMassSize.S,
                 wormholeConnectionId = UnknownOrUnset(oneConnectionId)
               )
@@ -469,10 +472,12 @@ object MapReactiveSpec extends ZIOSpecDefault:
                     MapSystemWithAll(
                       _,
                       _,
-                      _,
-                      _,
                       sigs,
-                      connections
+                      connections,
+                      _,
+                      _,
+                      _,
+                      _
                     ),
                     connectionMap,
                     connectionRanks
@@ -489,10 +494,12 @@ object MapReactiveSpec extends ZIOSpecDefault:
                   MapSystemWithAll(
                     _,
                     _,
-                    _,
-                    _,
                     sigs,
-                    connections
+                    connections,
+                    _,
+                    _,
+                    _,
+                    _
                   ),
                   connectionMap,
                   connectionRanks
@@ -511,10 +518,12 @@ object MapReactiveSpec extends ZIOSpecDefault:
                   MapSystemWithAll(
                     _,
                     _,
-                    _,
-                    _,
                     sigs,
-                    connections
+                    connections,
+                    _,
+                    _,
+                    _,
+                    _
                   ),
                   connectionMap,
                   connectionRanks
@@ -562,7 +571,7 @@ object MapReactiveSpec extends ZIOSpecDefault:
       signatureTypeName: Option[String] = None,
       wormholeIsEol: Option[Boolean] = None,
       wormholeEolAt: Option[Instant] = None,
-      wormholeTypeId: Option[Long] = None,
+      wormholeTypeId: Option[TypeId] = None,
       wormholeMassSize: Option[WormholeMassSize] = None,
       wormholeMassStatus: Option[WormholeMassStatus] = None,
       wormholeK162Type: Option[WormholeK162Type] = None,

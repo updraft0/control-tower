@@ -1,0 +1,9 @@
+## Search requests
+##
+##
+
+# Search for entities of a given type
+# @name SearchEntityByNameAndType
+POST {{apiRaw}}/search/entity/any/GoonWa
+Content-Type: application/json
+Cookie: CT-Session={{ctsessionid}}

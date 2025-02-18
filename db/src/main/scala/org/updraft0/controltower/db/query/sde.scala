@@ -16,6 +16,9 @@ object sde:
 
   private val BatchRows = 5_000
 
+  private inline def StructureGroupIds =
+    Set(365L /* POS */, 1657 /* Citadel */, 1406 /* Refinery */, 1404 /* Engineering complex */ )
+
   given JsonValueCodec[SdeLoadMeta] = JsonCodecMaker.make
 
   given MappedEncoding[String, SdeLoadMeta] = MappedEncoding(readFromString[SdeLoadMeta](_))
@@ -54,6 +57,10 @@ object sde:
   private inline def insertAll[T](inline entity: Quoted[EntityQuery[T]], inline values: Vector[T]) = quote {
     liftQuery(values).foreach(e => entity.insertValue(e))
   }
+
+  // queries
+  def queryStructureTypes: DbOperation[List[ItemType]] =
+    ctx.run(quote(schema.itemType.filter(it => liftQuery(StructureGroupIds).contains(it.groupId))))
 
   // upserts
 

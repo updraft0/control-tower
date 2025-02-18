@@ -8,6 +8,8 @@ import sttp.tapir.client.sttp.{SttpClientInterpreter, WebSocketToPipe}
 import sttp.tapir.model.UsernamePassword
 import zio.{IO, Task, ZIO, ZLayer}
 
+type SearchParams = (CharacterId, List[SearchCategory], String, Boolean)
+
 /** Thin HTTP client over the ESI endpoints
   */
 final class EsiClient(config: EsiClient.Config, sttp: SttpClient, interp: SttpClientInterpreter):
@@ -46,8 +48,20 @@ final class EsiClient(config: EsiClient.Config, sttp: SttpClient, interp: SttpCl
   val getCharacterAffiliations: List[CharacterId] => IO[EsiError, List[CharacterAffiliation]] =
     noAuthClientDecodeErrors(Endpoints.getCharacterAffiliations)
 
+  val getCorporation: CorporationId => IO[EsiError, Corporation] =
+    noAuthClientDecodeErrors(Endpoints.getCorporation)
+
+  val getAlliance: AllianceId => IO[EsiError, Alliance] =
+    noAuthClientDecodeErrors(Endpoints.getAlliance)
+
+  val getAllianceIds: Unit => IO[EsiError, List[AllianceId]] =
+    noAuthClientDecodeErrors(Endpoints.getAlliances)
+
   val getServerStatus: Unit => IO[EsiError, ServerStatusResponse] =
     noAuthClientDecodeErrors(Endpoints.getStatus)
+
+  val search: JwtString => SearchParams => IO[EsiError, SearchResponse] =
+    jwtClientDecodeErrors(Endpoints.search).andThen(_.andThen(_.orDie.absolve))
 
   private def noAuthClientDecodeErrors[I, O](e: Endpoint[Unit, I, EsiError, O, Any]) =
     interp

@@ -1,14 +1,13 @@
 package org.updraft0.controltower.protocol
 
 import org.updraft0.controltower.constant.*
-export org.updraft0.controltower.constant.SigId
-export org.updraft0.controltower.constant.SigId.given
-export org.updraft0.controltower.constant.SystemId.given
 import com.github.plokhotnyuk.jsoniter_scala.core.*
 import com.github.plokhotnyuk.jsoniter_scala.macros.*
 import sttp.tapir.*
 import sttp.tapir.SchemaType.SInteger
 import sttp.tapir.generic.Configuration
+
+import scala.util.NotGiven
 
 object schema:
   given Configuration = Configuration.default.withSnakeCaseMemberNames
@@ -21,14 +20,18 @@ object schema:
   given unknownOrUnsetSchema[A: Schema]: Schema[UnknownOrUnset[A]] = Schema.derived
 
   // opaque
-  given Schema[CharacterId]   = Schema(SInteger()).format("int64")
-  given Schema[CorporationId] = Schema(SInteger()).format("int64")
-  given Schema[AllianceId]    = Schema(SInteger()).format("int64")
-  given Schema[SigId]         = Schema.string
-  given Schema[SystemId]      = Schema(SInteger()).format("int64")
-  given Schema[UserId]        = Schema(SInteger()).format("int64")
-  given Schema[MapId]         = Schema(SInteger()).format("int64")
-  given Schema[ConnectionId]  = Schema(SInteger()).format("int64")
+  given Schema[CharacterId]      = Schema(SInteger()).format("int64")
+  given Schema[CorporationId]    = Schema(SInteger()).format("int64")
+  given Schema[AllianceId]       = Schema(SInteger()).format("int64")
+  given Schema[SigId]            = Schema.string
+  given Schema[SystemId]         = Schema(SInteger()).format("int64")
+  given Schema[UserId]           = Schema(SInteger()).format("int64")
+  given Schema[MapId]            = Schema(SInteger()).format("int64")
+  given Schema[ConnectionId]     = Schema(SInteger()).format("int64")
+  given Schema[TypeId]           = Schema(SInteger()).format("int64")
+  given Schema[IntelNoteId]      = Schema(SInteger()).format("int32")
+  given Schema[IntelPingId]      = Schema(SInteger()).format("int32")
+  given Schema[IntelStructureId] = Schema(SInteger()).format("int32")
 
   // auth
 
@@ -77,13 +80,26 @@ object schema:
   given Schema[CharacterLocation]      = Schema.derived
 
   given Schema[IntelStance]                   = Schema.derived
+  given Schema[UpwellStructureSize]           = Schema.derived
+  given Schema[UpwellStructureType]           = Schema.derived
+  given Schema[PlayerStructureSize]           = Schema.derived
+  given Schema[StructureType]                 = Schema.derived
+  given Schema[StanceTarget]                  = Schema.derived
+  given Schema[IntelGroup]                    = Schema.derived
+  given Schema[IntelGroupStance]              = Schema.derived
+  given Schema[IntelSystemStructure]          = Schema.derived
+  given Schema[IntelSystem]                   = Schema.derived
+  given Schema[IntelSystemNote]               = Schema.derived
+  given Schema[IntelSystemPingTarget]         = Schema.derived
+  given Schema[IntelSystemPing]               = Schema.derived
+  given Schema[NewIntelSystemStructure]       = Schema.derived
+  given Schema[NotificationMessage]           = Schema.derived
   given Schema[MapRequest]                    = Schema.derived
   given Schema[MapMessage]                    = Schema.derived
   given Schema[MapSystem]                     = Schema.derived
   given Schema[SystemDisplayData]             = Schema.derived
   given Schema[Corporation]                   = Schema.derived
-  given Schema[MapSystemStructure]            = Schema.derived
-  given Schema[MapSystemNote]                 = Schema.derived
+  given Schema[Alliance]                      = Schema.derived
   given Schema[MapWormholeConnection]         = Schema.derived
   given Schema[MapWormholeConnectionJump]     = Schema.derived
   given Schema[MapWormholeConnectionRank]     = Schema.derived
@@ -98,6 +114,9 @@ object schema:
   given Schema[MapSystemSnapshot]             = Schema.derived
   given Schema[MapServerStatus]               = Schema.derived
   given Schema[NewSystemSignature]            = Schema.derived
+
+  // search
+  given Schema[SearchEntityResponse] = Schema.derived
 
 trait OpaqueCodecs:
   // currently, jsoniter is unable to derive codecs for opaque types
@@ -146,6 +165,28 @@ trait OpaqueCodecs:
     override def encodeValue(x: UserId, out: JsonWriter): Unit        = out.writeVal(x.value)
     override def nullValue: UserId                                    = UserId.Invalid
 
+  given JsonValueCodec[TypeId] = new JsonValueCodec[TypeId]:
+    override def decodeValue(in: JsonReader, default: TypeId): TypeId = TypeId(in.readInt())
+    override def encodeValue(x: TypeId, out: JsonWriter): Unit        = out.writeVal(x.value)
+    override def nullValue: TypeId                                    = TypeId.Invalid
+
+  given JsonValueCodec[IntelStructureId] = new JsonValueCodec[IntelStructureId]:
+    override def decodeValue(in: JsonReader, default: IntelStructureId): IntelStructureId = IntelStructureId(
+      in.readInt()
+    )
+    override def encodeValue(x: IntelStructureId, out: JsonWriter): Unit = out.writeVal(x.value)
+    override def nullValue: IntelStructureId                             = IntelStructureId.Invalid
+
+  given JsonValueCodec[IntelNoteId] = new JsonValueCodec[IntelNoteId]:
+    override def decodeValue(in: JsonReader, default: IntelNoteId): IntelNoteId = IntelNoteId(in.readInt())
+    override def encodeValue(x: IntelNoteId, out: JsonWriter): Unit             = out.writeVal(x.value)
+    override def nullValue: IntelNoteId                                         = IntelNoteId.Invalid
+
+  given JsonValueCodec[IntelPingId] = new JsonValueCodec[IntelPingId]:
+    override def decodeValue(in: JsonReader, default: IntelPingId): IntelPingId = IntelPingId(in.readInt())
+    override def encodeValue(x: IntelPingId, out: JsonWriter): Unit             = out.writeVal(x.value)
+    override def nullValue: IntelPingId                                         = IntelPingId.Invalid
+
 object jsoncodec extends OpaqueCodecs:
   // debug print codecs
   // given CodecMakerConfig.PrintCodec with {}
@@ -154,7 +195,9 @@ object jsoncodec extends OpaqueCodecs:
     CodecMakerConfig.withFieldNameMapper(JsonCodecMaker.enforce_snake_case).withDiscriminatorFieldName(None)
 
   // aux
-  given [A <: AnyRef: JsonValueCodec: scala.reflect.ClassTag]: JsonValueCodec[Array[A]] = JsonCodecMaker.make
+  given [A <: AnyRef: JsonValueCodec: scala.reflect.ClassTag](using
+      NotGiven[JsonValueCodec[Array[A]]]
+  ): JsonValueCodec[Array[A]] = JsonCodecMaker.make
 
   // oops this seems to work for *any* long array?
   given connectionIdArray: JsonValueCodec[Array[ConnectionId]] =
@@ -216,13 +259,26 @@ object jsoncodec extends OpaqueCodecs:
   given JsonValueCodec[CharacterLocation]      = JsonCodecMaker.make(config)
 
   given JsonValueCodec[IntelStance]                   = JsonCodecMaker.make(config)
+  given JsonValueCodec[UpwellStructureSize]           = JsonCodecMaker.make(config)
+  given JsonValueCodec[UpwellStructureType]           = JsonCodecMaker.make(config)
+  given JsonValueCodec[PlayerStructureSize]           = JsonCodecMaker.make(config)
+  given JsonValueCodec[StructureType]                 = JsonCodecMaker.make(config)
+  given JsonValueCodec[StanceTarget]                  = JsonCodecMaker.make(config)
+  given JsonValueCodec[IntelGroup]                    = JsonCodecMaker.make(config)
+  given JsonValueCodec[IntelGroupStance]              = JsonCodecMaker.make(config)
+  given JsonValueCodec[IntelSystemStructure]          = JsonCodecMaker.make(config)
+  given JsonValueCodec[IntelSystem]                   = JsonCodecMaker.make(config)
+  given JsonValueCodec[IntelSystemNote]               = JsonCodecMaker.make(config)
+  given JsonValueCodec[IntelSystemPingTarget]         = JsonCodecMaker.make(config)
+  given JsonValueCodec[IntelSystemPing]               = JsonCodecMaker.make(config)
+  given JsonValueCodec[NewIntelSystemStructure]       = JsonCodecMaker.make(config)
+  given JsonValueCodec[NotificationMessage]           = JsonCodecMaker.make(config)
   given JsonValueCodec[MapRequest]                    = JsonCodecMaker.make(config)
   given JsonValueCodec[MapMessage]                    = JsonCodecMaker.make(config)
   given JsonValueCodec[MapSystem]                     = JsonCodecMaker.make(config)
   given JsonValueCodec[SystemDisplayData]             = JsonCodecMaker.make(config)
   given JsonValueCodec[Corporation]                   = JsonCodecMaker.make(config)
-  given JsonValueCodec[MapSystemStructure]            = JsonCodecMaker.make(config)
-  given JsonValueCodec[MapSystemNote]                 = JsonCodecMaker.make(config)
+  given JsonValueCodec[Alliance]                      = JsonCodecMaker.make(config)
   given JsonValueCodec[MapWormholeConnection]         = JsonCodecMaker.make(config)
   given JsonValueCodec[MapWormholeConnectionJump]     = JsonCodecMaker.make(config)
   given JsonValueCodec[MapWormholeConnectionRank]     = JsonCodecMaker.make(config)
@@ -237,3 +293,6 @@ object jsoncodec extends OpaqueCodecs:
   given JsonValueCodec[MapSystemSignature.Wormhole]   = JsonCodecMaker.make(config)
   given JsonValueCodec[MapSystemSnapshot]             = JsonCodecMaker.make(config)
   given JsonValueCodec[NewSystemSignature]            = JsonCodecMaker.make(config)
+
+  // search
+  given JsonValueCodec[SearchEntityResponse] = JsonCodecMaker.make(config)

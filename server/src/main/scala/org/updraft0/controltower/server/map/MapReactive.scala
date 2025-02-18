@@ -2,6 +2,7 @@ package org.updraft0.controltower.server.map
 
 import org.updraft0.controltower.constant.*
 import org.updraft0.controltower.db.model.{
+  IntelGroupStance,
   MapSystemSignature,
   MapWormholeConnection,
   MapWormholeConnectionJump,
@@ -14,12 +15,13 @@ import org.updraft0.controltower.server.tracking.{CharacterLocationState, Locati
 import org.updraft0.minireactive.*
 import zio.*
 
+import scala.collection.mutable
+
 import java.time.Instant
 import java.util.UUID
 import java.util.concurrent.TimeoutException
 
-type MapEnv     = MapConfig & javax.sql.DataSource & LocationTracker & MapPermissionTracker
-type ShipTypeId = Int
+type MapEnv = MapConfig & javax.sql.DataSource & LocationTracker & MapPermissionTracker
 
 case class MapConfig(
     cleanupPeriod: Duration,
@@ -40,6 +42,9 @@ private[map] case class MapSolarSystem(
 
 private[map] case class MapRef(solarSystems: Map[SystemId, MapSolarSystem])
 
+private[map] enum ReachableCase derives CanEqual:
+  case Initial, FromSide, ToSide
+
 private[map] case class MapState(
     systems: Map[SystemId, MapSystemWithAll],
     connections: Map[ConnectionId, MapWormholeConnectionWithSigs],
@@ -47,9 +52,10 @@ private[map] case class MapState(
     locations: Map[CharacterId, MapLocationState],
     locationsOnline: Map[
       CharacterId,
-      (SystemId, ShipTypeId)
+      (SystemId, TypeId)
     ], // manual cache of location systems - used to prevent too many updates
     ref: MapRef,
+    stances: Chunk[IntelGroupStance],
     queryTimeout: Duration
 ):
   // TODO this should be loaded from DB
@@ -86,6 +92,52 @@ private[map] case class MapState(
   def connectionRanksForSystem(id: SystemId): Map[ConnectionId, MapWormholeConnectionRank] =
     systems(id).connections.map(c => c.id -> connectionRanks(c.id)).toMap
 
+  /** Check whether two systems are reachable by looking at the connections between them
+    */
+  def isReachableBetween(fromSystem: SystemId, toSystem: SystemId): Boolean =
+    val reachable              = mutable.Set(fromSystem)
+    val seen                   = mutable.Set.empty[ConnectionId]
+    val work                   = mutable.Stack(systems(fromSystem).connections.map(_.id)*)
+    val toSystemHasConnections = systems(toSystem).connections.nonEmpty
+
+    while toSystemHasConnections && work.nonEmpty && !reachable.contains(toSystem) do
+      val connId = work.pop()
+      val conn   = connections(connId)
+      reachable.add(conn.connection.fromSystemId)
+      reachable.add(conn.connection.toSystemId)
+      work.addAll(systems(conn.connection.fromSystemId).connections.view.map(_.id).filterNot(seen.contains))
+      work.addAll(systems(conn.connection.toSystemId).connections.view.map(_.id).filterNot(seen.contains))
+      seen.add(connId)
+
+    reachable.contains(toSystem)
+
+  /** Compute the closure of systems on the map, starting with a "side" of a connection
+    */
+  def systemsReachableVia(id: ConnectionId, fromSide: Boolean): Set[SystemId] =
+    val reachable = mutable.Set.empty[SystemId]
+    val seen      = mutable.Set(id)
+    val work      = mutable.Stack.empty[ConnectionId]
+
+    val initialConn = connections(id)
+    if fromSide then
+      reachable.add(initialConn.connection.fromSystemId)
+      work.addAll(systems(initialConn.connection.fromSystemId).connections.filter(_.id != id).map(_.id))
+    else
+      reachable.add(initialConn.connection.toSystemId)
+      work.addAll(systems(initialConn.connection.toSystemId).connections.filter(_.id != id).map(_.id))
+
+    while work.nonEmpty do
+      val connId = work.pop()
+      if !seen.contains(connId) then
+        seen.add(connId)
+        val conn = connections(connId)
+        reachable.add(conn.connection.fromSystemId)
+        reachable.add(conn.connection.toSystemId)
+        work.addAll(systems(conn.connection.fromSystemId).connections.view.map(_.id).filterNot(seen.contains))
+        work.addAll(systems(conn.connection.toSystemId).connections.view.map(_.id).filterNot(seen.contains))
+
+    reachable.toSet
+
   def refSystem(id: SystemId): Option[MapSolarSystem] = ref.solarSystems.get(id)
 
   def updateOne(
@@ -102,6 +154,11 @@ private[map] case class MapState(
       connectionRanks = connectionRanks.foldLeft(this.connectionRanks) { case (ranks, r) =>
         ranks.updated(r.connectionId, r)
       }
+    )
+
+  def updateSystemWith(systemId: SystemId, f: MapSystemWithAll => MapSystemWithAll): MapState =
+    this.copy(
+      systems = this.systems.updatedWith(systemId)(_.map(f))
     )
 
   def updateConnection(
@@ -195,6 +252,7 @@ object MapState:
       connections: List[MapWormholeConnectionWithSigs],
       connectionRanks: List[MapWormholeConnectionRank],
       ref: MapRef,
+      stances: Chunk[IntelGroupStance],
       queryTimeout: Duration
   ): MapState =
     new MapState(
@@ -204,10 +262,11 @@ object MapState:
       locations = Map.empty,
       locationsOnline = Map.empty,
       ref,
+      stances = stances,
       queryTimeout = queryTimeout
     )
 
-case class MapSessionId(characterId: CharacterId, sessionId: UUID) derives CanEqual
+case class MapSessionId(characterId: CharacterId, sessionId: UUID, userId: UserId) derives CanEqual
 case class Identified[T](sessionId: Option[MapSessionId], value: T)
 
 case class NewMapSystemSignature(
@@ -215,12 +274,28 @@ case class NewMapSystemSignature(
     signatureGroup: model.SignatureGroup,
     signatureTypeName: Option[String] = None,
     wormholeIsEol: Option[Boolean] = None,
-    wormholeTypeId: Option[Long] = None,
+    wormholeTypeId: Option[TypeId] = None,
     wormholeMassSize: model.WormholeMassSize = model.WormholeMassSize.Unknown,
     wormholeMassStatus: model.WormholeMassStatus = model.WormholeMassStatus.Unknown,
     wormholeK162Type: Option[model.WormholeK162Type] = None,
     wormholeConnectionId: UnknownOrUnset[ConnectionId] = UnknownOrUnset.Unknown()
 )
+
+case class NewIntelSystemStructure(
+    typeId: TypeId,
+    name: Option[String],
+    ownerCorporation: Option[CorporationId],
+    nearestPlanetIdx: Option[Int],
+    nearestMoonIdx: Option[Int],
+    isOnline: Option[Boolean]
+)
+
+enum IntelSystemPingTarget derives CanEqual:
+  case User, Map
+
+enum StanceTarget derives CanEqual:
+  case Corporation(id: CorporationId)
+  case Alliance(id: AllianceId)
 
 private[map] case class MapLocationState(
     characterId: CharacterId,
@@ -253,6 +328,8 @@ private[map] enum LocationUpdateAction:
 
 private[map] sealed trait InternalMapRequest
 
+/** Mirror of [[org.updraft0.controltower.protocol.MapRequest]]
+  */
 enum MapRequest derives CanEqual:
   case MapSnapshot
   case AddSystem(
@@ -267,10 +344,26 @@ enum MapRequest derives CanEqual:
       systemId: SystemId,
       signature: NewMapSystemSignature
   )
+  case AddIntelSystemStructure(systemId: SystemId, structure: NewIntelSystemStructure)
+  case AddIntelSystemPing(systemId: SystemId, pingTarget: IntelSystemPingTarget, pingNote: Option[String])
+  case AddIntelSystemNote(systemId: SystemId, note: String, isPinned: Boolean)
   case UpdateSystemAttribute(systemId: SystemId, pinned: Option[Boolean], intelStance: Option[model.IntelStance])
   case UpdateSystemDisplay(systemId: SystemId, displayData: model.SystemDisplayData)
+  case UpdateSystemIntel(
+      systemId: SystemId,
+      primaryCorporation: Option[Option[CorporationId]],
+      primaryAlliance: Option[Option[AllianceId]],
+      isEmpty: Boolean,
+      intelGroup: model.IntelGroup
+  )
+  case UpdateSystemIntelNote(systemId: SystemId, id: IntelNoteId, note: String, isPinned: Boolean)
+  case UpdateSystemIntelStructure(structure: model.IntelSystemStructure)
+  case UpdateIntelGroupStance(target: StanceTarget, stance: model.IntelStance)
   case UpdateSystemSignatures(systemId: SystemId, replaceAll: Boolean, scanned: List[NewMapSystemSignature])
   case RenameSystem(systemId: SystemId, name: Option[String])
+  case RemoveIntelSystemStructure(systemId: SystemId, id: IntelStructureId)
+  case RemoveIntelSystemPing(systemId: SystemId, id: IntelPingId)
+  case RemoveIntelSystemNote(systemId: SystemId, id: IntelNoteId)
   case RemoveSystem(systemId: SystemId)
   case RemoveSystems(systemIds: NonEmptyChunk[SystemId])
   case RemoveSystemSignatures(systemId: SystemId, signatures: Option[NonEmptyChunk[SigId]])
@@ -308,6 +401,14 @@ enum MapResponse:
       updatedConnectionRanks: Map[ConnectionId, MapWormholeConnectionRank]
   )
   case CharacterLocations(locations: Map[CharacterId, CharacterLocationState.InSystem])
+  case Ping(
+      id: IntelPingId,
+      systemId: SystemId,
+      userId: Option[UserId],
+      mapGlobal: Option[Boolean],
+      note: Option[String]
+  )
+  case StanceUpdate(stances: Chunk[IntelGroupStance])
 
 /** Mini-reactive/lightweight actor that has a state of the whole map in memory and makes corresponding db changes
   */
@@ -321,6 +422,7 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
       systems         <- MapQueries.getMapSystemAll(key)
       connections     <- MapQueries.getWormholeConnectionsWithSigs(key, None)
       connectionRanks <- MapQueries.getWormholeConnectionRanksAll(key)
+      stances         <- query.map.getIntelGroupStanceFor(key)
       mapRef          <- loadMapRef()
       // transient state - listen to location updates
       locationUpdates <- ZIO.serviceWithZIO[LocationTracker](_.updates)
@@ -346,7 +448,14 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
         .repeat(Schedule.fixed(config.cleanupPeriod))
         .ignoreLogged
         .forkScoped
-    yield MapState(systems, connections, connectionRanks, mapRef, config.queryTimeout)).orDie
+    yield MapState(
+      systems,
+      connections,
+      connectionRanks,
+      mapRef,
+      Chunk.fromIterable(stances),
+      config.queryTimeout
+    )).orDie
 
   override def handle(
       mapId: MapId,
@@ -365,12 +474,17 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
                   state -> replyMany(
                     id,
                     MapResponse.MapSnapshot(state.systems, state.connections, state.connectionRanks),
+                    MapResponse.StanceUpdate(state.stances),
                     MapResponse.CharacterLocations(state.locationsForUpdate)
                   )
                 )
               case Identified(Some(id), MapRequest.MapSnapshot) =>
                 ZIO.succeed(
-                  state -> reply(id, MapResponse.MapSnapshot(state.systems, state.connections, state.connectionRanks))
+                  state -> replyMany(
+                    id,
+                    MapResponse.MapSnapshot(state.systems, state.connections, state.connectionRanks),
+                    MapResponse.StanceUpdate(state.stances)
+                  )
                 )
               case Identified(Some(sid), add: MapRequest.AddSystem) if !state.hasSystem(add.systemId) =>
                 identified(sid, "add", addSystem(mapId, state, sid.characterId, now, add))
@@ -434,6 +548,38 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
                 updateCharacterRoles(mapId, state, uc.roleMap) @@ Log.MapOperation("updateCharacters")
               case Identified(_, MapRequest.RemoveOldConnections) =>
                 removeOldConnections(mapId, state) @@ Log.MapOperation("removeOldConnections")
+              // intel
+              case Identified(Some(sid), ais: MapRequest.AddIntelSystemStructure) =>
+                identified(sid, "addIntelSystemStructure", addIntelSystemStructure(mapId, state, sid, ais))
+              case Identified(Some(sid), aip: MapRequest.AddIntelSystemPing) =>
+                identified(sid, "addIntelSystemPing", addIntelSystemPing(mapId, state, sid, aip))
+              case Identified(Some(sid), ain: MapRequest.AddIntelSystemNote) =>
+                identified(sid, "addIntelSystemNote", addIntelSystemNote(mapId, state, sid, ain))
+              case Identified(Some(sid), usi: MapRequest.UpdateSystemIntel) =>
+                identified(sid, "updateIntelSystem", updateIntelSystem(mapId, state, sid, usi))
+              case Identified(Some(sid), uin: MapRequest.UpdateSystemIntelNote) =>
+                identified(sid, "updateIntelSystemNote", updateIntelSystemNote(mapId, state, sid, uin))
+              case Identified(Some(sid), uis: MapRequest.UpdateSystemIntelStructure) =>
+                if (uis.structure.mapId != mapId)
+                  ZIO.logWarning("wrong map id sent for structure update").as(state -> Chunk.empty)
+                else
+                  identified(sid, "updateIntelSystemStructure", updateIntelSystemStructure(state, sid, uis.structure))
+              case Identified(Some(sid), ugs: MapRequest.UpdateIntelGroupStance) =>
+                identified(sid, "updateIntelGroupStance", updateIntelGroupStance(mapId, state, sid, ugs))
+              case Identified(Some(sid), rin: MapRequest.RemoveIntelSystemNote) =>
+                identified(
+                  sid,
+                  "removeIntelSystemNote",
+                  removeIntelSystemNote(mapId, state, sid, rin.systemId, rin.id)
+                )
+              case Identified(Some(sid), rip: MapRequest.RemoveIntelSystemPing) =>
+                identified(sid, "removeIntelSystemPing", removeIntelSystemPing(mapId, state, sid, rip))
+              case Identified(Some(sid), ris: MapRequest.RemoveIntelSystemStructure) =>
+                identified(
+                  sid,
+                  "removeIntelSystemStructure",
+                  removeIntelSystemStructure(mapId, state, sid, ris.systemId, ris.id)
+                )
               // fall-through case
               case Identified(None, _) =>
                 ZIO.logWarning("non-identified request not processed").as(state -> Chunk.empty)
@@ -501,15 +647,16 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
       )
       conn  <- loadSingleConnection(mapId, whc.id)
       ranks <- MapQueries.getWormholeConnectionRanksForSystems(mapId, addConn.toSystemId, addConn.fromSystemId)
+      isReachableBefore = state.isReachableBetween(addConn.fromSystemId, addConn.toSystemId)
     yield withState(state.updateConnection(conn, ranks)): nextState =>
-      nextState -> broadcastMany(
+      nextState -> (broadcastMany(
         state
           .diffRanks(ranks)
           .map(r =>
             MapResponse
               .ConnectionSnapshot(nextState.connections(r.connectionId), nextState.connectionRanks(r.connectionId))
           )*
-      )
+      ) ++ pingsForConnection(isReachableBefore, nextState, conn.connection))
 
   private def insertSystemConnectionJump(
       mapId: MapId,
@@ -517,7 +664,7 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
       charId: CharacterId,
       now: Instant,
       connectionId: ConnectionId,
-      shipTypeId: Int
+      shipTypeId: TypeId
   ) =
     val jump = model.MapWormholeConnectionJump(connectionId, charId, shipTypeId, None, now)
     query.map
@@ -825,7 +972,7 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
       displayData = generateDisplayData(state, action.system, action.adjacentTo),
       stance = None
     )
-  ).map((st, r) => st -> (responses ++ r))
+  ).map((st, r) => st -> (responses ++ r)) // pings are handled when we add connections
 
   private def generateDisplayData(state: MapState, systemId: SystemId, adjacentTo: Option[SystemId]) =
     state.displayType match
@@ -1007,6 +1154,227 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
       ).when(expiredConnections.nonEmpty).someOrElse(state -> Chunk.empty)
     yield res
 
+  private def addIntelSystemStructure(
+      mapId: MapId,
+      state: MapState,
+      sId: MapSessionId,
+      ais: MapRequest.AddIntelSystemStructure
+  ) =
+    for
+      now <- ZIO.clockWith(_.instant)
+      structure = model.IntelSystemStructure(
+        id = IntelStructureId.Invalid,
+        mapId = mapId,
+        systemId = ais.systemId,
+        name = ais.structure.name,
+        ownerCorporationId = ais.structure.ownerCorporation,
+        itemTypeId = ais.structure.typeId,
+        nearestPlanetIdx = ais.structure.nearestPlanetIdx,
+        nearestMoonIdx = ais.structure.nearestMoonIdx,
+        isOnline = ais.structure.isOnline,
+        isDeleted = false,
+        createdAt = now,
+        createdByCharacterId = sId.characterId,
+        updatedAt = now,
+        updatedByCharacterId = sId.characterId,
+        deletedAt = None,
+        deletedByCharacterId = None
+      )
+      inDb <- query.map.insertIntelSystemStructure(structure)
+    yield withState(state.updateSystemWith(ais.systemId, s => s.copy(structures = s.structures.appended(inDb))))(
+      stateSystemSnapshotWhenExists(ais.systemId)
+    )
+
+  private def updateIntelSystemStructure(state: MapState, sId: MapSessionId, structure: model.IntelSystemStructure) =
+    query.map
+      .upsertIntelSystemStructure(structure)
+      .map: _ =>
+        withState(
+          state.updateSystemWith(
+            structure.systemId,
+            s => s.copy(structures = s.structures.updated(s.structures.indexWhere(_.id == structure.id), structure))
+          )
+        )(
+          stateSystemSnapshotWhenExists(structure.systemId)
+        )
+
+  private def removeIntelSystemStructure(
+      mapId: MapId,
+      state: MapState,
+      sId: MapSessionId,
+      systemId: SystemId,
+      structureId: IntelStructureId
+  ) =
+    query.map
+      .deleteIntelSystemStructure(mapId, systemId, structureId, sId.characterId)
+      .map: deletedCount =>
+        withState(
+          state.updateSystemWith(systemId, s => s.copy(structures = s.structures.filterNot(_.id == structureId)))
+        )(stateSystemSnapshotWhenExists(systemId))
+
+  private def addIntelSystemNote(mapId: MapId, state: MapState, sId: MapSessionId, ain: MapRequest.AddIntelSystemNote) =
+    for
+      now <- ZIO.clockWith(_.instant)
+      dbNote <- query.map.insertIntelSystemNote(
+        model.IntelSystemNote(
+          id = IntelNoteId.Invalid,
+          mapId = mapId,
+          systemId = ain.systemId,
+          note = ain.note,
+          isPinned = ain.isPinned,
+          isDeleted = false,
+          originalId = None,
+          createdAt = now,
+          createdByCharacterId = sId.characterId,
+          deletedAt = None,
+          deletedByCharacterId = None
+        )
+      )
+    yield withState(state.updateSystemWith(ain.systemId, s => s.copy(notes = s.notes.appended(dbNote))))(
+      stateSystemSnapshotWhenExists(ain.systemId)
+    )
+  private def removeIntelSystemNote(
+      mapId: MapId,
+      state: MapState,
+      sId: MapSessionId,
+      systemId: SystemId,
+      id: IntelNoteId
+  ) =
+    query.map
+      .deleteIntelSystemNote(mapId, systemId, id, sId.characterId)
+      .map: deletedCount =>
+        withState(
+          state.updateSystemWith(systemId, s => s.copy(notes = s.notes.filterNot(_.id == id)))
+        )(stateSystemSnapshotWhenExists(systemId))
+
+  private def updateIntelSystemNote(
+      mapId: MapId,
+      state: MapState,
+      sId: MapSessionId,
+      uin: MapRequest.UpdateSystemIntelNote
+  ) =
+    for
+      now  <- ZIO.clockWith(_.instant)
+      prev <- query.map.getIntelSystemNote(mapId, uin.systemId, uin.id)
+      upd <- ZIO.when(prev.isDefined)(
+        query.map.updateIntelSystemNote(prev.get.copy(note = uin.note, isPinned = uin.isPinned), sId.characterId, now)
+      )
+    yield upd match
+      case None => state -> Chunk.empty
+      case Some(updated) =>
+        withState(
+          state.updateSystemWith(
+            uin.systemId,
+            s => s.copy(notes = s.notes.updated(s.notes.indexWhere(_.id == uin.id), updated))
+          )
+        )(stateSystemSnapshotWhenExists(uin.systemId))
+
+  private def updateIntelSystem(mapId: MapId, state: MapState, sId: MapSessionId, usi: MapRequest.UpdateSystemIntel) =
+    for
+      now   <- ZIO.clockWith(_.instant)
+      isOpt <- query.map.getIntelSystem(mapId, usi.systemId)
+      is = isOpt
+        .map(s =>
+          s.copy(
+            primaryCorporationId = usi.primaryCorporation.getOrElse(s.primaryCorporationId),
+            primaryAllianceId = usi.primaryAlliance.getOrElse(s.primaryAllianceId),
+            isEmpty = usi.isEmpty,
+            intelGroup = usi.intelGroup,
+            updatedAt = now,
+            updatedByCharacterId = sId.characterId
+          )
+        )
+        .getOrElse(
+          model.IntelSystem(
+            mapId = mapId,
+            systemId = usi.systemId,
+            primaryCorporationId = usi.primaryCorporation.flatten,
+            primaryAllianceId = usi.primaryAlliance.flatten,
+            intelGroup = usi.intelGroup,
+            isEmpty = usi.isEmpty,
+            createdAt = now,
+            createdByCharacterId = sId.characterId,
+            updatedAt = now,
+            updatedByCharacterId = sId.characterId
+          )
+        )
+      _ <- query.map.upsertIntelSystem(is)
+    yield withState(
+      state.updateSystemWith(
+        usi.systemId,
+        _.copy(intel = Some(is))
+      )
+    )(stateSystemSnapshotWhenExists(usi.systemId))
+
+  private def addIntelSystemPing(mapId: MapId, state: MapState, sId: MapSessionId, aip: MapRequest.AddIntelSystemPing) =
+    for
+      now <- ZIO.clockWith(_.instant)
+      isp <- query.map.insertIntelSystemPing(
+        model.IntelSystemPing(
+          id = IntelPingId.Invalid,
+          mapId = mapId,
+          systemId = aip.systemId,
+          pingUserId = Option.when(aip.pingTarget == IntelSystemPingTarget.User)(sId.userId),
+          pingMapGlobal = Option.when(aip.pingTarget == IntelSystemPingTarget.Map)(true),
+          pingNote = aip.pingNote,
+          isDeleted = false,
+          createdAt = now,
+          createdByCharacterId = sId.characterId,
+          deletedAt = None,
+          deletedByCharacterId = None
+        )
+      )
+    yield withState(
+      state.updateSystemWith(
+        aip.systemId,
+        s => s.copy(pings = s.pings.appended(isp))
+      )
+    )(stateSystemSnapshotWhenExists(aip.systemId))
+
+  private def removeIntelSystemPing(
+      mapId: MapId,
+      state: MapState,
+      sId: MapSessionId,
+      rip: MapRequest.RemoveIntelSystemPing
+  ) =
+    query.map
+      .deleteIntelSystemPing(mapId, rip.systemId, rip.id, sId.characterId)
+      .as:
+        withState(state.updateSystemWith(rip.systemId, s => s.copy(pings = s.pings.filterNot(_.id == rip.id))))(
+          stateSystemSnapshotWhenExists(rip.systemId)
+        )
+
+  private def updateIntelGroupStance(
+      mapId: MapId,
+      state: MapState,
+      sId: MapSessionId,
+      ugs: MapRequest.UpdateIntelGroupStance
+  ) =
+    for
+      now <- ZIO.clockWith(_.instant)
+      _ <- query.map.upsertIntelGroupStance(
+        model.IntelGroupStance(
+          mapId = mapId,
+          corporationId = ugs.target match
+            case StanceTarget.Corporation(id) => Some(id)
+            case _                            => None
+          ,
+          allianceId = ugs.target match
+            case StanceTarget.Alliance(id) => Some(id)
+            case _                         => None
+          ,
+          stance = ugs.stance,
+          createdAt = now,
+          createdByCharacterId = sId.characterId,
+          updatedAt = now,
+          updatedByCharacterId = sId.characterId
+        )
+      )
+      stances <- query.map.getIntelGroupStanceFor(mapId)
+    yield withState(state.copy(stances = Chunk.fromIterable(stances)))(state =>
+      state -> broadcast(MapResponse.StanceUpdate(state.stances))
+    )
+
   private inline def loadSingleSystem(mapId: MapId, systemId: SystemId) =
     MapQueries
       .getMapSystemAll(mapId, Some(systemId))
@@ -1126,6 +1494,36 @@ private def mergeModelSignature(
       updatedByCharacterId = sessionId.characterId
     )
 
+private def pingsForConnection(
+    isReachableBefore: Boolean,
+    state: MapState,
+    newConnection: MapWormholeConnection
+): Chunk[Identified[MapResponse]] =
+  // no pings need to be considered if the connection did not change reachability of systems (e.g. in a loop)
+  if isReachableBefore then Chunk.empty
+  else
+    // check the from/to side of the connection for systems that are reachable
+    val fromSide = state.systemsReachableVia(newConnection.id, fromSide = true)
+    val toSide   = state.systemsReachableVia(newConnection.id, fromSide = false)
+
+    // if any of them are pinned, then those are the anchors to use for ping notifications
+    val fromPinned = fromSide.filter(sId => state.systems(sId).sys.isPinned)
+    val toPinned   = toSide.filter(sId => state.systems(sId).sys.isPinned)
+
+    val toFindPings =
+      if fromPinned.nonEmpty && toPinned.nonEmpty then fromPinned ++ toPinned
+      else if fromPinned.nonEmpty then toSide
+      else if toPinned.nonEmpty then fromSide
+      else Set.empty
+
+    val pings = toFindPings.flatMap(sId => state.systems(sId).pings)
+    Chunk.fromIterable(
+      pings
+        .map(isp =>
+          Identified(None, MapResponse.Ping(isp.id, isp.systemId, isp.pingUserId, isp.pingMapGlobal, isp.pingNote))
+        )
+    )
+
 private inline def reply(sessionId: MapSessionId, value: MapResponse): Chunk[Identified[MapResponse]] =
   Chunk.single(Identified(Some(sessionId), value))
 private inline def replyMany(sessionId: MapSessionId, values: MapResponse*): Chunk[Identified[MapResponse]] =
@@ -1136,6 +1534,14 @@ private inline def broadcastMany(values: MapResponse*): Chunk[Identified[MapResp
   Chunk(values.map(v => Identified(None, v))*)
 
 private inline def withState[A](state: MapState)(f: MapState => A): A = f(state)
+
+private inline def stateSystemSnapshotWhenExists(
+    systemId: SystemId
+): MapState => (MapState, Chunk[Identified[MapResponse]]) =
+  nextState =>
+    nextState -> Option
+      .when(nextState.systems.contains(systemId))(broadcast(nextState.systemSnapshot(systemId)))
+      .getOrElse(Chunk.empty)
 
 private inline def updateConnectionById(
     arr: Chunk[MapWormholeConnection],

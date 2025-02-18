@@ -60,3 +60,8 @@ GET {{api}}/reference/wormholeTypes
 GET {{api}}/reference/signatureGroups
 
 ###
+
+# @name GetRefStructureTypes
+GET {{api}}/reference/structureTypes
+
+###

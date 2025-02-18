@@ -20,3 +20,30 @@ case class Character(
     title: Option[String]
 )
 case class CharacterAffiliation(allianceId: Option[AllianceId], characterId: CharacterId, corporationId: CorporationId)
+
+case class Corporation(
+    allianceId: Option[AllianceId],
+    ceoId: CharacterId,
+    creatorId: CharacterId,
+    dateFounded: Instant,
+    description: String,
+    factionId: Option[Int],
+    homeStationId: Long,
+    memberCount: Int,
+    name: String,
+    shares: Option[Int],
+    taxRate: Float,
+    ticker: String,
+    url: Option[String],
+    warEligible: Option[Boolean]
+)
+
+case class Alliance(
+    creatorCorporationId: CorporationId,
+    creatorId: CharacterId,
+    dateFounded: Instant,
+    executorCorporationId: Option[CorporationId],
+    factionId: Option[Int],
+    name: String,
+    ticker: String
+)

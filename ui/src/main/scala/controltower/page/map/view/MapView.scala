@@ -126,6 +126,21 @@ private final class MapView(
 
     val connectionView = ConnectionInfoView(controller.selectedConnection)
 
+    val intelNoteView = IntelNoteView(
+      controller.selectedSystemId.signal,
+      controller.selectedSystem.map(_.map(_.notes).getOrElse(Array.empty))
+    )
+
+    val intelStructureView = IntelStructureView(
+      controller.selectedSystemId.signal,
+      controller.selectedSystem.map(_.map(_.structures).getOrElse(Array.empty))
+    )(using mapCtx, ct)
+
+    val intelPingView = IntelPingView(
+      controller.selectedSystemId.signal,
+      controller.selectedSystem.map(_.map(_.pings).getOrElse(Array.empty))
+    )
+
     val systemNodesTransformer = CollectionCommandTransformer[MapSystemSnapshot, SystemView, Element, Long](
       _.system.systemId,
       mssV => {
@@ -180,7 +195,7 @@ private final class MapView(
       // A -> add system
       modalKeyBinding(
         "a",
-        controller.mapRole.map(RoleController.canAddSystem).combineWith(ws.isConnected).map(_ && _),
+        controller.roleController.canAddSystem,
         _.map(ev => (ev, ())),
         (_, onClose) =>
           Modal.show(
@@ -193,7 +208,7 @@ private final class MapView(
       // C -> cleanup stale signatures in system
       modalKeyBinding[(MapSystemSnapshot, Instant)](
         "c",
-        controller.mapRole.map(RoleController.canEditSignatures).combineWith(ws.isConnected).map(_ && _),
+        controller.roleController.canEditSignatures,
         _.filterWith(controller.selectedSystem, _.isDefined)
           .withCurrentValueOf(controller.selectedSystem, time)
           .map((ev, opt, now) => (ev, (opt.get, now))),
@@ -210,7 +225,7 @@ private final class MapView(
       // delete -> remove system
       modalKeyBinding(
         "Delete",
-        controller.mapRole.map(RoleController.canRemoveSystem).combineWith(ws.isConnected).map(_ && _),
+        controller.roleController.canRemoveSystem,
         _.filterWith(controller.bulkSelectedSystemIds, _.isEmpty)
           .filterWith(controller.selectedSystem, _.isDefined)
           .withCurrentValueOf(controller.selectedSystem)
@@ -220,14 +235,14 @@ private final class MapView(
       // delete -> remove multiple systems
       modalKeyBinding(
         "Delete",
-        controller.mapRole.map(RoleController.canRemoveSystem).combineWith(ws.isConnected).map(_ && _),
+        controller.roleController.canRemoveSystem,
         _.filterWith(controller.bulkSelectedSystemIds, _.nonEmpty).withCurrentValueOf(controller.bulkSelectedSystemIds),
         (systemIds, onClose) => removeMultipleSystems(systemIds, controller.actionsBus, onClose)(using rds)
       ),
       // P -> paste system signatures
       modalKeyBinding(
         "p",
-        controller.mapRole.map(RoleController.canEditSignatures).combineWith(ws.isConnected).map(_ && _),
+        controller.roleController.canEditSignatures,
         _.filterWith(controller.selectedSystem, _.isDefined)
           .withCurrentValueOf(controller.selectedSystem)
           .map((ev, opt) => (ev, opt.get)),
@@ -252,7 +267,7 @@ private final class MapView(
       // paste system signatures without confirmation // TODO why is event handler only fired on document level
       clipboardEventBinding[(SystemId, Instant)](
         documentEvents(_.onPaste),
-        controller.mapRole.map(RoleController.canEditSignatures).combineWith(ws.isConnected).map(_ && _),
+        controller.roleController.canEditSignatures,
         _.filterWith(controller.selectedSystemId, _.isDefined)
           .withCurrentValueOf(controller.selectedSystemId, time)
           .map((ev, opt, now) => (ev, (opt.get, now))),
@@ -267,7 +282,7 @@ private final class MapView(
       // R -> rename system
       modalKeyBinding(
         "r",
-        controller.mapRole.map(RoleController.canRenameSystem).combineWith(ws.isConnected).map(_ && _),
+        controller.roleController.canRenameSystem,
         _.filterWith(controller.selectedSystem, _.isDefined)
           .withCurrentValueOf(controller.selectedSystem)
           .map((ev, opt) => (ev, opt.get)),
@@ -361,6 +376,13 @@ private final class MapView(
         systemInfoView.view,
         systemSignatureView.view,
         connectionView.view
+      ),
+      div(
+        // TODO - position this better
+        idAttr := "map-bottom-bar",
+        intelNoteView.view,
+        intelStructureView.view,
+        intelPingView.view
       )
     )
 

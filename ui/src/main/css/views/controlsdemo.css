@@ -1,0 +1,12 @@
+table.grid-jumps-demo {
+    background-color: $gray-dark;
+
+    & img.character-image, & img.type-icon {
+        width: 26px;
+        height: 26px;
+    }
+
+    td {
+        text-align: left;
+    }
+}

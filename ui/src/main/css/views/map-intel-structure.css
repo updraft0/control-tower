@@ -1,0 +1,110 @@
+dialog.system-add-structure-dialog, dialog.system-edit-structure-dialog {
+    min-width: 30em;
+    min-height: 30vh;
+    width: fit-content;
+    height: fit-content;
+
+    fieldSet {
+        border: none;
+
+        p {
+            margin: 0;
+            padding: 0;
+        }
+    }
+
+    label {
+        color: $gray-lighter;
+    }
+
+    textarea {
+        width: 100%;
+        min-height: 3lh;
+        resize: none;
+
+        border: 1px solid $teal-dark;
+        border-radius: 2px;
+
+        &:focus-visible {
+            border-color: $orange-dark;
+            outline: none;
+        }
+    }
+
+    button.add-structure {
+        margin-left: 1em;
+        margin-bottom: 0.5lh;
+        background-color: $green-dark;
+        color: $gray-lightest;
+
+        &:hover {
+            background-color: $green;
+        }
+    }
+
+    img.corporation-image {
+        width: 26px;
+        height: 26px;
+    }
+}
+
+section#intel-structure-view {
+    min-width: 600px;
+
+    table {
+        margin-bottom: 0.5em;
+
+        img.corporation-image {
+            width: 1em;
+            height: 1em;
+        }
+
+        td[data-col="UpdatedAt"] span, td[data-col="StructureType"] span {
+            color: $gray-lighter;
+        }
+
+        td[data-col="Online"] i.ti-bolt-filled {
+            color: $green-dark;
+        }
+
+        td[data-col="Online"] i.ti-bolt {
+            color: $red-dark;
+        }
+
+        td {
+            white-space: nowrap;
+        }
+
+        td[data-col="Name"] {
+            width: 100%;
+        }
+
+        td[data-col="Name"] span {
+            user-select: text;
+        }
+
+        span.owner-corporation {
+            padding: 0.2em;
+            border-radius: 2px;
+            background-color: $indigo-darkest;
+        }
+
+        tbody td button {
+            border: none;
+            background-color: transparent;
+
+            &:enabled i, span {
+                font-size: 1.25em;
+                color: $teal-lighter;
+
+                &.ti-trash {
+                    color: $red-dark;
+                }
+            }
+
+            &:enabled:hover i, span {
+                color: $orange-dark;
+            }
+        }
+    }
+}

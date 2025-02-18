@@ -98,7 +98,7 @@ lazy val server = project
     commonSettings,
     Seq(
       libraryDependencies ++= jsoniter ++ jwt ++ tapir ++ `tapir-jsoniter` ++ `tapir-server`,
-      libraryDependencies ++= zio ++ `zio-config` ++ `zio-test`,
+      libraryDependencies ++= zio ++ `zio-config` ++ `zio-query` ++ `zio-test`,
 
       // runtime
       Universal / javaOptions ++= Seq(
@@ -180,7 +180,7 @@ lazy val ui = project
       "dev.zio" %%% "zio-test"          % Versions.zio % Test,
       "dev.zio" %%% "zio-test-sbt"      % Versions.zio % Test,
       "dev.zio" %%% "zio-test-magnolia" % Versions.zio % Test
-    )
+    ),
   )
   .dependsOn(protocol.js, `test-deps`.js % Test)
 

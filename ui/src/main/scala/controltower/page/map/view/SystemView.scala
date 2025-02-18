@@ -15,8 +15,8 @@ import scala.collection.mutable
 import java.time.Instant
 
 enum SignatureClassified(val name: String) derives CanEqual:
-  case Wormhole(override val name: String, typeId: Long) extends SignatureClassified(name)
-  case Other(override val name: String)                  extends SignatureClassified(name)
+  case Wormhole(override val name: String, typeId: TypeId) extends SignatureClassified(name)
+  case Other(override val name: String)                    extends SignatureClassified(name)
 
 enum SystemScanStatus derives CanEqual:
   case Unscanned
@@ -26,10 +26,11 @@ enum SystemScanStatus derives CanEqual:
 
 case class SystemStaticData(
     solarSystemMap: MapView[SystemId, SolarSystem],
-    wormholeTypes: Map[Long, WormholeType],
-    starTypes: Map[Long, StarType],
-    shipTypes: Map[Long, ShipType],
-    signatureByClassAndGroup: Map[WormholeClass, Map[SignatureGroup, List[SignatureClassified]]]
+    wormholeTypes: Map[TypeId, WormholeType],
+    starTypes: Map[TypeId, StarType],
+    shipTypes: Map[TypeId, ShipType],
+    signatureByClassAndGroup: Map[WormholeClass, Map[SignatureGroup, List[SignatureClassified]]],
+    structureTypes: Map[TypeId, StructureType]
 )
 
 object SystemStaticData:
@@ -40,7 +41,8 @@ object SystemStaticData:
       wormholeTypes = ref.wormholeTypes.map(wt => wt.typeId -> wt).toMap,
       starTypes = ref.starTypes.map(st => st.typeId -> st).toMap,
       shipTypes = ref.shipTypes.map(st => st.typeId -> st).toMap,
-      signatureByClassAndGroup = computeSignatures(ref)
+      signatureByClassAndGroup = computeSignatures(ref),
+      structureTypes = ref.structureTypes.map(st => st.typeAndName._1 -> st).toMap
     )
 
   private def computeSignatures(ref: Reference) =
@@ -94,9 +96,9 @@ class SystemView(
     else
       val solarSystem = ctx.staticData.solarSystemMap(systemId)
 
-      val canDrag = ctx.mapRole
-        .combineWith(system.map(_.system.isPinned), isConnected)
-        .map((role, pinned, connected) => !pinned && RoleController.canRepositionSystem(role) && connected)
+      val canDrag = ctx.roleController.canRepositionSystem
+        .combineWith(system.map(_.system.isPinned))
+        .map((ok, pinned) => ok && !pinned)
 
       inDraggable(
         pos.systemPosition(systemId),
@@ -216,7 +218,7 @@ private inline def systemClass(ss: SolarSystem, hide: Boolean = false) =
 private inline def systemOnlineChars(
     systemId: SystemId,
     chars: Signal[Array[CharacterLocation]],
-    shipTypes: Map[Long, ShipType]
+    shipTypes: Map[TypeId, ShipType]
 ) =
   nodeSeq(
     mark(
@@ -256,7 +258,7 @@ private inline def systemOnlineChars(
   )
 
 private[map] inline def renderLocationRow(
-    shipTypes: Map[Long, ShipType]
+    shipTypes: Map[TypeId, ShipType]
 )(charId: CharacterId, location: CharacterLocation, sig: Signal[CharacterLocation]) =
   tr(
     td(
@@ -348,7 +350,7 @@ private inline def systemIsPinned(s: Signal[MapSystem]) =
     cls := "ti-pin-filled"
   )
 
-private inline def systemWhStatics(ss: SolarSystem, wormholeTypes: Map[Long, WormholeType]) =
+private inline def systemWhStatics(ss: SolarSystem, wormholeTypes: Map[TypeId, WormholeType]) =
   ss.wormholeStatics.flatMap: static =>
     val whType = wormholeTypes(static.typeId)
     nodeSeq(

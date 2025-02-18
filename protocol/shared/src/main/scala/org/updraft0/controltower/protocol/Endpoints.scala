@@ -24,6 +24,8 @@ object Endpoints:
   // opaque
   given Codec[String, CharacterId, CodecFormat.TextPlain] = Codec.long.map(CharacterId.apply)(_.asInstanceOf[Long])
   given Codec[String, MapId, CodecFormat.TextPlain]       = Codec.long.map(MapId.apply)(_.asInstanceOf[Long])
+  given Codec[String, SearchType, CodecFormat.TextPlain] =
+    Codec.string.map(s => SearchType.valueOf(s.capitalize))(_.toString.toLowerCase)
 
   val getSolarSystem =
     reference.get
@@ -52,6 +54,7 @@ object Endpoints:
   val getStationOperations = reference.get.in("stationOperations").out(jsonBody[Array[StationOperation]])
   val getWormholeTypes     = reference.get.in("wormholeTypes").out(jsonBody[Array[WormholeType]])
   val getSignaturesInGroup = reference.get.in("signatureGroups").out(jsonBody[Array[SignatureInGroup]])
+  val getStructureTypes    = reference.get.in("structureTypes").out(jsonBody[Array[StructureType]])
   // TODO: need an endpoint for wormhole sig strength
 
   // endregion
@@ -139,5 +142,21 @@ object Endpoints:
       .description("Open a WebSocket for map updates")
 
   // TODO better error for validation
+
+  // endregion
+
+  // region search
+
+  private val search = endpoint
+    .in("api" / "search")
+    .securityIn(SessionCookieDef)
+    .errorOut(plainBody[String])
+
+  val searchEntity =
+    search
+      .in("entity" / path[SearchType]("type") / path[String].name("search"))
+      .post
+      .out(jsonBody[Array[SearchEntityResponse]])
+      .description("Search for character, corporation or alliance")
 
   // endregion

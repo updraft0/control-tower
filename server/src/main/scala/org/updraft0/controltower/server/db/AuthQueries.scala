@@ -80,6 +80,17 @@ object AuthQueries:
       case _        => None
     }
 
+  def getSomeCharacterAuthToken(userId: UserId): Result[Option[(model.AuthCharacter, model.CharacterAuthToken)]] =
+    run(quote {
+      for
+        uc <- userCharacter.filter(uc => uc.userId == lift(userId))
+        ac <- character.join(ac => uc.characterId == ac.id)
+        cat <- characterAuthToken
+          .filter(_.expiresAt > unixepoch)
+          .join(cat => cat.characterId == uc.characterId)
+      yield (ac, cat)
+    }).map(_.headOption)
+
   def getUserPreference(userId: UserId): Result[Option[model.UserPreference]] =
     run(quote { userPreference.filter(_.userId == lift(userId)) }).map {
       case Nil      => None

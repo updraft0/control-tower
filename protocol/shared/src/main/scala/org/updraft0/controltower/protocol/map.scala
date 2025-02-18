@@ -1,7 +1,8 @@
 package org.updraft0.controltower.protocol
 
 import org.updraft0.controltower.constant.*
-import java.time.{Instant, Duration}
+
+import java.time.{Duration, Instant}
 
 enum PolicyMemberType derives CanEqual:
   case Character, Corporation, Alliance
@@ -27,6 +28,87 @@ case class MapInfo(id: MapId, name: String, displayType: MapDisplayType, setting
 
 case class MapInfoWithPermissions(map: MapInfo, policyMembers: Array[MapPolicyMember])
 
+// region Intel
+
+enum UpwellStructureSize derives CanEqual:
+  case Medium, Large, XL
+
+enum UpwellStructureType derives CanEqual:
+  case Astrahus, Fortizar, Keepstar, Raitaru, Azbel, Sotiyo, Athanor, Tatara
+
+  def size: UpwellStructureSize =
+    this match
+      case Astrahus | Raitaru | Athanor => UpwellStructureSize.Medium
+      case Fortizar | Azbel | Tatara    => UpwellStructureSize.Large
+      case Keepstar | Sotiyo            => UpwellStructureSize.XL
+
+enum PlayerStructureSize derives CanEqual:
+  case Small, Medium, Large
+
+enum StructureType derives CanEqual:
+  case Upwell(`type`: UpwellStructureType, typeName: String, typeId: TypeId)
+  case PlayerOwned(size: PlayerStructureSize, typeName: String, typeId: TypeId)
+
+  def typeAndName: (TypeId, String) =
+    this match
+      case u: Upwell      => (u.typeId, u.typeName)
+      case p: PlayerOwned => (p.typeId, p.typeName)
+
+enum IntelGroup derives CanEqual:
+  case Unknown, HQ, Farm, Staging
+
+case class IntelSystemStructure(
+    id: IntelStructureId,
+    systemId: SystemId,
+    `type`: StructureType,
+    name: Option[String],
+    ownerCorporation: Option[Corporation],
+    nearestPlanetIdx: Option[Int], // idx
+    nearestMoonIdx: Option[Int],   // idx
+    isOnline: Option[Boolean],
+    createdAt: Instant,
+    createdByCharacterId: CharacterId,
+    updatedAt: Instant,
+    updatedByCharacterId: CharacterId
+)
+
+case class IntelSystem(
+    primaryCorporation: Option[Corporation],
+    primaryAlliance: Option[Alliance],
+    isEmpty: Boolean,
+    intelGroup: IntelGroup,
+    updatedAt: Instant,
+    updatedByCharacterId: CharacterId
+)
+
+case class IntelSystemNote(
+    id: IntelNoteId,
+    note: String,
+    isPinned: Boolean,
+    isDeleted: Boolean,
+    originalId: Option[IntelNoteId],
+    createdAt: Instant,
+    createdByCharacterId: CharacterId,
+    deletedAt: Option[Instant],
+    deletedByCharacterId: Option[CharacterId]
+)
+
+enum IntelSystemPingTarget derives CanEqual:
+  case User, Map
+
+case class IntelSystemPing(
+    id: IntelPingId,
+    pingTarget: IntelSystemPingTarget,
+    pingNote: Option[String],
+    isDeleted: Boolean,
+    createdAt: Instant,
+    createdByCharacterId: CharacterId,
+    deletedAt: Option[Instant],
+    deletedByCharacterId: Option[CharacterId]
+)
+
+// endregion
+
 // region WebSocket protocol
 
 case class MapSystem(
@@ -41,26 +123,27 @@ case class MapSystem(
     updatedByCharacterId: CharacterId
 )
 
-case class Corporation(id: CorporationId, name: String)
-
-case class MapSystemStructure(
+case class Alliance(id: AllianceId, name: String, ticker: String, createdAt: Instant)
+case class Corporation(
+    id: CorporationId,
     name: String,
-    structureType: Option[String], /* FIXME */
-    owner: Option[Corporation],
-    location: Option[String],
-    createdAt: Instant,
-    createdByCharacterId: CharacterId,
-    updatedAt: Instant,
-    updatedByCharacterId: CharacterId
+    ticker: String,
+    alliance: Option[Alliance],
+    memberCount: Int,
+    createdAt: Instant
 )
 
-case class MapSystemNote(
-    id: Long,
-    note: String,
-    createdAt: Instant,
-    createdByCharacterId: CharacterId,
-    updatedAt: Instant,
-    updatedByCharacterId: CharacterId
+enum StanceTarget:
+  case Alliance(id: AllianceId)
+  case Corporation(id: CorporationId)
+
+case class NewIntelSystemStructure(
+    `type`: StructureType,
+    name: Option[String],
+    ownerCorporation: Option[CorporationId],
+    nearestPlanetIdx: Option[Int],
+    nearestMoonIdx: Option[Int],
+    isOnline: Option[Boolean]
 )
 
 case class MapWormholeConnection(
@@ -76,7 +159,7 @@ case class MapWormholeConnection(
 case class MapWormholeConnectionJump(
     connectionId: ConnectionId,
     characterId: CharacterId,
-    shipTypeId: Int,
+    shipTypeId: TypeId,
     massOverride: Option[Long],
     createdAt: Instant
 )
@@ -115,9 +198,6 @@ enum WormholeK162Type derives CanEqual:
 enum IntelStance derives CanEqual:
   case Unknown, Friendly, Hostile
 
-enum IntelGroup derives CanEqual:
-  case Unknown, HQ, Farm, Staging
-
 enum MapDisplayType derives CanEqual:
   case Manual
 
@@ -133,7 +213,7 @@ extension (sd: SystemDisplayData)
 case class CharacterLocation(
     characterId: CharacterId,
     characterName: String,
-    shipTypeId: Long,
+    shipTypeId: TypeId,
     shipName: String,
     structureId: Option[Long],
     stationId: Option[Int],
@@ -143,7 +223,7 @@ case class CharacterLocation(
 enum WormholeConnectionType derives CanEqual:
   case Unknown
   case K162(sub: WormholeK162Type)
-  case Known(typeId: Long)
+  case Known(typeId: TypeId)
 
 enum MapSystemSignature(
     val systemId: SystemId,
@@ -238,10 +318,24 @@ case class MapSystemSnapshot(
     system: MapSystem,
     display: Option[SystemDisplayData],
     signatures: Array[MapSystemSignature],
-    notes: Array[MapSystemNote],
-    structures: Array[MapSystemStructure],
-    connections: Array[MapWormholeConnection]
+    connections: Array[MapWormholeConnection],
+    intel: Option[IntelSystem],
+    notes: Array[IntelSystemNote],
+    structures: Array[IntelSystemStructure],
+    pings: Array[IntelSystemPing]
 ) derives CanEqual
+
+enum NotificationMessage:
+  case SystemPing(pingId: IntelPingId, systemId: SystemId, text: Option[String])
+
+case class IntelGroupStance(
+    target: StanceTarget,
+    stance: IntelStance,
+    createdAt: Instant,
+    createdByCharacterId: CharacterId,
+    updatedAt: Instant,
+    updatedByCharacterId: CharacterId
+)
 
 enum MapServerStatus derives CanEqual:
   case Error
@@ -268,11 +362,27 @@ enum MapRequest derives CanEqual:
 
   /** (idempotent) Add/update a system scan signature
     */
-  case AddSystemSignature(systemId: Long, sig: NewSystemSignature)
+  case AddSystemSignature(systemId: SystemId, sig: NewSystemSignature)
 
   /** (non-idempotent) Add a connection between two systems
     */
   case AddSystemConnection(fromSystemId: SystemId, toSystemId: SystemId)
+
+  /** (idempotent) Add a new system structure
+    */
+  case AddIntelSystemStructure(systemId: SystemId, structure: NewIntelSystemStructure)
+
+  /** (non-idempotent) Add a new intel system ping
+    */
+  case AddIntelSystemPing(
+      systemId: SystemId,
+      pingTarget: IntelSystemPingTarget,
+      pingNote: Option[String]
+  )
+
+  /** (non-idempotent) Add a new intel system note
+    */
+  case AddIntelSystemNote(systemId: SystemId, note: String, isPinned: Boolean)
 
   /** (idempotent) Update multiple system signatures
     */
@@ -296,6 +406,28 @@ enum MapRequest derives CanEqual:
       name: Option[Option[String]] = None
   )
 
+  /** Update general system intel data
+    */
+  case UpdateSystemIntel(
+      systemId: SystemId,
+      primaryCorporation: Option[Option[CorporationId]],
+      primaryAlliance: Option[Option[AllianceId]],
+      isEmpty: Boolean,
+      intelGroup: IntelGroup
+  )
+
+  /** Update system intel note
+    */
+  case UpdateSystemIntelNote(systemId: SystemId, id: IntelNoteId, note: String, isPinned: Boolean)
+
+  /** Update an intel structure in system
+    */
+  case UpdateIntelSystemStructure(systemId: SystemId, structure: IntelSystemStructure)
+
+  /** Update the stance for an entity
+    */
+  case UpdateIntelGroupStance(target: StanceTarget, stance: IntelStance)
+
   /** Remove a system from the map
     */
   case RemoveSystem(systemId: SystemId)
@@ -307,6 +439,18 @@ enum MapRequest derives CanEqual:
   /** Remove a connection from the map
     */
   case RemoveSystemConnection(connectionId: ConnectionId)
+
+  /** Remove a system structure from intel
+    */
+  case RemoveIntelSystemStructure(systemId: SystemId, id: IntelStructureId)
+
+  /** Remove a system ping
+    */
+  case RemoveIntelSystemPing(systemId: SystemId, id: IntelPingId)
+
+  /** Remove a system note
+    */
+  case RemoveIntelSystemNote(systemId: SystemId, id: IntelNoteId)
 
 end MapRequest
 
@@ -327,12 +471,21 @@ enum MapMessage:
       connections: Map[ConnectionId, MapWormholeConnectionWithSigs]
   )
   case SystemDisplayUpdate(systemId: SystemId, name: Option[String], displayData: SystemDisplayData)
+  case SystemIntelSnapshot(
+      systemId: SystemId,
+      intel: Option[IntelSystem],
+      notes: Array[IntelSystemNote],
+      structures: Array[IntelSystemStructure],
+      pings: Array[IntelSystemPing]
+  )
   case SystemsRemoved(
       removedSystemIds: Array[SystemId],
       removedConnectionIds: Array[ConnectionId],
       updatedSystems: Array[MapSystemSnapshot],
       updatedConnections: Map[ConnectionId, MapWormholeConnectionWithSigs]
   )
+  case IntelStanceUpdate(stances: Array[IntelGroupStance])
   case ServerStatus(status: MapServerStatus)
+  case Notification(msg: NotificationMessage)
 
 end MapMessage

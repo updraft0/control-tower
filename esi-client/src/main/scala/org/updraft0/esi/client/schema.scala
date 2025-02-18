@@ -24,6 +24,14 @@ object schema:
   given Schema[CharacterOnlineResponse]   = Schema.derived
   given Schema[CharacterShipResponse]     = Schema.derived
 
+  given Schema[SearchResponse] = Schema.derived
+
+  // corporation
+  given Schema[Corporation] = Schema.derived
+
+  // alliance
+  given Schema[Alliance] = Schema.derived
+
   // error
   given Schema[EsiError.BadRequest]          = Schema.derived
   given Schema[EsiError.BadGateway]          = Schema.derived
@@ -94,6 +102,16 @@ object jsoncodec:
   given JsonValueCodec[CharacterLocationResponse]  = JsonCodecMaker.make(config)
   given JsonValueCodec[CharacterOnlineResponse]    = JsonCodecMaker.make(config)
   given JsonValueCodec[CharacterShipResponse]      = JsonCodecMaker.make(config)
+
+  given JsonValueCodec[SearchResponse] = JsonCodecMaker.make(config)
+
+  // corporation
+  given JsonValueCodec[Corporation] = JsonCodecMaker.make(config)
+
+  // alliance
+  given JsonValueCodec[Alliance] = JsonCodecMaker.make(config)
+  given listOfAllianceId: JsonValueCodec[List[AllianceId]] =
+    listOfLong.asInstanceOf[JsonValueCodec[List[AllianceId]]]
 
   // status
   given JsonValueCodec[ServerStatusResponse] = JsonCodecMaker.make(config)

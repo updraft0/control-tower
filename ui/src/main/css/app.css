@@ -6,6 +6,7 @@
 
 /* controls */
 @import 'components/context-dropdown.css';
+@import 'components/minigrid.css';
 @import 'components/option-dropdown.css';
 @import 'components/tooltip.css';
 
@@ -22,9 +23,15 @@
 @import 'views/solar-system-info-view.css';
 @import 'views/map-connection.css';
 @import 'views/map-context-menu.css';
+@import 'views/map-intel-note.css';
+@import 'views/map-intel-ping.css';
+@import 'views/map-intel-structure.css';
 @import 'views/map-system-signature-view.css';
 @import 'views/map-selection-view.css';
 @import 'views/system-view.css';
+
+/* demo */
+@import 'views/controlsdemo.css';
 
 /* ok? */
 
@@ -140,6 +147,7 @@ dialog::backdrop {
     #map-parent { min-width: 600px; flex: 4 1 auto; order: 3; }
     #map-left-sidebar { width: 28em; min-width: 380px; flex: 0 1 auto; order: 2; }
     #map-menu { flex: 1 100%; order: 1; }
+    #map-bottom-bar { width: 100%; flex: 1 100%; order: 4; }
 }
 
 
@@ -154,6 +162,54 @@ $box-height:    40px;
 #map-left-sidebar {
     margin-left: 3px;
     margin-right: 3px;
+}
+
+#map-bottom-bar {
+    margin-top: 0.5em;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+
+    section#intel-notes-view {
+        order: 2;
+    }
+
+    section#intel-structures-view {
+        order: 1;
+    }
+
+    section#intel-pings-view {
+        order: 3;
+    }
+
+    section {
+        background-color: $gray-darkest;
+        flex: 1 100%;
+        flex-basis: fit-content;
+
+        /* TODO refactor */
+        border-radius: 4px;
+        border: 1px $gray-darker solid;
+        /* material design shadow ooh */
+        box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
+        margin-left: 0.25em;
+        margin-right: 0.25em;
+        margin-bottom: 0.5em;
+        padding-left: 0.25em;
+        padding-right: 0.25em;
+
+        h3 {
+            margin-top: 0;
+            margin-bottom: 0;
+            padding-left: 4px; /* to match the table */
+            color: $gray-light;
+        }
+
+        table {
+            width: 100%;
+        }
+    }
+
 }
 
 #map-parent {

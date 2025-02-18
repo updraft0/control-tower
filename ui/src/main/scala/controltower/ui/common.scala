@@ -2,6 +2,7 @@ package controltower.ui
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveHtmlElement
+import com.raquo.airstream.misc.StreamFromSignal
 import org.scalajs.dom
 import org.scalajs.dom.PointerEvent
 import PointerFilter.*
@@ -21,6 +22,10 @@ extension [T <: scala.reflect.Enum](t: T)
   def selectOption: ReactiveHtmlElement[dom.HTMLOptionElement] =
     option(value := t.toString, t.toString)
 
+// see https://github.com/raquo/Airstream/issues/132
+extension [T](signal: Signal[T])
+  inline def toStream: EventStream[T] = new StreamFromSignal(parent = signal, changesOnly = false)
+
 extension [A](s: EventStream[A])
   def sampleCollectSome[B](source: SignalSource[Option[B]]): EventStream[B] =
     s.sample(source).filter(_.isDefined).map(_.get)
@@ -37,6 +42,9 @@ inline def hideIfEmptyOpt[A](opt: Observable[Option[A]]) =
   display <-- opt.map:
     case Some(_) => ""
     case None    => "none"
+
+inline def hideIfEmptyArr[A](arr: Observable[Array[A]]) =
+  display <-- arr.map(a => if a.length > 0 then "" else "None")
 
 /** Filter for pointer events
   */

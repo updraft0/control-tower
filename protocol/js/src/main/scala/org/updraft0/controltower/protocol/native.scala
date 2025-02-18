@@ -31,6 +31,7 @@ object native:
   // opaque
   given NativeConverter[SystemId]      = NativeConverter.apply[Long].asInstanceOf[NativeConverter[SystemId]]
   given NativeConverter[CorporationId] = NativeConverter.apply[Long].asInstanceOf[NativeConverter[CorporationId]]
+  given NativeConverter[TypeId]        = NativeConverter.apply[Int].asInstanceOf[NativeConverter[TypeId]]
 
   // reference
   given NativeConverter[Planet]           = NativeConverter.derived

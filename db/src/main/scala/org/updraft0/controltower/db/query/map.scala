@@ -21,6 +21,18 @@ object map:
 
   private inline def config: CodecMakerConfig = CodecMakerConfig.withDiscriminatorFieldName(None)
 
+  given MappedEncoding[Int, TypeId] = MappedEncoding(TypeId.apply)
+  given MappedEncoding[TypeId, Int] = MappedEncoding(identity)
+
+  given MappedEncoding[Int, IntelNoteId] = MappedEncoding(IntelNoteId.apply)
+  given MappedEncoding[IntelNoteId, Int] = MappedEncoding(identity)
+
+  given MappedEncoding[Int, IntelPingId] = MappedEncoding(IntelPingId.apply)
+  given MappedEncoding[IntelPingId, Int] = MappedEncoding(identity)
+
+  given MappedEncoding[Int, IntelStructureId] = MappedEncoding(IntelStructureId.apply)
+  given MappedEncoding[IntelStructureId, Int] = MappedEncoding(identity)
+
   // this is always stored as json in the db
   given JsonValueCodec[SystemDisplayData]   = JsonCodecMaker.make(config)
   given JsonValueCodec[Map[String, Double]] = JsonCodecMaker.make(config)
@@ -30,6 +42,9 @@ object map:
 
   given MappedEncoding[Int, ChainNamingStrategy] = MappedEncoding(ChainNamingStrategy.fromOrdinal)
   given MappedEncoding[ChainNamingStrategy, Int] = MappedEncoding(_.ordinal())
+
+  given MappedEncoding[Int, IntelGroup] = MappedEncoding(IntelGroup.fromOrdinal)
+  given MappedEncoding[IntelGroup, Int] = MappedEncoding(_.ordinal())
 
   given MappedEncoding[Int, IntelStance] = MappedEncoding(IntelStance.fromOrdinal)
   given MappedEncoding[IntelStance, Int] = MappedEncoding(_.ordinal())
@@ -61,16 +76,22 @@ object map:
   object schema:
     inline def mapModel              = quote(querySchema[MapModel]("map.map"))
     inline def mapSystem             = quote(querySchema[MapSystem]("map.map_system"))
-    inline def mapSystemStructure    = quote(querySchema[MapSystemStructure]("map.map_system_structure"))
-    inline def mapSystemNote         = quote(querySchema[MapSystemNote]("map.map_system_note"))
     inline def mapSystemDisplay      = quote(querySchema[MapSystemDisplay]("map.map_system_display"))
     inline def mapWormholeConnection = quote(querySchema[MapWormholeConnection]("map.map_wormhole_connection"))
     inline def mapWormholeConnectionJump = quote(
       querySchema[MapWormholeConnectionJump]("map.map_wormhole_connection_jump")
     )
-    inline def mapSystemSignature   = quote(querySchema[MapSystemSignature]("map.map_system_signature"))
-    inline def alliance             = quote(querySchema[Alliance]("map.alliance"))
-    inline def corporation          = quote(querySchema[Corporation]("map.corporation"))
+    inline def mapSystemSignature = quote(querySchema[MapSystemSignature]("map.map_system_signature"))
+    inline def alliance           = quote(querySchema[Alliance]("map.alliance"))
+    inline def corporation        = quote(querySchema[Corporation]("map.corporation"))
+
+    inline def intelSystemStructure = quote(querySchema[IntelSystemStructure]("map.intel_system_structure"))
+    inline def intelSystem          = quote(querySchema[IntelSystem]("map.intel_system"))
+    inline def intelSystemNote      = quote(querySchema[IntelSystemNote]("map.intel_system_note"))
+    inline def intelSystemPing      = quote(querySchema[IntelSystemPing]("map.intel_system_ping"))
+    inline def intelGroupStance     = quote(querySchema[IntelGroupStance]("map.intel_group_stance"))
+    inline def intelCharacter       = quote(querySchema[IntelCharacter]("map.intel_character"))
+
     inline def systemStaticWormhole = quote(querySchema[SystemStaticWormhole]("map.ref_system_static_wormhole"))
     inline def wormhole             = quote(querySchema[Wormhole]("map.ref_wormhole"))
     inline def signatureInGroup     = quote(querySchema[SignatureInGroup]("map.ref_signature_in_group"))
@@ -119,6 +140,41 @@ object map:
       .run(quote(mapSystem.filter(ms => ms.mapId == lift(mapId) && ms.systemId == lift(systemId))))
       .map(_.headOption)
 
+  def getCorporations(ids: Chunk[CorporationId]): DbOperation[Chunk[Corporation]] =
+    ctx
+      .run(quote(corporation.filter(c => liftQuery(ids).contains(c.id))))
+      .map(Chunk.fromIterable)
+
+  def getAlliances(ids: Chunk[AllianceId]): DbOperation[Chunk[Alliance]] =
+    ctx
+      .run(quote(alliance.filter(a => liftQuery(ids).contains(a.id))))
+      .map(Chunk.fromIterable)
+
+  def getIntelCharacters(ids: Chunk[CharacterId]): DbOperation[Chunk[IntelCharacter]] =
+    ctx
+      .run(quote(intelCharacter.filter(c => liftQuery(ids).contains(c.id))))
+      .map(Chunk.fromIterable)
+
+  def getIntelSystem(mapId: MapId, systemId: SystemId): DbOperation[Option[IntelSystem]] =
+    ctx
+      .run(quote(intelSystem.filter(_.mapId == lift(mapId)).filter(_.systemId == lift(systemId))))
+      .map(_.headOption)
+
+  def getIntelSystemNote(mapId: MapId, systemId: SystemId, noteId: IntelNoteId): DbOperation[Option[IntelSystemNote]] =
+    ctx
+      .run(
+        quote(
+          intelSystemNote
+            .filter(_.id == lift(noteId))
+            .filter(_.mapId == lift(mapId))
+            .filter(_.systemId == lift(systemId))
+        )
+      )
+      .map(_.headOption)
+
+  def getIntelGroupStanceFor(mapId: MapId): DbOperation[List[IntelGroupStance]] =
+    ctx.run(quote(intelGroupStance.filter(_.mapId == lift(mapId))))
+
   private inline def findWormholeMapSignatures(mapId: MapId, systemId: SystemId) =
     quote(
       mapSystemSignature
@@ -162,31 +218,22 @@ object map:
   def insertMapWormholeConnectionJump(value: MapWormholeConnectionJump): DbOperation[Long] =
     ctx.run(quote(mapWormholeConnectionJump.insertValue(lift(value))))
 
-  // upserts
-  def upsertMap(value: MapModel): DbOperation[Long] =
-    ctx.run(quote {
-      mapModel
-        .insertValue(lift(value))
-        .onConflictUpdate(_.id)(
-          (t, e) => t.name -> e.name,
-          (t, e) => t.displayType -> e.displayType
-        )
-    })
+  def insertIntelSystemStructure(value: IntelSystemStructure): DbOperation[IntelSystemStructure] =
+    ctx
+      .run(quote(intelSystemStructure.insertValue(lift(value)).returningGenerated(_.id)))
+      .map(newId => value.copy(id = newId))
 
-  def upsertMapSystem(value: MapSystem): DbOperation[Long] =
-    ctx.run(quote {
-      mapSystem
-        .insertValue(lift(value))
-        .onConflictUpdate(_.mapId, _.systemId)(
-          (t, e) => t.name -> e.name,
-          (t, e) => t.isPinned -> e.isPinned,
-          (t, e) => t.chainNamingStrategy -> e.chainNamingStrategy,
-          (t, e) => t.description -> e.description,
-          (t, e) => t.stance -> e.stance,
-          (t, e) => t.updatedAt -> e.updatedAt,
-          (t, e) => t.updatedByCharacterId -> e.updatedByCharacterId
-        )
-    })
+  def insertIntelSystemNote(value: IntelSystemNote): DbOperation[IntelSystemNote] =
+    ctx
+      .run(quote(intelSystemNote.insertValue(lift(value)).returningGenerated(_.id)))
+      .map(newId => value.copy(id = newId))
+
+  def insertIntelSystemPing(value: IntelSystemPing): DbOperation[IntelSystemPing] =
+    ctx
+      .run(quote(intelSystemPing.insertValue(lift(value)).returningGenerated(_.id)))
+      .map(newId => value.copy(id = newId))
+
+  // updates
 
   def updateMapSystemName(
       mapId: MapId,
@@ -224,6 +271,47 @@ object map:
         )
     })
 
+  def updateIntelSystemNote(
+      value: IntelSystemNote,
+      byCharacterId: CharacterId,
+      now: Instant
+  ): DbOperation[IntelSystemNote] =
+    val copy = value.copy(
+      id = IntelNoteId.Invalid,
+      originalId = value.originalId.orElse(Some(value.id)),
+      createdByCharacterId = byCharacterId,
+      createdAt = now,
+      deletedByCharacterId = None,
+      deletedAt = None
+    )
+    deleteIntelSystemNote(value.mapId, value.systemId, value.id, byCharacterId) *> insertIntelSystemNote(copy)
+
+  // upserts
+  def upsertMap(value: MapModel): DbOperation[Long] =
+    ctx.run(quote {
+      mapModel
+        .insertValue(lift(value))
+        .onConflictUpdate(_.id)(
+          (t, e) => t.name -> e.name,
+          (t, e) => t.displayType -> e.displayType
+        )
+    })
+
+  def upsertMapSystem(value: MapSystem): DbOperation[Long] =
+    ctx.run(quote {
+      mapSystem
+        .insertValue(lift(value))
+        .onConflictUpdate(_.mapId, _.systemId)(
+          (t, e) => t.name -> e.name,
+          (t, e) => t.isPinned -> e.isPinned,
+          (t, e) => t.chainNamingStrategy -> e.chainNamingStrategy,
+          (t, e) => t.description -> e.description,
+          (t, e) => t.stance -> e.stance,
+          (t, e) => t.updatedAt -> e.updatedAt,
+          (t, e) => t.updatedByCharacterId -> e.updatedByCharacterId
+        )
+    })
+
   def upsertMapSystemDisplay(value: MapSystemDisplay): DbOperation[Long] =
     ctx.run(
       quote {
@@ -236,33 +324,55 @@ object map:
       }
     )
 
-  def upsertMapSystemStructure(value: MapSystemStructure): DbOperation[Long] =
+  def upsertIntelSystemStructure(value: IntelSystemStructure): DbOperation[Long] =
     ctx.run(
       quote {
-        mapSystemStructure
+        intelSystemStructure
           .insertValue(lift(value))
-          .onConflictUpdate(_.mapId, _.systemId, _.name)(
-            (t, e) => t.isDeleted -> e.isDeleted,
+          .onConflictUpdate(_.id)(
+            (t, e) => t.name -> e.name,
             (t, e) => t.ownerCorporationId -> e.ownerCorporationId,
-            (t, e) => t.structureType -> e.structureType,
-            (t, e) => t.location -> e.location,
+            (t, e) => t.itemTypeId -> e.itemTypeId,
+            (t, e) => t.nearestPlanetIdx -> e.nearestPlanetIdx,
+            (t, e) => t.nearestMoonIdx -> e.nearestMoonIdx,
+            (t, e) => t.isOnline -> e.isOnline,
+            (t, e) => t.isDeleted -> e.isDeleted,
+            (t, e) => t.updatedAt -> e.updatedAt,
+            (t, e) => t.updatedByCharacterId -> e.updatedByCharacterId,
+            (t, e) => t.deletedAt -> e.deletedAt,
+            (t, e) => t.deletedByCharacterId -> e.deletedByCharacterId
+          )
+      }
+    )
+
+  def upsertIntelSystem(value: IntelSystem): DbOperation[Long] =
+    ctx.run(
+      quote {
+        intelSystem
+          .insertValue(lift(value))
+          .onConflictUpdate(_.mapId, _.systemId)(
+            (t, e) => t.primaryCorporationId -> e.primaryCorporationId,
+            (t, e) => t.primaryAllianceId -> e.primaryAllianceId,
+            (t, e) => t.intelGroup -> e.intelGroup,
+            (t, e) => t.isEmpty -> e.isEmpty,
             (t, e) => t.updatedAt -> e.updatedAt,
             (t, e) => t.updatedByCharacterId -> e.updatedByCharacterId
           )
       }
     )
 
-  def upsertMapSystemNote(value: MapSystemNote): DbOperation[Long] =
-    ctx.run(quote {
-      mapSystemNote
-        .insertValue(lift(value))
-        .onConflictUpdate(_.id)(
-          (t, e) => t.note -> e.note,
-          (t, e) => t.isDeleted -> e.isDeleted,
-          (t, e) => t.updatedAt -> e.updatedAt,
-          (t, e) => t.updatedByCharacterId -> e.updatedByCharacterId
-        )
-    })
+  def upsertIntelGroupStance(value: IntelGroupStance): DbOperation[Long] =
+    ctx.run(
+      quote {
+        intelGroupStance
+          .insertValue(lift(value))
+          .onConflictUpdate(_.mapId, _.corporationId, _.allianceId)(
+            (t, e) => t.stance -> e.stance,
+            (t, e) => t.updatedAt -> e.updatedAt,
+            (t, e) => t.updatedByCharacterId -> e.updatedByCharacterId
+          )
+      }
+    )
 
   def upsertMapWormholeConnection(value: MapWormholeConnection): DbOperation[Long] =
     ctx.run(
@@ -314,6 +424,51 @@ object map:
 
   def upsertWormholes(values: List[Wormhole]): DbOperation[Long] =
     ctx.run(liftQuery(values).foreach(v => wormhole.insertValue(v).onConflictIgnore(_.name)), BatchRows).map(_.sum)
+
+  def upsertCorporation(value: Corporation): DbOperation[Long] =
+    ctx.run(
+      quote(
+        corporation
+          .insertValue(lift(value))
+          .onConflictUpdate(_.id)(
+            (t, e) => t.allianceId -> e.allianceId,
+            (t, e) => t.ceoCharacterId -> e.ceoCharacterId,
+            (t, e) => t.homeStationId -> e.homeStationId,
+            (t, e) => t.memberCount -> e.memberCount,
+            (t, e) => t.ticker -> e.ticker,
+            (t, e) => t.url -> e.url,
+            (t, e) => t.updatedAt -> unixepoch
+          )
+      )
+    )
+
+  def upsertAlliance(value: Alliance): DbOperation[Long] =
+    ctx.run(
+      quote(
+        alliance
+          .insertValue(lift(value))
+          .onConflictUpdate(_.id)(
+            (t, e) => t.ticker -> e.ticker,
+            (t, e) => t.executorCorporationId -> e.executorCorporationId,
+            (t, e) => t.updatedAt -> unixepoch
+          )
+      )
+    )
+
+  def upsertIntelCharacter(value: IntelCharacter): DbOperation[Long] =
+    ctx.run(
+      quote(
+        intelCharacter
+          .insertValue(lift(value))
+          .onConflictUpdate(_.id)(
+            (t, e) => t.corporationId -> e.corporationId,
+            (t, e) => t.factionId -> e.factionId,
+            (t, e) => t.securityStatus -> e.securityStatus,
+            (t, e) => t.title -> e.title,
+            (t, e) => t.updatedAt -> unixepoch
+          )
+      )
+    )
 
   // deletes
   def deleteMapSystemDisplay(mapId: MapId, systemId: SystemId): DbOperation[Long] =
@@ -415,25 +570,58 @@ object map:
       )
       .map(_.sum)
 
-  def deleteMapSystemNote(id: Long, byCharacterId: CharacterId): DbOperation[Long] =
-    ctx.run(
-      mapSystemNote
-        .filter(_.id == lift(id))
-        .update(_.isDeleted -> lift(true), _.updatedByCharacterId -> lift(byCharacterId), _.updatedAt -> unixepoch)
-    )
-
-  def deleteMapSystemStructure(
+  def deleteIntelSystemNote(
       mapId: MapId,
       systemId: SystemId,
-      name: String,
+      id: IntelNoteId,
       byCharacterId: CharacterId
   ): DbOperation[Long] =
     ctx.run(
-      mapSystemStructure
+      intelSystemNote
+        .filter(_.id == lift(id))
         .filter(_.mapId == lift(mapId))
         .filter(_.systemId == lift(systemId))
-        .filter(_.name == lift(name))
-        .update(_.isDeleted -> lift(true), _.updatedByCharacterId -> lift(byCharacterId), _.updatedAt -> unixepoch)
+        .update(
+          _.isDeleted            -> lift(true),
+          _.deletedByCharacterId -> lift(Option(byCharacterId)),
+          _.deletedAt            -> unixepochOpt
+        )
+    )
+
+  def deleteIntelSystemPing(
+      mapId: MapId,
+      systemId: SystemId,
+      id: IntelPingId,
+      byCharacterId: CharacterId
+  ): DbOperation[Long] =
+    ctx.run(
+      intelSystemPing
+        .filter(_.id == lift(id))
+        .filter(_.mapId == lift(mapId))
+        .filter(_.systemId == lift(systemId))
+        .update(
+          _.isDeleted            -> lift(true),
+          _.deletedByCharacterId -> lift(Option(byCharacterId)),
+          _.deletedAt            -> unixepochOpt
+        )
+    )
+
+  def deleteIntelSystemStructure(
+      mapId: MapId,
+      systemId: SystemId,
+      id: IntelStructureId,
+      byCharacterId: CharacterId
+  ): DbOperation[Long] =
+    ctx.run(
+      intelSystemStructure
+        .filter(_.id == lift(id))
+        .filter(_.mapId == lift(mapId))
+        .filter(_.systemId == lift(systemId))
+        .update(
+          _.isDeleted            -> lift(true),
+          _.deletedByCharacterId -> lift(Option(byCharacterId)),
+          _.deletedAt            -> unixepochOpt
+        )
     )
 
   def hardDeleteMapWormholeSignatures(mapId: MapId, sigs: Chunk[MapSystemSignature]): DbOperation[Long] =

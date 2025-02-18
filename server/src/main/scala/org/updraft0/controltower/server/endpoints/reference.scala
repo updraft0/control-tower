@@ -37,24 +37,35 @@ def getVersion = Endpoints.getVersion.zServerLogic(_ =>
 )
 
 def getAllReference = Endpoints.getAllReference.zServerLogic(_ =>
-  (getLatestVersion <&> ReferenceQueries.getFactions <&> ReferenceQueries.getSignaturesInGroup <&> ReferenceQueries.getShipTypes <&> ReferenceQueries.getStarTypes <&> ReferenceQueries.getStationOperations <&> ReferenceQueries.getWormholeTypes)
+  (getLatestVersion <&> ReferenceQueries.getFactions <&> ReferenceQueries.getSignaturesInGroup <&> ReferenceQueries.getShipTypes <&> ReferenceQueries.getStarTypes <&> ReferenceQueries.getStationOperations <&> ReferenceQueries.getWormholeTypes <&> ReferenceQueries.getStructureTypesAsProto)
     .flatMapError(logDbError)
-    .flatMap((versionOpt, factions, signaturesInGroup, shipTypes, starTypes, stationOperations, wormholeTypes) =>
-      versionOpt
-        .map(version =>
-          ZIO.succeed(
-            Reference(
-              version = version.id,
-              factions = factions.toArray,
-              signaturesInGroup = signaturesInGroup.toArray,
-              shipTypes = shipTypes.toArray,
-              starTypes = starTypes.toArray,
-              stationOperations = stationOperations.toArray,
-              wormholeTypes = wormholeTypes.toArray
+    .flatMap(
+      (
+          versionOpt,
+          factions,
+          signaturesInGroup,
+          shipTypes,
+          starTypes,
+          stationOperations,
+          wormholeTypes,
+          structureTypes
+      ) =>
+        versionOpt
+          .map(version =>
+            ZIO.succeed(
+              Reference(
+                version = version.id,
+                factions = factions.toArray,
+                signaturesInGroup = signaturesInGroup.toArray,
+                shipTypes = shipTypes.toArray,
+                starTypes = starTypes.toArray,
+                stationOperations = stationOperations.toArray,
+                wormholeTypes = wormholeTypes.toArray,
+                structureTypes = structureTypes.values.toArray
+              )
             )
           )
-        )
-        .getOrElse(NoSdeVersion)
+          .getOrElse(NoSdeVersion)
     )
 )
 
@@ -86,6 +97,10 @@ def getSignaturesInGroup =
   Endpoints.getSignaturesInGroup.zServerLogic(_ =>
     ReferenceQueries.getSignaturesInGroup.flatMapError(logDbError).map(_.toArray)
   )
+def getStructureTypes =
+  Endpoints.getStructureTypes.zServerLogic(_ =>
+    ReferenceQueries.getStructureTypesAsProto.flatMapError(logDbError).map(_.values.toArray)
+  )
 
 def allReferenceEndpoints: List[ZServerEndpoint[EndpointEnv, Any]] =
   List(
@@ -99,5 +114,6 @@ def allReferenceEndpoints: List[ZServerEndpoint[EndpointEnv, Any]] =
     getStarTypes.widen[EndpointEnv],
     getStationOperations.widen[EndpointEnv],
     getWormholeTypes.widen[EndpointEnv],
-    getSignaturesInGroup.widen[EndpointEnv]
+    getSignaturesInGroup.widen[EndpointEnv],
+    getStructureTypes.widen[EndpointEnv]
   )

@@ -44,6 +44,13 @@ final class ControlTowerBackend(
 
   // endregion
 
+  // region search endpoints
+
+  val searchEntity: (SearchType, String) => Future[Either[String, Array[SearchEntityResponse]]] = (st, s) =>
+    callSecure(Endpoints.searchEntity)((st, s))
+
+  // endregion
+
   def mapWebsocket(
       mapName: String,
       character: String

@@ -4,7 +4,7 @@ import com.raquo.airstream.state.Var.{VarModTuple, VarTuple}
 import com.raquo.laminar.api.L.*
 import controltower.db.ReferenceDataStore
 import controltower.page.map.{MapAction, MapActionError, RoleController, VarPositionController}
-import controltower.ui.{Coord, HVar, writeChangesTo}
+import controltower.ui.{Coord, HVar, BrowserPermissions, NotifyContent, writeChangesTo}
 import org.updraft0.controltower.constant.*
 import org.updraft0.controltower.protocol.*
 
@@ -51,6 +51,15 @@ trait ActionRoleController:
   val canPinUnpinSystem: Signal[Boolean]
   val canUpdateIntelStance: Signal[Boolean]
   val canChangeConnections: Signal[Boolean]
+  val canAddIntelNote: Signal[Boolean]
+  val canEditIntelNote: Signal[Boolean]
+  val canRemoveIntelNote: Signal[Boolean]
+  val canPinIntelNote: Signal[Boolean]
+  val canAddIntelPing: Signal[Boolean]
+  val canRemoveIntelPing: Signal[Boolean]
+  val canAddIntelStructure: Signal[Boolean]
+  val canEditIntelStructure: Signal[Boolean]
+  val canRemoveIntelStructure: Signal[Boolean]
 
 /** Single place where the state of the map is tracked (without rendering)
   */
@@ -73,9 +82,10 @@ final class MapController(val rds: ReferenceDataStore, val clock: Signal[Instant
   val mapMeta      = Var[Option[MapMessage.MapMeta]](None)
   val serverStatus = Var[MapServerStatus](MapServerStatus.Error)
 
-  val allSystems     = HVar[Map[SystemId, MapSystemSnapshot]](Map.empty)
-  val allConnections = HVar[Map[ConnectionId, MapWormholeConnectionWithSigs]](Map.empty)
-  val allLocations   = HVar[Map[SystemId, Array[CharacterLocation]]](Map.empty)
+  val allSystems      = HVar[Map[SystemId, MapSystemSnapshot]](Map.empty)
+  val allConnections  = HVar[Map[ConnectionId, MapWormholeConnectionWithSigs]](Map.empty)
+  val allLocations    = HVar[Map[SystemId, Array[CharacterLocation]]](Map.empty)
+  val allIntelStances = HVar[Map[StanceTarget, IntelGroupStance]](Map.empty)
 
   val selectedSystemId      = Var[Option[SystemId]](None)
   val bulkSelectedSystemIds = Var[Array[SystemId]](Array.empty[SystemId])
@@ -116,6 +126,24 @@ final class MapController(val rds: ReferenceDataStore, val clock: Signal[Instant
       mapRole.map(RoleController.canUpdateIntelStance).combineWith(isConnected).map(_ && _)
     override val canChangeConnections: Signal[Boolean] =
       mapRole.map(RoleController.canChangeConnections).combineWith(isConnected).map(_ && _)
+    override val canAddIntelNote: Signal[Boolean] =
+      mapRole.map(RoleController.canAddIntelNote).combineWith(isConnected).map(_ && _)
+    override val canEditIntelNote: Signal[Boolean] =
+      mapRole.map(RoleController.canEditIntelNote).combineWith(isConnected).map(_ && _)
+    override val canRemoveIntelNote: Signal[Boolean] =
+      mapRole.map(RoleController.canRemoveIntelNote).combineWith(isConnected).map(_ && _)
+    override val canPinIntelNote: Signal[Boolean] =
+      mapRole.map(RoleController.canPinIntelNote).combineWith(isConnected).map(_ && _)
+    override val canAddIntelPing: Signal[Boolean] =
+      mapRole.map(RoleController.canAddIntelPing).combineWith(isConnected).map(_ && _)
+    override val canRemoveIntelPing: Signal[Boolean] =
+      mapRole.map(RoleController.canRemoveIntelPing).combineWith(isConnected).map(_ && _)
+    override val canAddIntelStructure: Signal[Boolean] =
+      mapRole.map(RoleController.canAddIntelStructure).combineWith(isConnected).map(_ && _)
+    override val canEditIntelStructure: Signal[Boolean] =
+      mapRole.map(RoleController.canEditIntelStructure).combineWith(isConnected).map(_ && _)
+    override val canRemoveIntelStructure: Signal[Boolean] =
+      mapRole.map(RoleController.canRemoveIntelStructure).combineWith(isConnected).map(_ && _)
 
   val selectedSystem: Signal[Option[MapSystemSnapshot]] =
     selectedSystemId.signal
@@ -166,28 +194,38 @@ final class MapController(val rds: ReferenceDataStore, val clock: Signal[Instant
   allSystems.writeChangesTo(allSystemChanges.writer)
   allConnections.writeChangesTo(allConnectionChanges.writer)
 
+  val permissions = new BrowserPermissions()
+
   // impls
   def context: MapViewContext =
     val self = this
     new MapViewContext:
-      override def actions         = self.actionsBus
-      override def characterId     = self.characterId
-      override def mapRole         = self.mapRole
-      override def staticData      = SystemStaticData(cacheSolarSystem.view, cacheReference.get)
+      override def actions     = self.actionsBus
+      override def characterId = self.characterId
+      override def mapRole     = self.mapRole
+      override def staticData = SystemStaticData(
+        cacheSolarSystem.view,
+        cacheReference.getOrElse(
+          throw new IllegalStateException("expected reference to be set when getting static data")
+        )
+      )
       override def now             = self.clock
       override def userPreferences = self.userPreferences
+      override def isWsConnected   = self.isConnected
+      override def roleController  = self.roleController
 
       override def systemName(systemId: SystemId) = self.allSystems.signal.map(_.get(systemId).flatMap(_.system.name))
       override def connection(id: ConnectionId)   = self.allConnections.signal.map(_.get(id))
 
   def clear(): Unit =
     Var.set(
-      allSystems.current     -> Map.empty,
-      allConnections.current -> Map.empty,
-      allLocations.current   -> Map.empty,
-      selectedSystemId       -> Option.empty,
-      selectedConnectionId   -> Option.empty,
-      serverStatus           -> MapServerStatus.Error
+      allSystems.current      -> Map.empty,
+      allConnections.current  -> Map.empty,
+      allLocations.current    -> Map.empty,
+      allIntelStances.current -> Map.empty,
+      selectedSystemId        -> Option.empty,
+      selectedConnectionId    -> Option.empty,
+      serverStatus            -> MapServerStatus.Error
     )
     pos.clear()
 
@@ -215,6 +253,12 @@ final class MapController(val rds: ReferenceDataStore, val clock: Signal[Instant
           Some(MapRequest.AddSystemSignature(systemId, newSig))
         case (MapAction.AddConnection(fromSystemId, toSystemId), _, _) =>
           Some(MapRequest.AddSystemConnection(SystemId(fromSystemId), SystemId(toSystemId)))
+        case (MapAction.AddIntelPing(systemId, target, note), _, _) =>
+          Some(MapRequest.AddIntelSystemPing(systemId, target, note))
+        case (MapAction.AddIntelSystemNote(systemId, note, isPinned), _, _) =>
+          Some(MapRequest.AddIntelSystemNote(systemId, note, isPinned))
+        case (MapAction.AddIntelSystemStructure(systemId, newStructure), _, _) =>
+          Some(MapRequest.AddIntelSystemStructure(systemId, newStructure))
         case (MapAction.ConnectionEolToggle(connectionId), _, allConnections) =>
           updateConnectionSignatureAttr(
             allConnections,
@@ -249,6 +293,12 @@ final class MapController(val rds: ReferenceDataStore, val clock: Signal[Instant
           // reset selection
           bulkSelectedSystemIds.set(Array.empty)
           Some(MapRequest.RemoveSystems(systemIds))
+        case (MapAction.RemoveIntelNote(systemId, noteId), _, _) =>
+          Some(MapRequest.RemoveIntelSystemNote(systemId, noteId))
+        case (MapAction.RemoveIntelPing(systemId, pingId), _, _) =>
+          Some(MapRequest.RemoveIntelSystemPing(systemId, pingId))
+        case (MapAction.RemoveIntelStructure(systemId, structureId), _, _) =>
+          Some(MapRequest.RemoveIntelSystemStructure(systemId, structureId))
         case (MapAction.RemoveConnection(connectionId), _, _) =>
           Some(MapRequest.RemoveSystemConnection(connectionId))
         case (MapAction.RemoveSignatures(systemId, sigIds), _, _) =>
@@ -258,6 +308,10 @@ final class MapController(val rds: ReferenceDataStore, val clock: Signal[Instant
         case (MapAction.Reposition(systemId, x, y), allSystemsNow, _) =>
           val displayData = pos.systemDisplayData(systemId).now()
           Some(MapRequest.UpdateSystem(systemId, displayData))
+        case (MapAction.UpdateIntelSystemNote(systemId, noteId, note, isPinned), _, _) =>
+          Some(MapRequest.UpdateSystemIntelNote(systemId, noteId, note, isPinned))
+        case (MapAction.UpdateIntelSystemStructure(systemId, updateStructure), _, _) =>
+          Some(MapRequest.UpdateIntelSystemStructure(systemId, updateStructure))
         case (MapAction.UpdateSignatures(systemId, replaceAll, scanned), _, _) =>
           Some(MapRequest.UpdateSystemSignatures(systemId, replaceAll, scanned))
         case (MapAction.Select(systemIdOpt), _, _) =>
@@ -426,6 +480,44 @@ final class MapController(val rds: ReferenceDataStore, val clock: Signal[Instant
           )
         )
       case MapMessage.ServerStatus(status) => serverStatus.set(status)
+      // intel
+      case sis: MapMessage.SystemIntelSnapshot =>
+        Var.update(
+          allSystems.current -> ((map: Map[SystemId, MapSystemSnapshot]) =>
+            map.updatedWith(sis.systemId)(
+              _.map(mss =>
+                mss.copy(
+                  intel = sis.intel,
+                  structures = sis.structures,
+                  pings = sis.pings,
+                  notes = sis.notes
+                )
+              )
+            )
+          )
+        )
+      case iss: MapMessage.IntelStanceUpdate =>
+        Var.update(
+          (
+            allIntelStances.current,
+            (_: Map[StanceTarget, IntelGroupStance]) => iss.stances.map(igs => igs.target -> igs).toMap
+          )
+        )
+      case n: MapMessage.Notification =>
+        n.msg match
+          case sp: NotificationMessage.SystemPing =>
+            val systemName = allSystems.current
+              .now()
+              .get(sp.systemId)
+              .flatMap(_.system.name)
+              .getOrElse(cacheSolarSystem(sp.systemId).name)
+            if !permissions.notify(
+                NotifyContent(
+                  "System Connection",
+                  s"Connected to $systemName${sp.text.map(s => s": $s").getOrElse("")}"
+                )
+              )
+            then org.scalajs.dom.console.debug(s"not displaying notification: ${n.msg}")
 
 object MapController:
   private val DefaultMapSettings = MapSettings(staleScanThreshold = Duration.ofHours(6))

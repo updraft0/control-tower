@@ -3,7 +3,10 @@ package controltower.page.map
 import org.updraft0.controltower.constant.*
 import org.updraft0.controltower.protocol.{
   IntelStance,
+  IntelSystemPingTarget,
+  IntelSystemStructure,
   MapRequest,
+  NewIntelSystemStructure,
   NewSystemSignature,
   WormholeMassSize,
   WormholeMassStatus
@@ -23,6 +26,22 @@ enum MapAction derives CanEqual:
   /** Add a connection between two systems
     */
   case AddConnection(fromSystemId: SystemId, toSystemId: SystemId)
+
+  /** Add an intel note for a system
+    */
+  case AddIntelSystemNote(systemId: SystemId, note: String, isPinned: Boolean) extends MapAction with SingleSystemAction
+
+  /** Add an intel ping for a system
+    */
+  case AddIntelPing(systemId: SystemId, target: IntelSystemPingTarget, note: Option[String])
+      extends MapAction
+      with SingleSystemAction
+
+  /** Add an intel system structure
+    */
+  case AddIntelSystemStructure(systemId: SystemId, structure: NewIntelSystemStructure)
+      extends MapAction
+      with SingleSystemAction
 
   /** Change mass status (crit/reduced/etc.) on a connection
     */
@@ -55,6 +74,18 @@ enum MapAction derives CanEqual:
   /** Remove a system from the map
     */
   case Remove(systemId: SystemId) extends MapAction with SingleSystemAction
+
+  /** Remove a system note
+    */
+  case RemoveIntelNote(systemId: SystemId, noteId: IntelNoteId) extends MapAction with SingleSystemAction
+
+  /** Remove a system ping
+    */
+  case RemoveIntelPing(systemId: SystemId, pingId: IntelPingId) extends MapAction with SingleSystemAction
+
+  /** Remove a system structure
+    */
+  case RemoveIntelStructure(systemId: SystemId, structureId: IntelStructureId) extends MapAction with SingleSystemAction
 
   /** Remove a system from the map
     */
@@ -91,6 +122,18 @@ enum MapAction derives CanEqual:
   /** Update signatures
     */
   case UpdateSignatures(systemId: SystemId, replaceAll: Boolean, signatures: Array[NewSystemSignature])
+      extends MapAction
+      with SingleSystemAction
+
+  /** Update intel system note
+    */
+  case UpdateIntelSystemNote(systemId: SystemId, noteId: IntelNoteId, note: String, isPinned: Boolean)
+      extends MapAction
+      with SingleSystemAction
+
+  /** Update intel system structure
+    */
+  case UpdateIntelSystemStructure(systemId: SystemId, structure: IntelSystemStructure)
       extends MapAction
       with SingleSystemAction
 

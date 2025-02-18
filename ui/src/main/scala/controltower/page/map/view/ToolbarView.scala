@@ -21,7 +21,7 @@ class ToolbarView(
     isConnected: Signal[Boolean],
     rds: ReferenceDataStore,
     positionController: PositionController
-) extends ViewController:
+) extends ViewController: // TODO use the MapCtx
 
   override def view: Element =
     div(

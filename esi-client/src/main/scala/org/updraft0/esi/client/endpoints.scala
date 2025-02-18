@@ -27,7 +27,27 @@ case class CharacterShipResponse(
     shipName: String,
     shipTypeId: Int
 )
+case class SearchResponse(
+    agent: Option[List[Int]],
+    alliance: Option[List[AllianceId]],
+    character: Option[List[CharacterId]],
+    constellation: Option[List[Int]],
+    corporation: Option[List[CorporationId]],
+    faction: Option[List[Int]],
+    inventoryType: Option[List[Int]],
+    region: Option[List[Int]],
+    solarSystem: Option[List[Int]],
+    station: Option[List[Int]],
+    structure: Option[List[Long]]
+)
+object SearchResponse:
+  val Empty: SearchResponse = SearchResponse(None, None, None, None, None, None, None, None, None, None, None)
+
 case class ServerStatusResponse(players: Int, serverVersion: String, startTime: String, vip: Option[Boolean])
+
+enum SearchCategory derives CanEqual:
+  case Agent, Alliance, Character, Constellation, Corporation, Faction, InventoryType, Region, SolarSystem, Station,
+    Structure
 
 enum FleetError:
   case NotInFleet
@@ -122,6 +142,14 @@ object Endpoints:
     .errorOut(esiErrorOut)
     .description("Get character's current piloted ship (if any)")
 
+  // search (auth)
+  val search = jwtEndpoint.get
+    .in("v3" / "characters" / path[CharacterId] / "search")
+    .in(query[List[SearchCategory]]("categories") / query[String]("search") / query[Boolean]("strict"))
+    .out(jsonBody[SearchResponse])
+    .errorOut(esiErrorOut)
+    .description("Search for entities that match the given sub-string")
+
   // character no-auth
 
   val getCharacter = endpoint.get
@@ -136,3 +164,23 @@ object Endpoints:
     .out(jsonBody[List[CharacterAffiliation]])
     .errorOut(esiErrorOut)
     .description("Bulk lookup of character IDs to corporation, alliance and faction")
+
+  // corporation no-auth
+  val getCorporation = endpoint.get
+    .in("v5" / "corporations" / path[CorporationId])
+    .out(jsonBody[Corporation])
+    .errorOut(esiErrorOut)
+    .description("Get public information about a corporation")
+
+  // alliance no-auth
+  val getAlliance = endpoint.get
+    .in("v4" / "alliances" / path[AllianceId])
+    .out(jsonBody[Alliance])
+    .errorOut(esiErrorOut)
+    .description("Get public information about an alliance")
+
+  val getAlliances = endpoint.get
+    .in("v2" / "alliances")
+    .out(jsonBody[List[AllianceId]])
+    .errorOut(esiErrorOut)
+    .description("Get all active alliance ids")

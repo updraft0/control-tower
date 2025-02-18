@@ -37,10 +37,12 @@ case class MapWormholeConnectionWithSigs(
 case class MapSystemWithAll(
     sys: model.MapSystem,
     display: Option[model.SystemDisplayData],
-    structures: Chunk[model.MapSystemStructure],
-    notes: Chunk[model.MapSystemNote],
     signatures: Chunk[model.MapSystemSignature],
-    connections: Chunk[model.MapWormholeConnection]
+    connections: Chunk[model.MapWormholeConnection],
+    intel: Option[model.IntelSystem],
+    notes: Chunk[model.IntelSystemNote],
+    structures: Chunk[model.IntelSystemStructure],
+    pings: Chunk[model.IntelSystemPing]
 )
 
 /** json decoders for json_array_agg usage (some logic duplicated between the MappedEntity and the codec here)
@@ -86,8 +88,9 @@ private[db] trait MapQueryCodecs extends OpaqueCodecs:
     override def encodeValue(x: model.WormholeK162Type, out: JsonWriter): Unit = out.writeVal(x.ordinal())
     override def nullValue: model.WormholeK162Type                             = null
 
-  private[db] given JsonValueCodec[model.MapSystemStructure]        = JsonCodecMaker.make
-  private[db] given JsonValueCodec[model.MapSystemNote]             = JsonCodecMaker.make
+  private[db] given JsonValueCodec[model.IntelSystemNote]           = JsonCodecMaker.make
+  private[db] given JsonValueCodec[model.IntelSystemPing]           = JsonCodecMaker.make
+  private[db] given JsonValueCodec[model.IntelSystemStructure]      = JsonCodecMaker.make
   private[db] given JsonValueCodec[model.MapSystemSignature]        = JsonCodecMaker.make
   private[db] given JsonValueCodec[model.MapWormholeConnection]     = JsonCodecMaker.make
   private[db] given JsonValueCodec[model.MapWormholeConnectionJump] = JsonCodecMaker.make
@@ -150,67 +153,21 @@ object MapQueries extends MapQueryCodecs:
         dis <- mapSystemDisplay.join(sd =>
           sd.systemId == sys.systemId && sd.mapId == sys.mapId && sd.displayType == map.displayType
         )
-        mss <- mapSystemStructure.leftJoin(ss => ss.systemId == sys.systemId && ss.mapId == sys.mapId && !ss.isDeleted)
-        msn <- mapSystemNote.leftJoin(sn => sn.systemId == sys.systemId && sn.mapId == sys.mapId && !sn.isDeleted)
         msi <- mapSystemSignature.leftJoin(si => si.systemId == sys.systemId && si.mapId == sys.mapId && !si.isDeleted)
         mhc <- mapWormholeConnection.leftJoin(whc =>
           whc.mapId == map.id && (whc.fromSystemId == sys.systemId || whc.toSystemId == sys.systemId) && !whc.isDeleted
         )
-      yield (sys, dis.data, mss, msn, msi, mhc)).groupByMap((ms, _, _, _, _, _) => (ms))(
-        (ms, dis, mss, msn, msi, mhc) =>
+        ins <- intelSystem.leftJoin(isy => isy.systemId == sys.systemId && isy.mapId == sys.mapId)
+        isn <- intelSystemNote.leftJoin(isn => isn.systemId == sys.systemId && isn.mapId == sys.mapId && !isn.isDeleted)
+        iss <- intelSystemStructure.leftJoin(ss =>
+          ss.systemId == sys.systemId && ss.mapId == sys.mapId && !ss.isDeleted
+        )
+        isp <- intelSystemPing.leftJoin(sp => sp.systemId == sys.systemId && sp.mapId == sys.mapId && !sp.isDeleted)
+      yield (sys, dis.data, msi, mhc, ins, isn, iss, isp)).groupByMap((ms, _, _, _, _, _, _, _) => (ms))(
+        (ms, dis, msi, mhc, ins, isn, iss, isp) =>
           (
             ms,
             Some(dis),
-            jsonGroupArrayFilterNullDistinct[model.MapSystemStructure](
-              jsonObject11(
-                "mapId",
-                mss.map(_.mapId),
-                "systemId",
-                mss.map(_.systemId),
-                "name",
-                mss.map(_.name),
-                "isDeleted",
-                mss.map(_.isDeleted),
-                "ownerCorporationId",
-                mss.map(_.ownerCorporationId),
-                "structureType",
-                mss.map(_.structureType),
-                "location",
-                mss.map(_.location),
-                "createdAt",
-                mss.map(_.createdAt),
-                "createdByCharacterId",
-                mss.map(_.createdByCharacterId),
-                "updatedAt",
-                mss.map(_.updatedAt),
-                "updatedByCharacterId",
-                mss.map(_.updatedByCharacterId)
-              ),
-              mss.map(_.name)
-            ),
-            jsonGroupArrayFilterNullDistinct[model.MapSystemNote](
-              jsonObject9(
-                "id",
-                msn.map(_.id),
-                "mapId",
-                msn.map(_.mapId),
-                "systemId",
-                msn.map(_.systemId),
-                "note",
-                msn.map(_.note),
-                "isDeleted",
-                msn.map(_.isDeleted),
-                "createdAt",
-                msn.map(_.createdAt),
-                "createdByCharacterId",
-                msn.map(_.createdByCharacterId),
-                "updatedAt",
-                msn.map(_.updatedAt),
-                "updatedByCharacterId",
-                msn.map(_.updatedByCharacterId)
-              ),
-              msn.map(_.id)
-            ),
             jsonGroupArrayFilterNullDistinct[model.MapSystemSignature](
               jsonObject17(
                 "mapId",
@@ -272,18 +229,112 @@ object MapQueries extends MapQueryCodecs:
                 mhc.map(_.updatedByCharacterId)
               ),
               mhc.map(_.id)
+            ),
+            ins,
+            jsonGroupArrayFilterNullDistinct[model.IntelSystemNote](
+              jsonObject11(
+                "id",
+                isn.map(_.id),
+                "mapId",
+                isn.map(_.mapId),
+                "systemId",
+                isn.map(_.systemId),
+                "note",
+                isn.map(_.note),
+                "isPinned",
+                isn.map(_.isPinned),
+                "isDeleted",
+                isn.map(_.isDeleted),
+                "originalId",
+                isn.map(_.originalId),
+                "createdAt",
+                isn.map(_.createdAt),
+                "createdByCharacterId",
+                isn.map(_.createdByCharacterId),
+                "deletedAt",
+                isn.map(_.deletedAt),
+                "deletedByCharacterId",
+                isn.map(_.deletedByCharacterId)
+              ),
+              isn.map(_.id)
+            ),
+            jsonGroupArrayFilterNullDistinct[model.IntelSystemStructure](
+              jsonObject16(
+                "id",
+                iss.map(_.id),
+                "mapId",
+                iss.map(_.mapId),
+                "systemId",
+                iss.map(_.systemId),
+                "name",
+                iss.map(_.name),
+                "ownerCorporationId",
+                iss.map(_.ownerCorporationId),
+                "itemTypeId",
+                iss.map(_.itemTypeId),
+                "nearestPlanetIdx",
+                iss.map(_.nearestPlanetIdx),
+                "nearestMoonIdx",
+                iss.map(_.nearestMoonIdx),
+                "isOnline",
+                iss.map(_.isOnline),
+                "isDeleted",
+                iss.map(_.isDeleted),
+                "createdAt",
+                iss.map(_.createdAt),
+                "createdByCharacterId",
+                iss.map(_.createdByCharacterId),
+                "updatedAt",
+                iss.map(_.updatedAt),
+                "updatedByCharacterId",
+                iss.map(_.updatedByCharacterId),
+                "deletedAt",
+                iss.map(_.deletedAt),
+                "deletedByCharacterId",
+                iss.map(_.deletedByCharacterId)
+              ),
+              iss.map(_.id)
+            ),
+            jsonGroupArrayFilterNullDistinct[model.IntelSystemPing](
+              jsonObject11(
+                "id",
+                isp.map(_.id),
+                "mapId",
+                isp.map(_.mapId),
+                "systemId",
+                isp.map(_.systemId),
+                "pingUserId",
+                isp.map(_.pingUserId),
+                "pingMapGlobal",
+                isp.map(_.pingMapGlobal),
+                "pingNote",
+                isp.map(_.pingNote),
+                "isDeleted",
+                isp.map(_.isDeleted),
+                "createdAt",
+                isp.map(_.createdAt),
+                "createdByCharacterId",
+                isp.map(_.createdByCharacterId),
+                "deletedAt",
+                isp.map(_.deletedAt),
+                "deletedByCharacterId",
+                isp.map(_.deletedByCharacterId)
+              ),
+              isp.map(_.id)
             )
           )
       )
     }).map(
-      _.map((mss, dis, structures, notes, signatures, connections) =>
+      _.map((mss, dis, signatures, connections, is, isn, iss, isp) =>
         MapSystemWithAll(
           sys = mss,
           display = dis,
-          structures = Chunk.fromArray(structures.value),
-          notes = Chunk.fromArray(notes.value),
           signatures = Chunk.fromArray(signatures.value),
-          connections = Chunk.fromArray(connections.value)
+          connections = Chunk.fromArray(connections.value),
+          intel = is,
+          notes = Chunk.fromArray(isn.value),
+          structures = Chunk.fromArray(iss.value),
+          pings = Chunk.fromArray(isp.value)
         )
       )
     )

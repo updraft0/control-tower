@@ -17,7 +17,8 @@ class OptionDropdown[E](
     options: Seq[E],
     current: Var[E],
     mouseLeaveDelay: Duration = MagicConstant.DropdownDelayMs.millis,
-    isDisabled: Observable[Boolean] = Val(false)
+    isDisabled: Observable[Boolean] = Val(false),
+    mods: Seq[HtmlMod] = Nil
 )(using D: DropdownItem[E], @scala.annotation.unused _ce: CanEqual[E, E]):
 
   private val parentId = s"option-dropdown-${hashCode().abs}"
@@ -90,5 +91,6 @@ class OptionDropdown[E](
     onMouseLeave.mapToUnit --> (_ => entered.set(false)),
     onMouseLeave.compose(_.mapToUnit.delay(mouseLeaveDelay.toMillis.toInt).withCurrentValueOf(entered)) --> (entered =>
       if (!entered) expanded.set(false)
-    )
+    ),
+    mods
   )

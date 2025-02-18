@@ -32,4 +32,5 @@ package object query:
   ): RIO[DataSource, A] = transactionLoose(op, timeoutOpt)
 
   inline def unixepoch                                   = sql"unixepoch() * 1000".pure.as[Instant]
+  inline def unixepochOpt                                = sql"unixepoch() * 1000".pure.as[Option[Instant]]
   inline def unixepochMinusSeconds(inline seconds: Long) = sql"(unixepoch() - $seconds) * 1000".pure.as[Instant]

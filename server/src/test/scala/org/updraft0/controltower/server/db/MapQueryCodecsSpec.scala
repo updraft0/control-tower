@@ -10,6 +10,8 @@ import zio.test.*
 
 import java.time.Instant
 
+/** Manual test for codecs used in json_array_agg queries
+  */
 object MapQueryCodecsSpec extends ZIOSpecDefault with MapQueryCodecs:
 
   override def spec = suite("MapQueryCodecs encode/decode")(
@@ -56,28 +58,35 @@ object MapQueryCodecsSpec extends ZIOSpecDefault with MapQueryCodecs:
         expected.as[MapSystemSignature] == Right(value)
       )
     ,
-    test("a MapSystemStructure"):
-      val value = MapSystemStructure(
+    test("an IntelSystemStructure"):
+      val value = IntelSystemStructure(
+        id = IntelStructureId(1),
         mapId = MapId(42),
         systemId = SystemId(12455),
-        name = "Keepstar",
-        isDeleted = false,
+        name = Some("Home"),
         ownerCorporationId = Some(CorporationId(1245)),
-        structureType = Some("Astrahus"),
-        location = None,
+        itemTypeId = TypeId(40),
+        nearestPlanetIdx = None,
+        nearestMoonIdx = None,
+        isOnline = Some(true),
+        isDeleted = false,
         createdAt = Instant.EPOCH.plusSeconds(1),
         createdByCharacterId = CharacterId(42),
         updatedAt = Instant.EPOCH.plusSeconds(2),
-        updatedByCharacterId = CharacterId(43)
+        updatedByCharacterId = CharacterId(43),
+        deletedAt = None,
+        deletedByCharacterId = None
       )
 
       val expected = Json.Obj(
+        "id"                   -> Json.Num(1),
         "mapId"                -> Json.Num(42),
         "systemId"             -> Json.Num(12455),
-        "name"                 -> Json.Str("Keepstar"),
-        "isDeleted"            -> Json.Num(0),
+        "name"                 -> Json.Str("Home"),
         "ownerCorporationId"   -> Json.Num(1245),
-        "structureType"        -> Json.Str("Astrahus"),
+        "itemTypeId"           -> Json.Num(40),
+        "isOnline"             -> Json.Num(1),
+        "isDeleted"            -> Json.Num(0),
         "createdAt"            -> Json.Num(1_000),
         "createdByCharacterId" -> Json.Num(42),
         "updatedAt"            -> Json.Num(2_000),
@@ -86,20 +95,22 @@ object MapQueryCodecsSpec extends ZIOSpecDefault with MapQueryCodecs:
 
       assertTrue(
         value.toJsonAST == expected,
-        expected.as[MapSystemStructure] == Right(value)
+        expected.as[IntelSystemStructure] == Right(value)
       )
     ,
-    test("a MapSystemNote"):
-      val value = MapSystemNote(
-        id = 156547,
+    test("an IntelSystemNote"):
+      val value = IntelSystemNote(
+        id = IntelNoteId(156547),
         mapId = MapId(42),
         systemId = SystemId(12455),
         note = "This is a note",
+        isPinned = true,
         isDeleted = true,
+        originalId = None,
         createdAt = Instant.EPOCH.plusSeconds(1),
         createdByCharacterId = CharacterId(42),
-        updatedAt = Instant.EPOCH.plusSeconds(2),
-        updatedByCharacterId = CharacterId(43)
+        deletedAt = Some(Instant.EPOCH.plusSeconds(2)),
+        deletedByCharacterId = Some(CharacterId(43))
       )
 
       val expected = Json.Obj(
@@ -107,16 +118,48 @@ object MapQueryCodecsSpec extends ZIOSpecDefault with MapQueryCodecs:
         "mapId"                -> Json.Num(42),
         "systemId"             -> Json.Num(12455),
         "note"                 -> Json.Str("This is a note"),
+        "isPinned"             -> Json.Num(1),
         "isDeleted"            -> Json.Num(1),
         "createdAt"            -> Json.Num(1_000),
         "createdByCharacterId" -> Json.Num(42),
-        "updatedAt"            -> Json.Num(2_000),
-        "updatedByCharacterId" -> Json.Num(43)
+        "deletedAt"            -> Json.Num(2_000),
+        "deletedByCharacterId" -> Json.Num(43)
       )
 
       assertTrue(
         value.toJsonAST == expected,
-        expected.as[MapSystemNote] == Right(value)
+        expected.as[IntelSystemNote] == Right(value)
+      )
+    ,
+    test("an IntelSystemPing"):
+      val value = IntelSystemPing(
+        id = IntelPingId(156547),
+        mapId = MapId(42),
+        systemId = SystemId(12455),
+        pingUserId = Some(UserId(12)),
+        pingMapGlobal = None,
+        pingNote = Some("Help!"),
+        isDeleted = false,
+        createdAt = Instant.EPOCH.plusSeconds(1),
+        createdByCharacterId = CharacterId(42),
+        deletedAt = None,
+        deletedByCharacterId = None
+      )
+
+      val expected = Json.Obj(
+        "id"                   -> Json.Num(156547),
+        "mapId"                -> Json.Num(42),
+        "systemId"             -> Json.Num(12455),
+        "pingUserId"           -> Json.Num(12),
+        "pingNote"             -> Json.Str("Help!"),
+        "isDeleted"            -> Json.Num(0),
+        "createdAt"            -> Json.Num(1_000),
+        "createdByCharacterId" -> Json.Num(42)
+      )
+
+      assertTrue(
+        value.toJsonAST == expected,
+        expected.as[IntelSystemPing] == Right(value)
       )
     ,
     test("a MapWormholeConnection"):
@@ -153,7 +196,7 @@ object MapQueryCodecsSpec extends ZIOSpecDefault with MapQueryCodecs:
       val value = MapWormholeConnectionJump(
         connectionId = ConnectionId(156547),
         characterId = CharacterId(995),
-        shipTypeId = 883,
+        shipTypeId = TypeId(883),
         massOverride = None,
         createdAt = Instant.EPOCH.plusSeconds(1)
       )

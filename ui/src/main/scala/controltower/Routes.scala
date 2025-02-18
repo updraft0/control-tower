@@ -1,5 +1,6 @@
 package controltower
 
+import com.raquo.airstream.split.SplitMatchOneMacros.*
 import com.raquo.laminar.api.L.*
 import com.raquo.waypoint.*
 import controltower.backend.ControlTowerBackend
@@ -7,37 +8,43 @@ import org.scalajs.dom
 import org.getshaka.nativeconverter.fromJson
 
 import java.time.Clock
+import scala.language.adhocExtensions
 import scala.util.{Failure, Success, Try}
 
 object Routes:
-  private val landingRoute   = Route.static(Page.Landing, root)
-  private val mapEditorRoute = Route.static(Page.MapEditor, root / "maps")
+  private val landingRoute   = Route.static[Page.Landing.type](Page.Landing, root)
+  private val mapEditorRoute = Route.static[Page.MapEditor.type](Page.MapEditor, root / "maps")
   private val mapRoute = Route[Page.Map, (String, String)](
     encode = m => (m.name, m.character),
     decode = (name, character) => Page.Map(name, character),
     pattern = root / "map" / segment[String] / "char" / segment[String] / endOfSegments
   )
+  // test only
+  private val controlsDemoRoute = Route.static[Page.ControlsDemo.type](Page.ControlsDemo, root / "controlsdemo")
 
   given ControlTowerBackend = new ControlTowerBackend()
   given Clock               = Clock.systemUTC()
 
-  val router = new Router[Page](
-    routes = List(mapRoute, mapEditorRoute, landingRoute),
-    getPageTitle = _.pageTitle,
-    serializePage = _.toJson,
-    deserializePage = _.fromJson[Page]
-  )(
-    popStateEvents = windowEvents(_.onPopState),
-    owner = unsafeWindowOwner
-  )
+  val view: Signal[HtmlElement] =
+    JsRouter.currentPageSignal.splitMatchOne
+      .handleType[Page.Map]((map, _) => page.MapPage.renderPage(map))
+      .handleValue[Page.MapEditor.type](Page.MapEditor)(page.MapEditorPage.renderPage)
+      .handleValue[Page.ControlsDemo.type](Page.ControlsDemo)(page.ControlsDemo.renderPage)
+      .handleValue[Page.Landing.type](Page.Landing)(page.LandingPage.renderPage)
+      .toSignal
 
-  private val splitter =
-    SplitRender[Page, HtmlElement](router.currentPageSignal)
-      .collectStatic(Page.Landing)(page.LandingPage.renderPage)
-      .collectStatic(Page.MapEditor)(page.MapEditorPage.renderPage)
-      .collect[Page.Map](page.MapPage.renderPage)
-
-  val view: Signal[HtmlElement] = splitter.signal
+  object JsRouter
+      extends Router[Page](
+        routes = List(
+          mapRoute,
+          mapEditorRoute,
+          controlsDemoRoute,
+          landingRoute
+        ), // landing route is catch-all so has to be last
+        serializePage = _.toJson,
+        deserializePage = _.fromJson[Page],
+        getPageTitle = _.pageTitle
+      )
 
   // Note: this returns a modifier that you need to hang off a Laminar element,
   // e.g. `a(navigateTo(HomePage), "Back to Home")`
@@ -47,7 +54,7 @@ object Routes:
     val isLinkElement = el.ref.isInstanceOf[dom.html.Anchor]
 
     if (isLinkElement)
-      Try(router.absoluteUrlForPage(page)) match
+      Try(JsRouter.absoluteUrlForPage(page)) match
         case Success(url) => el.amend(href(url))
         case Failure(err) => dom.console.error(err)
 
@@ -62,6 +69,6 @@ object Routes:
       .preventDefault
 
     (onRegularClick --> { _ =>
-      router.pushState(page)
+      JsRouter.pushState(page)
       dom.window.scrollTo(0, 0) // Scroll to top of page when navigating
     }).bind(el)

@@ -10,7 +10,7 @@ object Dependencies {
   object Versions {
     val brotli             = "1.18.0"
     val flyway             = "11.3.0"
-    val jsoniter           = "2.33.1"
+    val jsoniter           = "2.35.3"
     val jwt                = "10.0.1"
     val laminar            = "17.2.0"
     val `laminar-form-derivation` = "0.24.0"
@@ -21,13 +21,14 @@ object Dependencies {
     val `sjs-dom`          = "2.8.0+45-53f9a1a2-SNAPSHOT" // FIXME wait for 2.9.0 release
     val snakeyaml          = "2.9"
     val sqlite             = "3.46.1.3"
-    val sttp               = "3.10.1"
+    val sttp               = "3.11.0"
     val tapir              = "1.11.13"
-    val waypoint           = "8.0.1"
-    val zio                = "2.1.14"
+    val waypoint           = "9.0.0"
+    val zio                = "2.1.15"
     val `zio-config`       = "4.0.3"
     val `zio-logging`      = "2.4.0"
     val `zio-metrics`      = "2.3.1"
+    val `zio-query`        = "0.7.6"
   }
 
   val flyway = Seq(
@@ -76,6 +77,7 @@ object Dependencies {
 
   val zio = Seq(
     "dev.zio" %% "zio"                               % Versions.zio,
+    "dev.zio" %% "zio-concurrent" % Versions.zio,
     "dev.zio" %% "zio-logging-slf4j2-bridge"         % Versions.`zio-logging`,
     "dev.zio" %% "zio-streams"                       % Versions.zio,
     "dev.zio" %% "zio-metrics-connectors"            % Versions.`zio-metrics`,
@@ -86,6 +88,10 @@ object Dependencies {
     "dev.zio" %% "zio-config"          % Versions.`zio-config`,
     "dev.zio" %% "zio-config-magnolia" % Versions.`zio-config`,
     "dev.zio" %% "zio-config-typesafe" % Versions.`zio-config`
+  )
+
+  val `zio-query` = Seq(
+    "dev.zio" %% "zio-query" % Versions.`zio-query`
   )
 
   val `zio-test` = Seq(

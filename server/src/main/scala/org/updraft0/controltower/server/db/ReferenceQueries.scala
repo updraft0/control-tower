@@ -31,13 +31,29 @@ object ReferenceQueries:
   private given JsonValueCodec[StargateBothSides] = JsonCodecMaker.make(config)
 
   private val ShipCategoryId = 6
+  private val StructureGroupIds = Set(
+    1404 /* Engineering Complex */,
+    1406 /* Refinery */,
+    1657 /* Citadel */,
+    365 /* POS */
+  )
 
   def getFactions: Result[List[protocol.Faction]] =
     run(faction).map(_.map(f => protocol.Faction(f.id, f.name, f.corporationId, f.militiaCorporationId)))
 
   def getShipTypes: Result[List[protocol.ShipType]] =
     run(itemType.join(itemGroup.filter(_.categoryId == lift(ShipCategoryId))).on(_.groupId == _.id))
-      .map(_.map((it, ig) => protocol.ShipType(it.id, it.name, it.groupId, ig.name, it.mass.getOrElse(0.0).toLong)))
+      .map(
+        _.map((it, ig) =>
+          protocol.ShipType(
+            TypeId(it.id.toInt) /* FIXME */,
+            it.name,
+            it.groupId,
+            ig.name,
+            it.mass.getOrElse(0.0).toLong
+          )
+        )
+      )
 
   def getAllSolarSystemsWithGates: Result[List[SolarSystemWithGates]] =
     run(quote {
@@ -179,7 +195,7 @@ object ReferenceQueries:
           wormholeStatics = wormholeStatics.value,
           gates = stargates.value,
           security = sys.security,
-          starTypeId = sys.starTypeId
+          starTypeId = sys.starTypeId.map(id => TypeId(id.toInt) /* FIXME */ )
         )
       )
     )
@@ -190,7 +206,7 @@ object ReferenceQueries:
         it <- itemType
         _  <- itemGroup.join(_.id == it.groupId).filter(_.name == "Sun")
       yield it)
-    }).map(_.map(it => protocol.StarType(it.id, it.name.stripPrefix("Sun "))))
+    }).map(_.map(it => protocol.StarType(TypeId(it.id.toInt) /* FIXME */, it.name.stripPrefix("Sun "))))
 
   def getStationOperations: Result[List[protocol.StationOperation]] =
     run(quote {
@@ -208,7 +224,7 @@ object ReferenceQueries:
     run(wormhole).map(
       _.map(wh =>
         protocol.WormholeType(
-          wh.typeId,
+          TypeId(wh.typeId.toInt) /* FIXME */,
           wh.name,
           wh.massRegeneration,
           wh.maxJumpMass,
@@ -228,4 +244,44 @@ object ReferenceQueries:
           sig.targetClasses.toArray
         )
       )
+    )
+
+  def getStructureTypes: Result[List[model.ItemType]] =
+    run(
+      quote(
+        itemType
+          .filter(it => liftQuery(StructureGroupIds).contains(it.groupId))
+          .filter(_.name != "QA Control Tower")
+          .filter(_.name != "QA Fuel Control Tower")
+      )
+    )
+
+  def getStructureTypesAsProto: Result[Map[TypeId, protocol.StructureType]] =
+    getStructureTypes.map(
+      _.map: item =>
+        val typeId = TypeId(item.id.toInt)
+        (
+          typeId,
+          item.groupId match
+            case 365L /* POS */ =>
+              protocol.StructureType.PlayerOwned(
+                size =
+                  if (item.name.endsWith("Small")) protocol.PlayerStructureSize.Small
+                  else if (item.name.endsWith("Medium")) protocol.PlayerStructureSize.Medium
+                  else protocol.PlayerStructureSize.Large,
+                typeName = item.name,
+                typeId = typeId
+              )
+            case _ =>
+              val typeSimple =
+                if (item.name.contains("Fortizar")) "Fortizar"
+                else if (item.name.contains("Keepstar")) "Keepstar"
+                else item.name
+              protocol.StructureType.Upwell(
+                `type` = protocol.UpwellStructureType.valueOf(typeSimple),
+                typeName = item.name,
+                typeId = typeId
+              )
+        )
+      .toMap
     )

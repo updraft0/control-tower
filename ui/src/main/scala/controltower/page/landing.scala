@@ -98,7 +98,7 @@ object LandingPage:
         s"Are you sure you want to logout '${char.name}' from all maps",
         onOk = Observer(_ =>
           ct.logoutUserCharacter(char.characterId)
-            .onComplete(_ => Routes.router.pushState(Page.Landing))
+            .onComplete(_ => Routes.JsRouter.pushState(Page.Landing))
         ),
         isDestructive = true
       )

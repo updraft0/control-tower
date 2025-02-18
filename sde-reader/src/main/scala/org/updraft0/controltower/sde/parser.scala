@@ -1,6 +1,6 @@
 package org.updraft0.controltower.sde
 
-import org.updraft0.controltower.constant.*
+import org.updraft0.controltower.constant.{WormholeClass, WormholeEffect}
 import org.updraft0.controltower.sde.yaml.{Cursor, KeyType, YAML, YamlArray, YamlObject, YamlValue, given}
 import zio.*
 

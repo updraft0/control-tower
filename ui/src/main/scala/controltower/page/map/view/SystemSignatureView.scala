@@ -3,7 +3,7 @@ package controltower.page.map.view
 import com.raquo.laminar.api.L.*
 import controltower.backend.ESI
 import controltower.component.*
-import controltower.page.map.{MapAction, RoleController}
+import controltower.page.map.MapAction
 import controltower.ui.*
 import org.updraft0.controltower.constant.*
 import org.updraft0.controltower.protocol.*
@@ -13,6 +13,7 @@ import java.time.{Duration, Instant}
 enum SignatureFilter derives CanEqual:
   case All, Wormhole, Combat, Indy, Hacking, Unscanned
 
+// TODO: use MapSettings.staleScanThreshold
 val StaleSignatureInterval: Duration = Duration.ofDays(1)
 
 enum ConnectionTarget derives CanEqual:
@@ -72,7 +73,7 @@ private inline def sigView(
 
   val signatures           = system.map(mss => mss.signatures.toList)
   val signatureScanPercent = signatures.map(sigs => s"${scanPercent(sigs, true).toInt}%")
-  val canEdit              = isConnected.combineWith(mapRole.map(RoleController.canEditSignatures(_))).map(_ && _)
+  val canEdit              = mapCtx.roleController.canEditSignatures
 
   given SystemStaticData = mapCtx.staticData
 
@@ -650,7 +651,7 @@ private[map] def sigIsStale(sig: MapSystemSignature, settings: MapSettings, now:
 private def addSingleSignatureView(
     solarSystem: SolarSystem,
     signatureGroups: Map[SignatureGroup, List[SignatureClassified]],
-    wormholeTypes: Map[Long, WormholeType],
+    wormholeTypes: Map[TypeId, WormholeType],
     actions: WriteBus[MapAction],
     canEdit: Signal[Boolean]
 )(
@@ -687,7 +688,7 @@ private def editSingleSignatureView(
     solarSystem: SolarSystem,
     sig: MapSystemSignature,
     signatureGroups: Map[SignatureGroup, List[SignatureClassified]],
-    wormholeTypes: Map[Long, WormholeType],
+    wormholeTypes: Map[TypeId, WormholeType],
     actions: WriteBus[MapAction],
     canEdit: Signal[Boolean]
 )(closeMe: Observer[Unit], owner: Owner)(using SystemStaticData) =

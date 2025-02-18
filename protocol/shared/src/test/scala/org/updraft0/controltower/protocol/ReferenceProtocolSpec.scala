@@ -1,6 +1,7 @@
 package org.updraft0.controltower.protocol
 
 import org.updraft0.json.*
+import org.updraft0.controltower.constant.*
 import org.updraft0.controltower.protocol.jsoncodec.given
 import zio.test.*
 

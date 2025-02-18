@@ -4,7 +4,22 @@ import scala.language.implicitConversions
 
 // TODO: move to typeclass encoding
 
-// TODO: TypeId
+opaque type TypeId = Int
+
+object TypeId:
+  val Invalid = TypeId(-1)
+
+  def apply(i: Int): TypeId = i
+
+  given Conversion[TypeId, Int] with
+    override def apply(s: TypeId): Int = s
+
+  given Ordering[TypeId] with
+    override def compare(x: TypeId, y: TypeId): Int = x.compare(y)
+
+  given CanEqual[TypeId, TypeId] = CanEqual.derived
+
+  extension (inline v: TypeId) inline def value: Int = v
 
 // CharacterId
 opaque type CharacterId = Long
@@ -92,6 +107,60 @@ object ConnectionId:
   given CanEqual[ConnectionId, ConnectionId] = CanEqual.derived
 
   extension (inline v: ConnectionId) inline def value: Long = v
+
+// NoteId
+opaque type IntelNoteId = Int
+
+object IntelNoteId:
+  val Invalid: IntelNoteId = IntelNoteId(-1)
+
+  def apply(i: Int): IntelNoteId = i
+
+  given Conversion[IntelNoteId, Int] with
+    override def apply(s: IntelNoteId): Int = s
+
+  given Ordering[IntelNoteId] with
+    override def compare(x: IntelNoteId, y: IntelNoteId): Int = x.compare(y)
+
+  given CanEqual[IntelNoteId, IntelNoteId] = CanEqual.derived
+
+  extension (inline v: IntelNoteId) inline def value: Int = v
+
+  // IntelStructureId
+opaque type IntelStructureId = Int
+
+object IntelStructureId:
+  val Invalid: IntelStructureId = IntelStructureId(-1)
+
+  def apply(i: Int): IntelStructureId = i
+
+  given Conversion[IntelStructureId, Int] with
+    override def apply(s: IntelStructureId): Int = s
+
+  given Ordering[IntelStructureId] with
+    override def compare(x: IntelStructureId, y: IntelStructureId): Int = x.compare(y)
+
+  given CanEqual[IntelStructureId, IntelStructureId] = CanEqual.derived
+
+  extension (inline v: IntelStructureId) inline def value: Int = v
+
+// IntelPingId
+opaque type IntelPingId = Int
+
+object IntelPingId:
+  val Invalid: IntelPingId = IntelPingId(-1)
+
+  def apply(i: Int): IntelPingId = i
+
+  given Conversion[IntelPingId, Int] with
+    override def apply(s: IntelPingId): Int = s
+
+  given Ordering[IntelPingId] with
+    override def compare(x: IntelPingId, y: IntelPingId): Int = x.compare(y)
+
+  given CanEqual[IntelPingId, IntelPingId] = CanEqual.derived
+
+  extension (inline v: IntelPingId) inline def value: Int = v
 
 // SigId
 

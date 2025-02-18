@@ -1,6 +1,6 @@
 package org.updraft0.controltower.protocol
 
-import org.updraft0.controltower.constant.WormholeClass
+import org.updraft0.controltower.constant.{WormholeClass, TypeId}
 
 /** Pre-loaded reference of types that are commonly needed in the web app
   */
@@ -11,7 +11,8 @@ case class Reference(
     shipTypes: Array[ShipType],
     starTypes: Array[StarType],
     stationOperations: Array[StationOperation],
-    wormholeTypes: Array[WormholeType]
+    wormholeTypes: Array[WormholeType],
+    structureTypes: Array[StructureType]
 )
 
 /** Version of (data, code) - if either changes, reference should be reloaded
@@ -29,7 +30,7 @@ case class StationOperation(operationId: Int, operationName: String, services: A
 /** Wormhole type
   */
 case class WormholeType(
-    typeId: Long,
+    typeId: TypeId,
     name: String,
     massRegeneration: Long,
     maxJumpMass: Long,
@@ -52,8 +53,8 @@ case class SignatureInGroup(signatureGroup: SignatureGroup, name: String, target
 
 /** Star/sun type ids
   */
-case class StarType(typeId: Long, name: String)
+case class StarType(typeId: TypeId, name: String)
 
 case class Faction(id: Long, name: String, corporationId: Option[Long], militiaCorporationId: Option[Long])
 
-case class ShipType(typeId: Long, name: String, groupId: Long, groupName: String, mass: Long)
+case class ShipType(typeId: TypeId, name: String, groupId: Long, groupName: String, mass: Long)

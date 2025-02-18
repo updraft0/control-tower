@@ -118,12 +118,8 @@ object Users:
 
   def loadAll: Op[Chunk[CharacterAuth]] =
     for
-      allTokens <- auth.getAllAuthTokens()
-      authTokens <- ZIO.foreach(allTokens)((c, uc, ecat) =>
-        decryptAuthToken(ecat).map((t, r) =>
-          CharacterAuth(uc.userId, uc.characterId, c.name, JwtString(t), r, ecat.expiresAt)
-        )
-      )
+      allTokens  <- auth.getAllAuthTokens()
+      authTokens <- ZIO.foreach(allTokens)((c, uc, ecat) => decryptAuthTokenTo(uc.userId, c.name, ecat))
     yield Chunk.fromIterable(authTokens)
 
   def refreshToken(refreshToken: Base64): Op[CharacterAuth] =
@@ -133,6 +129,13 @@ object Users:
 
   def removeExpiredTokens(characterIds: Chunk[CharacterId]): RIO[javax.sql.DataSource, Long] =
     query.transaction(auth.deleteCharacterAuthTokens(characterIds))
+
+  def loadAnyAuthTokenForUser(userId: UserId): RIO[javax.sql.DataSource & TokenCrypto, Option[CharacterAuth]] =
+    AuthQueries
+      .getSomeCharacterAuthToken(userId)
+      .flatMap:
+        case None                    => ZIO.none
+        case Some((char, authToken)) => decryptAuthTokenTo(userId, char.name, authToken).asSome
 
   private def newUser(
       char: AuthCharacter,
@@ -293,6 +296,10 @@ object Users:
       expiresAt = tokenMeta.expiry,
       updatedAt = Some(now)
     )
+
+  private[auth] def decryptAuthTokenTo(userId: UserId, name: String, token: model.CharacterAuthToken) =
+    decryptAuthToken(token).map: (access, refresh) =>
+      CharacterAuth(userId, token.characterId, name, JwtString(access), refresh, token.expiresAt)
 
   private[auth] def decryptAuthToken(token: model.CharacterAuthToken) =
     val nonce = Base64.raw(token.nonce).toBytes
