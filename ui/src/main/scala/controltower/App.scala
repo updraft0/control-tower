@@ -1,7 +1,6 @@
 package controltower
 
 import com.raquo.laminar.api.L.*
-import org.scalajs.dom
 import org.scalajs.dom.document
 
 object App:
@@ -15,4 +14,4 @@ object App:
           // TODO: insert page chrome for navigation etc.
           div(child <-- Routes.view)
         )
-    }(unsafeWindowOwner)
+    }(using unsafeWindowOwner)

@@ -11,7 +11,7 @@ type RenderT[A] = (StrictSignal[A], Observer[Option[A]]) => Element
 /** A "fake" var that represents a collection which can be appended but the render function can also update elements.
   * This makes up for .split not being available on Vars, see https://github.com/raquo/Airstream/issues/112
   */
-final class ArrayRenderedVar[A: ClassTag] private (render: RenderT[A])(using CanEqual[A, A]):
+final class ArrayRenderedVar[A] private (render: RenderT[A])(using CanEqual[A, A]):
   private val internalVar = Var(mutable.ArraySeq.empty[(Long, Var[A], Element)])
   private val outBus      = EventBus[CollectionCommand[Element]]()
 
@@ -23,7 +23,7 @@ final class ArrayRenderedVar[A: ClassTag] private (render: RenderT[A])(using Can
     this(render)
     items.foreach(append)
 
-  private inline def removeOrUpdateFor(k: Long, v: Var[A]) =
+  private inline def removeOrUpdateFor(k: Long) =
     Observer[Option[A]]:
       case None       => removeAt(k)
       case Some(next) => updateAt(k, next)
@@ -34,7 +34,7 @@ final class ArrayRenderedVar[A: ClassTag] private (render: RenderT[A])(using Can
   def append(item: A): Unit =
     val k  = Random.nextLong
     val v  = Var(item)
-    val el = render(v.signal, removeOrUpdateFor(k, v))
+    val el = render(v.signal, removeOrUpdateFor(k))
     outBus.emit(CollectionCommand.Append(el))
     internalVar.update(arr => arr.appended((k, v, el)))
 
@@ -51,7 +51,7 @@ final class ArrayRenderedVar[A: ClassTag] private (render: RenderT[A])(using Can
         case idx => doRemove(arr, idx)
 
   private def doRemove(arr: mutable.ArraySeq[(Long, Var[A], Element)], idx: Int) =
-    val (k, v, el) = arr(idx)
+    val (k, _, el) = arr(idx)
     outBus.emit(CollectionCommand.Remove(el))
     arr.filterNot((ik, _, _) => ik == k)
 
@@ -68,7 +68,7 @@ final class ArrayRenderedVar[A: ClassTag] private (render: RenderT[A])(using Can
         case idx => doUpdate(arr, idx, newItem)
 
   private def doUpdate(arr: mutable.ArraySeq[(Long, Var[A], Element)], idx: Int, next: A) =
-    val (k, v, prevEl) = arr(idx)
+    val (_, v, _) = arr(idx)
     v.set(next)
     // note - do not need to do anything with the element - it is not getting replaced
     arr

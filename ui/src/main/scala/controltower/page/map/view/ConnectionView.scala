@@ -123,7 +123,7 @@ class ConnectionInProgressView(
 
   override def view = g(
     cls := "connection-in-progress",
-    onMountBind(ctx =>
+    onMountBind(_ =>
       cls("stopped") <-- state.signal.map {
         case MapNewConnectionState.Stopped => true
         case _                             => false
@@ -139,7 +139,7 @@ class ConnectionInProgressView(
               nodeSeq()
             case _ =>
               nodeSeq()
-        case (Some(MapNewConnectionState.Stopped), MapNewConnectionState.Start(fromSystemId, pos)) =>
+        case (Some(MapNewConnectionState.Stopped), MapNewConnectionState.Start(fromSystemId, _)) =>
           val fromSystemPos = positions.systemPosition(fromSystemId).now()
 
           Seq(

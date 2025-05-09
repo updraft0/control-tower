@@ -32,8 +32,6 @@ private[map] def removeMultipleSystems(
     systemIds: Array[SystemId],
     actions: WriteBus[MapAction],
     onClose: Observer[Unit]
-)(using
-    rds: ReferenceDataStore
 ) =
   Modal.showConfirmation(
     "Remove multiple systems",
@@ -68,5 +66,6 @@ private[map] def removeConnection(
         )
     ),
     actions.contramap(_ => MapAction.RemoveConnection(conn.connection.id)),
-    isDestructive = true
+    isDestructive = true,
+    onClose = onClose
   )

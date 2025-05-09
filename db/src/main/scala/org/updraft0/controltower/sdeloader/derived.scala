@@ -91,7 +91,7 @@ private def readSignaturesInGroup(wormholeTypes: Map[String, Long]): ZStream[Any
         case Array(groupName, name, whClasses) =>
           val group   = SignatureGroup.valueOf(groupName)
           val classes = whClasses.split(',').map(WormholeClass.valueOf).toSet
-          if (group == SignatureGroup.Wormhole && !wormholeTypes.contains(name))
+          if group == SignatureGroup.Wormhole && !wormholeTypes.contains(name) then
             throw new IllegalStateException(s"Invalid wormhole type '$name' in file")
           SignatureInGroup(group, name, classes)
         case _ =>

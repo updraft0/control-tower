@@ -39,8 +39,8 @@ class VarPositionController(map: mutable.Map[SystemId, Var[Coord]], boxSize: Coo
 
   override def systemDisplayData(systemId: SystemId)(using Owner): Var[Option[SystemDisplayData]] =
     systemPosition(systemId).zoom(c => Option.when(c != Hidden)(SystemDisplayData.Manual(c.x.toInt, c.y.toInt))) {
-      case (coord, Some(m: SystemDisplayData.Manual)) => Coord(m.x, m.y)
-      case (_, _)                                     => Hidden
+      case (_, Some(m: SystemDisplayData.Manual)) => Coord(m.x, m.y)
+      case (_, _)                                 => Hidden
     }
 
   override def clear(): Unit =

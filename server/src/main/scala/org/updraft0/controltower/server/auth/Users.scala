@@ -60,7 +60,7 @@ object Users:
       AuthQueries.getUserByCharacterId(CharacterId(characterId)))
       .map {
         case (None, None)                                   => LoginState.NewUser
-        case (None, Some((user, pref, char)))               => LoginState.NewSession(user, char)
+        case (None, Some((user, _, char)))                  => LoginState.NewSession(user, char)
         case (Some((session, user, _, _)), None)            => LoginState.UserAddCharacter(session, user)
         case (Some((session, _, _, _)), Some((user, _, _))) => LoginState.RefreshToken(session, user)
       }

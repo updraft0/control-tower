@@ -54,15 +54,14 @@ object MapPolicy:
   private[auth] def resolveCharacterMapPolicies(
       map: Map[CharacterId, List[model.MapPolicyMember]]
   ): Map[CharacterId, List[(MapId, model.MapRole)]] =
-    map.map((c, p) => c -> resolveCharacterPoliciesToMapIds(c, p))
+    map.map((c, p) => c -> resolveCharacterPoliciesToMapIds(p))
 
   private[auth] def resolveCharacterPoliciesToMapIds(
-      characterId: CharacterId,
       policies: List[model.MapPolicyMember]
   ): List[(MapId, model.MapRole)] =
     policies
       .groupBy(_.mapId)
-      .map { case (mapId, policies) =>
+      .map { case (_, policies) =>
         policies
           .sortBy(p => policyRank(p.isDeny, p.memberType))
           .headOption

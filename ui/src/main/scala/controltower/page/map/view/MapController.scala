@@ -305,7 +305,7 @@ final class MapController(val rds: ReferenceDataStore, val clock: Signal[Instant
           Some(MapRequest.RemoveSystemSignatures(systemId, sigIds.toList))
         case (MapAction.RemoveAllSignatures(systemId), _, _) =>
           Some(MapRequest.RemoveAllSystemSignatures(systemId))
-        case (MapAction.Reposition(systemId, x, y), allSystemsNow, _) =>
+        case (MapAction.Reposition(systemId, x, y), _, _) =>
           val displayData = pos.systemDisplayData(systemId).now()
           Some(MapRequest.UpdateSystem(systemId, displayData))
         case (MapAction.UpdateIntelSystemNote(systemId, noteId, note, isPinned), _, _) =>
@@ -326,8 +326,8 @@ final class MapController(val rds: ReferenceDataStore, val clock: Signal[Instant
         case (MapAction.ToggleBulkSelection(systemId), _, _) =>
           bulkSelectedSystemIds.update(arr =>
             arr.indexOf(SystemId(systemId)) match
-              case -1  => arr.appended(SystemId(systemId))
-              case idx => arr.filterNot(_ == SystemId(systemId))
+              case -1 => arr.appended(SystemId(systemId))
+              case _  => arr.filterNot(_ == SystemId(systemId))
           )
           None
         case (MapAction.TogglePinned(systemId), allSystems, _) =>

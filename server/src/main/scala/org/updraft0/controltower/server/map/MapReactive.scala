@@ -15,6 +15,7 @@ import org.updraft0.controltower.server.tracking.{CharacterLocationState, Locati
 import org.updraft0.minireactive.*
 import zio.*
 
+import scala.annotation.unused
 import scala.collection.mutable
 
 import java.time.Instant
@@ -545,7 +546,7 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
               case Identified(_, ul: MapRequest.UpdateLocations) =>
                 updateCharacterLocations(mapId, state, ul.u) @@ Log.MapOperation("updateLocations")
               case Identified(_, uc: MapRequest.UpdateCharacters) =>
-                updateCharacterRoles(mapId, state, uc.roleMap) @@ Log.MapOperation("updateCharacters")
+                updateCharacterRoles(state, uc.roleMap) @@ Log.MapOperation("updateCharacters")
               case Identified(_, MapRequest.RemoveOldConnections) =>
                 removeOldConnections(mapId, state) @@ Log.MapOperation("removeOldConnections")
               // intel
@@ -659,7 +660,6 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
       ) ++ pingsForConnection(isReachableBefore, nextState, conn.connection))
 
   private def insertSystemConnectionJump(
-      mapId: MapId,
       state: MapState,
       charId: CharacterId,
       now: Instant,
@@ -822,8 +822,7 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
         s"Removing multiple systems [${systemIds.mkString(",")}], caused ${connectionIds.size} connection removals and ${refreshedSystemIds.size} system updates"
       )
       // mark connections as removed
-      _                  <- query.map.deleteMapWormholeConnections(mapId, connectionIds, sessionId.characterId)
-      deletedConnections <- query.map.getWormholeConnections(mapId, connectionIds, isDeleted = true)
+      _ <- query.map.deleteMapWormholeConnections(mapId, connectionIds, sessionId.characterId)
       // remove signatures that have those connections
       _ <- query.map.deleteSignaturesWithConnectionIds(mapId, connectionIds, sessionId.characterId)
       // remove the display of the system
@@ -951,8 +950,8 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
             .hasConnection(amc.fromSystem, amc.toSystem) && isPotentialWormholeJump(st, amc.fromSystem, amc.toSystem) =>
         addMapConnectionFromLocation(mapId, st, responses, amc).orDie
       case ((st, responses), aj: LocationUpdateAction.AddJump) if st.hasConnection(aj.fromSystem, aj.toSystem) =>
-        addMapConnectionJump(mapId, st, responses, st.getConnection(aj.fromSystem, aj.toSystem).id, aj).orDie
-      case (prev, msg) =>
+        addMapConnectionJump(st, responses, st.getConnection(aj.fromSystem, aj.toSystem).id, aj).orDie
+      case (prev, _) =>
         ZIO.succeed(prev)
 
   private def addSystemFromLocation(
@@ -974,7 +973,7 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
     )
   ).map((st, r) => st -> (responses ++ r)) // pings are handled when we add connections
 
-  private def generateDisplayData(state: MapState, systemId: SystemId, adjacentTo: Option[SystemId]) =
+  private def generateDisplayData(state: MapState, @unused systemId: SystemId, adjacentTo: Option[SystemId]) =
     state.displayType match
       case model.MapDisplayType.Manual =>
         val prevDisplay = adjacentTo.flatMap(prevId => state.systems.get(prevId).flatMap(_.display))
@@ -1002,14 +1001,12 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
     ).map((st, r) => st -> (responses ++ r))
 
   private def addMapConnectionJump(
-      mapId: MapId,
       state: MapState,
       responses: Chunk[Identified[MapResponse]],
       connectionId: ConnectionId,
       action: LocationUpdateAction.AddJump
   ) =
     insertSystemConnectionJump(
-      mapId,
       state,
       action.characterId,
       action.info.updatedAt,
@@ -1095,7 +1092,7 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
       // others are a potential target (stargate check for known space already happened)
       case _ => true
 
-  private def updateCharacterRoles(mapId: MapId, state: MapState, upd: Map[CharacterId, model.MapRole]) =
+  private def updateCharacterRoles(state: MapState, upd: Map[CharacterId, model.MapRole]) =
     ZIO.succeed(state.copy(locations = upd.iterator.foldLeft(state.locations) { case (s, (charId, role)) =>
       s.updatedWith(charId) {
         case None       => Some(MapLocationState(charId, role, online = false, locationInfo = None))
@@ -1115,7 +1112,7 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
         .when(hardDeleteSignatures.nonEmpty)
         .someOrElse(0)
       rCJumpCount <- query.map
-        .hardDeleteMapWormholeConnectionJumps(mapId, Chunk.fromIterable(hardDeleteConnectionIds))
+        .hardDeleteMapWormholeConnectionJumps(Chunk.fromIterable(hardDeleteConnectionIds))
         .when(hardDeleteConnectionIds.nonEmpty)
         .someOrElse(0)
       rConnCount <- query.map
@@ -1185,10 +1182,14 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
       stateSystemSnapshotWhenExists(ais.systemId)
     )
 
-  private def updateIntelSystemStructure(state: MapState, sId: MapSessionId, structure: model.IntelSystemStructure) =
+  private def updateIntelSystemStructure(
+      state: MapState,
+      @unused sId: MapSessionId,
+      structure: model.IntelSystemStructure
+  ) =
     query.map
       .upsertIntelSystemStructure(structure)
-      .map: _ =>
+      .as:
         withState(
           state.updateSystemWith(
             structure.systemId,
@@ -1207,7 +1208,7 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
   ) =
     query.map
       .deleteIntelSystemStructure(mapId, systemId, structureId, sId.characterId)
-      .map: deletedCount =>
+      .as:
         withState(
           state.updateSystemWith(systemId, s => s.copy(structures = s.structures.filterNot(_.id == structureId)))
         )(stateSystemSnapshotWhenExists(systemId))
@@ -1242,7 +1243,7 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
   ) =
     query.map
       .deleteIntelSystemNote(mapId, systemId, id, sId.characterId)
-      .map: deletedCount =>
+      .as:
         withState(
           state.updateSystemWith(systemId, s => s.copy(notes = s.notes.filterNot(_.id == id)))
         )(stateSystemSnapshotWhenExists(systemId))

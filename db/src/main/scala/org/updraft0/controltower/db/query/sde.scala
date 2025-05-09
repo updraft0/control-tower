@@ -2,10 +2,6 @@ package org.updraft0.controltower.db.query
 
 import io.getquill.*
 import org.updraft0.controltower.db.model.*
-import zio.ZIO
-
-import java.sql.SQLException
-import javax.sql.DataSource
 
 object sde:
   import auth.given
@@ -138,7 +134,7 @@ object sde:
   // queries
 
   def getLatestVersion: DbOperation[Option[Version]] =
-    ctx.run(quote(schema.version.sortBy(_.createdAt)(Ord.desc).take(1))).map(_.headOption)
+    ctx.run(quote(schema.version.sortBy(_.createdAt)(using Ord.desc).take(1))).map(_.headOption)
 
   def getRegions: DbOperation[List[Region]] =
     ctx.run(quote(schema.region))

@@ -15,7 +15,7 @@ private[endpoints] def dbError(ex: SQLException): (StatusCode, String) =
 
 private[endpoints] def logDbError(ex: SQLException)(using trace: Trace): UIO[(StatusCode, String)] =
   ZIO
-    .stackTrace(trace)
+    .stackTrace(using trace)
     .flatMap(st =>
       ZIO.logErrorCause("Query error", Cause.fail(ex, st)).as(StatusCode.InternalServerError -> "Query error")
     )

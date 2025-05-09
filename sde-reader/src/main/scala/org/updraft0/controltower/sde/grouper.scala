@@ -29,7 +29,7 @@ private[sde] def groupBySolarSystems[R](
     .map(Some(_))
     .concat(ZStream.succeed(None))
     .mapAccum[GrouperState, Option[GroupedExport]](GrouperState.Initial()) {
-      case (state: GrouperState.Initial, Some(region: ExportedData.Region)) =>
+      case (_: GrouperState.Initial, Some(region: ExportedData.Region)) =>
         GrouperState.InRegion(region) -> None
       case (GrouperState.InRegion(inRegion), Some(constellation: ExportedData.Constellation))
           if constellation.regionTag == inRegion.tag =>

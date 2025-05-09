@@ -8,6 +8,8 @@ import org.updraft0.controltower.protocol
 import org.updraft0.controltower.protocol.jsoncodec.{config, given}
 import zio.*
 
+import scala.annotation.nowarn
+
 case class StargateBothSides(
     inGateId: Long,
     outGateId: Long,
@@ -18,6 +20,7 @@ case class SolarSystemWithGates(sys: model.SolarSystem, gates: Array[StargateBot
 
 /** Queries for "reference" data (not map-dependent)
   */
+@nowarn("msg=unused import")
 object ReferenceQueries:
   import ctx.{*, given}
   import auth.given

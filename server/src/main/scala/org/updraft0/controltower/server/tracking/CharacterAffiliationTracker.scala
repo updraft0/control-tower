@@ -33,7 +33,7 @@ object CharacterAffiliationTracker:
         case Left(_) => ZIO.logDebug("Not refreshing due to errored service status")
         case Right(s) if !s.isOnlineEnough =>
           ZIO.logWarning("Not refreshing due to server not having enough players online or being VIP")
-        case Right(s) =>
+        case Right(_) =>
           Users.allCharacters
             .mapError(esiToThrowable)
             .flatMap(allChars =>

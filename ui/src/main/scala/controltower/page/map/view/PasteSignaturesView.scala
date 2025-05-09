@@ -5,6 +5,8 @@ import controltower.ui.{ViewController, sequence}
 import org.updraft0.controltower.constant.{SigId, ConnectionId, UnknownOrUnset}
 import org.updraft0.controltower.protocol.*
 
+import scala.annotation.unused
+
 import java.time.Instant
 
 case class ParsedLine(signatureId: String, tpe: String, group: String, name: String, percent: String, distance: String)
@@ -316,7 +318,7 @@ private[view] def wormholeTypeCell(
     isEol: Boolean,
     massStatus: WormholeMassStatus,
     massSize: WormholeMassSize,
-    connectionId: Option[ConnectionId],
+    @unused connectionId: Option[ConnectionId],
     static: SystemStaticData
 ): HtmlMod = ct match
   case WormholeConnectionType.Unknown => "Unknown"

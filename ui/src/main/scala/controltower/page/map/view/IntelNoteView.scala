@@ -27,7 +27,7 @@ final class IntelNoteView(systemId: Signal[Option[SystemId]], selected: Signal[A
           disabled <-- ctx.roleController.canAddIntelNote.invert,
           onClick.compose(_.sampleCollectSome(systemId)) --> (sysId =>
             Modal.show(
-              (closeMe, owner) => addEditIntelNoteView(sysId, None, ctx.actions, closeMe),
+              (closeMe, _) => addEditIntelNoteView(sysId, None, ctx.actions, closeMe),
               Observer.empty[Unit],
               true,
               cls := "system-add-note-dialog"
@@ -93,7 +93,7 @@ final class IntelNoteView(systemId: Signal[Option[SystemId]], selected: Signal[A
             disabled <-- ctx.roleController.canEditIntelNote.invert,
             onClick.compose(_.sampleCollectSome(systemId)) --> (sysId =>
               Modal.show(
-                (closeMe, owner) => addEditIntelNoteView(sysId, Some(sn), ctx.actions, closeMe),
+                (closeMe, _) => addEditIntelNoteView(sysId, Some(sn), ctx.actions, closeMe),
                 Observer.empty[Unit],
                 true,
                 cls := "system-edit-note-dialog"

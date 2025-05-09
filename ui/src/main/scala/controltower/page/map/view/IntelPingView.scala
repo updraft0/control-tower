@@ -28,7 +28,7 @@ final class IntelPingView(systemId: Signal[Option[SystemId]], selected: Signal[A
           disabled <-- ctx.roleController.canAddIntelPing.invert,
           onClick.compose(_.sampleCollectSome(systemId)) --> (sysId =>
             Modal.show(
-              (closeMe, owner) => addIntelPingView(sysId, ctx.actions, closeMe),
+              (closeMe, _) => addIntelPingView(sysId, ctx.actions, closeMe),
               Observer.empty[Unit],
               clickCloses = true,
               cls := "system-add-ping-dialog"
@@ -109,7 +109,7 @@ final class IntelPingView(systemId: Signal[Option[SystemId]], selected: Signal[A
 object IntelPingView:
   private val DateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd").withZone(ZoneId.of("UTC"))
 
-private given DropdownItem[IntelSystemPingTarget] with
+private given DropdownItem[IntelSystemPingTarget]:
   def key(pt: IntelSystemPingTarget): String           = pt.toString
   def group(pt: IntelSystemPingTarget): Option[String] = None
   def view(pt: IntelSystemPingTarget): Element         = span(dataAttr("ping-target") := pt.toString, pt.toString)

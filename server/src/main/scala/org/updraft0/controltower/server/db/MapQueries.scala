@@ -9,9 +9,9 @@ import org.updraft0.controltower.db.query.*
 import org.updraft0.controltower.protocol.OpaqueCodecs
 import zio.*
 
-import java.time.Instant
-import javax.sql.DataSource
 import scala.annotation.nowarn
+
+import java.time.Instant
 
 case class MapWormholeConnectionRank(
     connectionId: ConnectionId,
@@ -51,7 +51,7 @@ private[db] trait MapQueryCodecs extends OpaqueCodecs:
   import com.github.plokhotnyuk.jsoniter_scala.core.*
   import com.github.plokhotnyuk.jsoniter_scala.macros.*
 
-  private[db] given [A <: AnyRef: scala.reflect.ClassTag: JsonValueCodec]: JsonValueCodec[Array[A]] =
+  private[db] given [A <: AnyRef: {scala.reflect.ClassTag, JsonValueCodec}] => JsonValueCodec[Array[A]] =
     JsonCodecMaker.make
 
   private given JsonValueCodec[Boolean] = new JsonValueCodec[Boolean]:
@@ -97,6 +97,7 @@ private[db] trait MapQueryCodecs extends OpaqueCodecs:
 
 /** Queries for map information
   */
+@nowarn("msg=unused import")
 object MapQueries extends MapQueryCodecs:
   import ctx.{*, given}
   import auth.given
@@ -144,7 +145,8 @@ object MapQueries extends MapQueryCodecs:
         .map(m => (m.id, m.name))
     }).map(_.toMap)
 
-  @nowarn("msg=.*it is preferable to define both an encoder and a decoder.*")
+  // FIXME remove
+  // @nowarn("msg=.*it is preferable to define both an encoder and a decoder.*")
   def getMapSystemAll(mapId: MapId, systemId: Option[SystemId] = None): Result[List[MapSystemWithAll]] =
     run(quote {
       (for
@@ -361,7 +363,7 @@ object MapQueries extends MapQueryCodecs:
       jumps <- mapWormholeConnectionJump.leftJoin(_.connectionId == whc.id)
     yield (whc, fromSig, toSig, jumps))
       .filter(filterBy)
-      .sortBy((whc, _, _, whjs) => (whc.id, whjs.map(_.createdAt)))(Ord.asc)
+      .sortBy((whc, _, _, whjs) => (whc.id, whjs.map(_.createdAt)))(using Ord.asc)
       .groupByMap((whc, _, _, _) => whc.id)((whc, fromSig, toSig, whcj) =>
         (
           whc,

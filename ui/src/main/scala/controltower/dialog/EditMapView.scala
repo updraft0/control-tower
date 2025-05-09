@@ -80,7 +80,7 @@ object EditMapView:
                 typ("button"),
                 cls := "add-row",
                 "➕ permission",
-                onClick.mapToUnit --> (() => permissionsAll.append(DefaultPerm))
+                onClick.mapToUnit --> Observer(_ => permissionsAll.append(DefaultPerm))
               )
             )
           ),

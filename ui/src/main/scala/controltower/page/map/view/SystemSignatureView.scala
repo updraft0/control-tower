@@ -8,6 +8,8 @@ import controltower.ui.*
 import org.updraft0.controltower.constant.*
 import org.updraft0.controltower.protocol.*
 
+import scala.annotation.unused
+
 import java.time.{Duration, Instant}
 
 enum SignatureFilter derives CanEqual:
@@ -36,10 +38,7 @@ enum ConnectionTarget derives CanEqual:
 class SystemSignatureView(
     selected: Signal[Option[MapSystemSnapshot]],
     actions: WriteBus[MapAction],
-    settings: Signal[MapSettings],
-    mapRole: Signal[MapRole],
-    time: Signal[Instant],
-    isConnected: Signal[Boolean]
+    settings: Signal[MapSettings]
 )(using mapCtx: MapViewContext)
     extends ViewController:
 
@@ -53,7 +52,7 @@ class SystemSignatureView(
       hideIfEmptyOpt(selected),
       table(
         children <-- selected.splitOption(
-          (mss, system) => sigView(system, filter, settings, mapRole, time, isConnected, actions),
+          (_, system) => sigView(system, filter, settings, mapCtx.now, actions),
           nodeSeq()
         )
       )
@@ -63,9 +62,7 @@ private inline def sigView(
     system: Signal[MapSystemSnapshot],
     currentFilter: Var[SignatureFilter],
     settings: Signal[MapSettings],
-    mapRole: Signal[MapRole],
     time: Signal[Instant],
-    isConnected: Signal[Boolean],
     actions: WriteBus[MapAction]
 )(using mapCtx: MapViewContext) =
   val solarSystem = system.map(mss => mapCtx.staticData.solarSystemMap(mss.system.systemId))
@@ -140,9 +137,6 @@ private inline def sigView(
                     pasteSignaturesView(
                       mss,
                       solarSystem,
-                      solarSystem.systemClass
-                        .flatMap(whc => mapCtx.staticData.signatureByClassAndGroup.get(whc))
-                        .getOrElse(Map.empty),
                       time,
                       actions
                     ),
@@ -166,7 +160,6 @@ private inline def sigView(
                     solarSystem.systemClass
                       .flatMap(whc => mapCtx.staticData.signatureByClassAndGroup.get(whc))
                       .getOrElse(Map.empty),
-                    mapCtx.staticData.wormholeTypes,
                     actions,
                     canEdit
                   ),
@@ -193,7 +186,6 @@ private inline def sigView(
                     solarSystem.systemClass
                       .flatMap(whc => mapCtx.staticData.signatureByClassAndGroup.get(whc))
                       .getOrElse(Map.empty),
-                    mapCtx.staticData.wormholeTypes,
                     actions,
                     canEdit
                   ),
@@ -415,7 +407,7 @@ private def signatureRow(
       .combineWith(solarSystem, signaturesByGroup)
       .map: (s, solarSystem, groups) =>
         s match
-          case u: MapSystemSignature.Unknown =>
+          case _: MapSystemSignature.Unknown =>
             td(cls := "signature-type")
           case s: MapSystemSignature.Site =>
             siteTypeCell(s, groups)
@@ -542,17 +534,17 @@ private def changeWormholeConnectionId(
     connectionId = UnknownOrUnset(newId)
   )
 
-given DropdownItem[SignatureGroup] with
+given DropdownItem[SignatureGroup]:
   def key(sg: SignatureGroup): String           = sg.toString
   def group(sg: SignatureGroup): Option[String] = None
   def view(sg: SignatureGroup): Element         = span(dataAttr("signature-group") := sg.toString, sg.toString)
 
-given DropdownItem[SignatureClassified] with
+given DropdownItem[SignatureClassified]:
   def key(sc: SignatureClassified): String           = sc.name
   def group(sc: SignatureClassified): Option[String] = None
   def view(sc: SignatureClassified): Element         = span(dataAttr("signature-type") := sc.name, sc.name)
 
-given DropdownItem[ConnectionTarget] with
+given DropdownItem[ConnectionTarget]:
   def key(ct: ConnectionTarget): String = ct match
     case _: ConnectionTarget.Unknown  => "unknown"
     case w: ConnectionTarget.Wormhole => w.id.toString
@@ -589,7 +581,7 @@ given DropdownItem[ConnectionTarget] with
         )
       )
 
-given (using static: SystemStaticData): DropdownItem[WormholeSelectInfo] with
+given (static: SystemStaticData) => DropdownItem[WormholeSelectInfo]:
   def key(wsi: WormholeSelectInfo): String           = wsi.key
   def group(wsi: WormholeSelectInfo): Option[String] = Some(wsi.group)
   def view(wsi: WormholeSelectInfo): Element =
@@ -651,18 +643,16 @@ private[map] def sigIsStale(sig: MapSystemSignature, settings: MapSettings, now:
 private def addSingleSignatureView(
     solarSystem: SolarSystem,
     signatureGroups: Map[SignatureGroup, List[SignatureClassified]],
-    wormholeTypes: Map[TypeId, WormholeType],
     actions: WriteBus[MapAction],
     canEdit: Signal[Boolean]
 )(
     closeMe: Observer[Unit],
-    owner: Owner
+    @unused owner: Owner
 )(using SystemStaticData) =
   val validationError = Var(Option.empty[String])
   val addEdit = AddEditSignatureView(
     solarSystem,
     signatureGroups,
-    wormholeTypes,
     None,
     validationError,
     actions.contramap { nss =>
@@ -688,15 +678,13 @@ private def editSingleSignatureView(
     solarSystem: SolarSystem,
     sig: MapSystemSignature,
     signatureGroups: Map[SignatureGroup, List[SignatureClassified]],
-    wormholeTypes: Map[TypeId, WormholeType],
     actions: WriteBus[MapAction],
     canEdit: Signal[Boolean]
-)(closeMe: Observer[Unit], owner: Owner)(using SystemStaticData) =
+)(closeMe: Observer[Unit], @unused owner: Owner)(using SystemStaticData) =
   val validationError = Var(Option.empty[String])
   val addEdit = AddEditSignatureView(
     solarSystem,
     signatureGroups,
-    wormholeTypes,
     Some(sig),
     validationError,
     actions.contramap { nss =>
@@ -721,10 +709,9 @@ private def editSingleSignatureView(
 private[map] def pasteSignaturesView(
     mss: MapSystemSnapshot,
     solarSystem: SolarSystem,
-    signatureGroups: Map[SignatureGroup, List[SignatureClassified]],
     time: Signal[Instant],
     actions: WriteBus[MapAction]
-)(closeMe: Observer[Unit], owner: Owner)(using ctx: MapViewContext) =
+)(closeMe: Observer[Unit], @unused owner: Owner)(using ctx: MapViewContext) =
   val validationError = Var(Option.empty[String])
   val updates         = Var(Option.empty[Array[SignatureUpdate]])
   val shouldReplace   = Var(false)

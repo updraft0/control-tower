@@ -1,6 +1,6 @@
 package org.updraft0.controltower.server.endpoints
 
-import org.updraft0.controltower.constant.{CharacterId, UserId}
+import org.updraft0.controltower.constant.CharacterId
 import org.updraft0.controltower.db.model
 import org.updraft0.controltower.protocol
 import org.updraft0.controltower.protocol.{Endpoints, UserPreferences}
@@ -44,7 +44,7 @@ private inline def validateCookie(cookie: protocol.SessionCookie) =
   ZIO
     .fromEither(SessionCookie.from(cookie))
     .tapError(msg => ZIO.logWarning(s"Invalid session cookie: $msg"))
-    .mapError(_ => UserSessionError.InvalidCookie)
+    .orElseFail(UserSessionError.InvalidCookie)
 
 def getUserInfo = Endpoints.getUserInfo
   .zServerSecurityLogic(validateSessionString)
@@ -60,12 +60,12 @@ def getUserInfo = Endpoints.getUserInfo
         res <- MapPolicy
           .getMapsForCharacters(characters.map(_.id))
           .tapErrorCause(ZIO.logWarningCause("failed map policy lookup", _))
-          .mapError(_ => "Failure while trying to find map policies")
+          .orElseFail("Failure while trying to find map policies")
         prefs <- AuthQueries
           .getUserPreference(user.id)
           .tapErrorCause(ZIO.logWarningCause("failed map policy lookup", _))
-          .mapError(_ => "Failure while trying to load user preferences")
-        preferences <- loadPreferences(user.id, prefs)
+          .orElseFail("Failure while trying to load user preferences")
+        preferences <- loadPreferences(prefs)
       yield toUserInfo(user, characters, withAuthTokens, res, preferences)
   )
 
@@ -94,7 +94,7 @@ def updatePreferences = Endpoints.updatePreferences
         .updateUserPreference(model.UserPreference(user.userId, prefsJson))
         .tapErrorCause(ZIO.logWarningCause("failed query", _))
         .orElseFail("Failure while trying to update user preferences")
-        .as(())
+        .unit
   )
 
 def allUserEndpoints: List[ZServerEndpoint[EndpointEnv, Any]] =
@@ -140,7 +140,7 @@ private def toProtocol(role: model.MapRole) =
     case model.MapRole.Viewer => protocol.MapRole.Viewer
     case model.MapRole.Admin  => protocol.MapRole.Admin
 
-private def loadPreferences(userId: UserId, prefsOpt: Option[model.UserPreference]): UIO[UserPreferences] =
+private def loadPreferences(prefsOpt: Option[model.UserPreference]): UIO[UserPreferences] =
   import protocol.jsoncodec.given
   prefsOpt match
     case None => ZIO.succeed(UserPreferences.Default)

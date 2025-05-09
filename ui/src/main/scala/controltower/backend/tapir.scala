@@ -8,6 +8,7 @@ import sttp.tapir.model.WebSocketFrameDecodeFailure
 import sttp.tapir.{DecodeResult, WebSocketBodyOutput}
 import sttp.ws.{WebSocket, WebSocketClosed, WebSocketFrame}
 
+import scala.annotation.unused
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.language.adhocExtensions
@@ -30,7 +31,7 @@ class WebSocketToAirstream[R <: AirstreamStreams & WebSockets](using owner: Owne
       o: WebSocketBodyOutput[Any, REQ, RESP, ?, AirstreamStreams]
   ): Any =
     (in: Observable[REQ]) =>
-      var isClosed = false
+      @unused var isClosed = false
       val sends = in
         .foreach { v => // this starts the subscription, otherwise nothing gets run
           Future
@@ -38,7 +39,7 @@ class WebSocketToAirstream[R <: AirstreamStreams & WebSockets](using owner: Owne
             .flatMap(ws.send(_, isContinuation = false))
             .onComplete(
               _.fold(
-                ex => org.scalajs.dom.console.error("failed to send ws, TODO"), // FIXME
+                _ => org.scalajs.dom.console.error("failed to send ws, TODO"), // FIXME
                 _ => ()
               )
             )
@@ -105,7 +106,7 @@ class WebSocketToAirstream[R <: AirstreamStreams & WebSockets](using owner: Owne
             )
         },
         {
-          case c: WebSocketClosed =>
+          case _: WebSocketClosed =>
             isClosed = true
             sends.kill()
             true

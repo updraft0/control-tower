@@ -30,7 +30,7 @@ final class IntelStructureView(systemId: Signal[Option[SystemId]], selected: Sig
           disabled <-- ctx.roleController.canAddIntelStructure.invert,
           onClick.compose(_.sampleCollectSome(systemId)) --> (sysId =>
             Modal.show(
-              (closeMe, owner) => addEditStructureView(sysId, None, ctx.actions, closeMe),
+              (closeMe, _) => addEditStructureView(sysId, None, ctx.actions, closeMe),
               Observer.empty[Unit],
               true,
               cls := "system-add-structure-dialog"
@@ -127,7 +127,7 @@ final class IntelStructureView(systemId: Signal[Option[SystemId]], selected: Sig
             disabled <-- ctx.roleController.canEditIntelStructure.invert,
             onClick.compose(_.sampleCollectSome(systemId)) --> (sysId =>
               Modal.show(
-                (closeMe, owner) => addEditStructureView(sysId, Some(ss), ctx.actions, closeMe),
+                (closeMe, _) => addEditStructureView(sysId, Some(ss), ctx.actions, closeMe),
                 Observer.empty[Unit],
                 true,
                 cls := "system-edit-structure-dialog"
@@ -181,22 +181,22 @@ private inline def posStructureSize(st: StructureType): Option[PlayerStructureSi
   case p: StructureType.PlayerOwned => Some(p.size)
   case _                            => None
 
-private given DropdownItem[StructureCategory] with
+private given DropdownItem[StructureCategory]:
   def key(sc: StructureCategory): String           = sc.toString
   def group(sc: StructureCategory): Option[String] = None
   def view(sc: StructureCategory): Element         = span(dataAttr("structure-category") := sc.toString, sc.toString)
 
-private given DropdownItem[UpwellStructureSize] with
+private given DropdownItem[UpwellStructureSize]:
   def key(ss: UpwellStructureSize): String           = ss.toString
   def group(ss: UpwellStructureSize): Option[String] = None
   def view(ss: UpwellStructureSize): Element         = span(dataAttr("structure-size") := ss.toString, ss.toString)
 
-private given DropdownItem[PlayerStructureSize] with
+private given DropdownItem[PlayerStructureSize]:
   def key(ss: PlayerStructureSize): String           = ss.toString
   def group(ss: PlayerStructureSize): Option[String] = None
   def view(ss: PlayerStructureSize): Element         = span(dataAttr("structure-size") := ss.toString, ss.toString)
 
-private given DropdownItem[(TypeId, String)] with
+private given DropdownItem[(TypeId, String)]:
   def key(ts: (TypeId, String)): String           = ts._1.toString
   def group(ts: (TypeId, String)): Option[String] = None
   def view(ts: (TypeId, String)): Element =

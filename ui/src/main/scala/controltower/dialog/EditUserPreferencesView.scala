@@ -7,9 +7,10 @@ import org.updraft0.controltower.protocol.*
 import org.updraft0.controltower.constant.UserId
 import dev.cheleb.scalamigen.*
 import org.scalajs.dom
-import scala.util.{Success, Failure}
 
+import scala.annotation.unused
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.util.{Success, Failure}
 
 object EditUserPreferencesView:
   // TODO: tooltips to explain what settings mean
@@ -29,7 +30,7 @@ object EditUserPreferencesView:
 
   given WidgetFactory = LaminarWidgetFactory
 
-  def apply(userId: UserId, prefs: UserPreferences, closeMe: Observer[Unit])(using
+  def apply(@unused userId: UserId, prefs: UserPreferences, closeMe: Observer[Unit])(using
       ct: ControlTowerBackend
   ): HtmlElement =
     val prefsVar = Var(prefs)

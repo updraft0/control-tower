@@ -7,8 +7,6 @@ import java.security.SecureRandom
 import javax.crypto.Cipher
 import javax.crypto.spec.{GCMParameterSpec, SecretKeySpec}
 
-private[auth] class TokenKey(key: Array[Byte])
-
 def secureRandom: ZLayer[Any, Throwable, SecureRandom] = ZLayer(ZIO.attempt(new SecureRandom()))
 def secureRandomBytes(length: Int): ZIO[SecureRandom, Nothing, Array[Byte]] =
   ZIO.serviceWith[SecureRandom]: sr =>

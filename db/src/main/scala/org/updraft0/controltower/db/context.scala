@@ -9,10 +9,10 @@ import scala.util.Try
 trait StringJsonExtensions extends Encoders with Decoders:
   this: JdbcContextTypes[?, ?] =>
 
-  inline given [T](using JsonValueCodec[T]): MappedEncoding[JsonValue[T], String] =
+  inline given [T: JsonValueCodec] => MappedEncoding[JsonValue[T], String] =
     MappedEncoding(v => writeToString(v.value))
 
-  inline given [T](using JsonValueCodec[T]): MappedEncoding[String, JsonValue[T]] =
+  inline given [T: JsonValueCodec] => MappedEncoding[String, JsonValue[T]] =
     MappedEncoding(s =>
       Try(readFromString[T](s)).toEither match {
         case Left(message) => throw new IllegalArgumentException(s"Could not decode JSON from db: $message")

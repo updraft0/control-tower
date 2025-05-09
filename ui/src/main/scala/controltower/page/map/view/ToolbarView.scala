@@ -37,7 +37,7 @@ class ToolbarView(
         disabled <-- mapRole.map(!RoleController.canAddSystem(_)).combineWith(isConnected).map(_ || !_),
         onClick.stopPropagation --> (_ =>
           Modal.show(
-            (closeMe, owner) => systemAddView(actions, closeMe, rds, positionController)(using owner),
+            (closeMe, _) => systemAddView(actions, closeMe, rds, positionController),
             Observer.empty[Unit],
             clickCloses = true,
             cls := "system-add-dialog"
@@ -121,7 +121,7 @@ private def systemAddView(
     closeMe: Observer[Unit],
     rds: ReferenceDataStore,
     pc: PositionController
-)(using Owner) =
+) =
   val systemVar = Var("")
   val nameVar   = Var("")
   val pinnedVar = Var(false)
@@ -167,10 +167,10 @@ private def systemAddView(
             onInput.mapToValue
               .filter(s => s.length < Constant.MaxSolarSystemNameLength && !s.contains(' ')) --> { s =>
               rds.searchSystemName(s).onComplete {
-                case Success(List(system)) => error.set(None)
-                case Success(Nil)          => error.set(Some(ErrorText.SystemNotFound))
-                case Success(_)            => error.set(Some(ErrorText.MultipleSystemsFound))
-                case Failure(_)            => error.set(Some(ErrorText.Backend))
+                case Success(List(_)) => error.set(None)
+                case Success(Nil)     => error.set(Some(ErrorText.SystemNotFound))
+                case Success(_)       => error.set(Some(ErrorText.MultipleSystemsFound))
+                case Failure(_)       => error.set(Some(ErrorText.Backend))
               }
               systemVar.set(s)
             }

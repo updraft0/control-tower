@@ -68,7 +68,7 @@ class OptionDropdown[E](
                 nameAttr       := parentId,
                 value          := D.key(e),
                 defaultChecked := current.now() == e,
-                onChange.mapToUnit --> (() => Var.set(current -> e, expanded -> false))
+                onChange.mapToUnit --> Observer(_ => Var.set(current -> e, expanded -> false))
               ),
               label(forId := id, D.view(e)),
               onClick --> { ev =>

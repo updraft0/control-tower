@@ -17,7 +17,7 @@ object DataCacheSpec extends ZIOSpecDefault:
           record.compute(
             r.c,
             (_, prev) =>
-              prev.map(i => if (exclude.contains(r.c)) i else i + 1).orElse(Option.when(!exclude.contains(r.c))(1))
+              prev.map(i => if exclude.contains(r.c) then i else i + 1).orElse(Option.when(!exclude.contains(r.c))(1))
           )
         ) *> ZIO.succeed(
           CompletedRequestMap.fromIterable(

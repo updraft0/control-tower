@@ -120,6 +120,6 @@ def asLocal(i: Instant): (LocalDate, LocalTime) =
     val secondsOfDay = Math.floorMod(epochSecond, SecondsInDay).toInt
     (LocalDate.ofEpochDay(epochDay), LocalTime.ofSecondOfDay(secondsOfDay).withNano(i.getNano))
 
-  val (hi, lo)    = tenThousandPartsAndRemainder
+  val (_, lo)     = tenThousandPartsAndRemainder
   val epochSecond = lo
   dateTime(epochSecond)

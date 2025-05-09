@@ -2,7 +2,7 @@ package controltower.page.map.view
 
 import com.github.plokhotnyuk.jsoniter_scala.core.{readFromString, writeToString}
 import com.raquo.laminar.api.L.*
-import com.raquo.laminar.nodes.{ReactiveElement, ReactiveHtmlElement}
+import com.raquo.laminar.nodes.ReactiveElement
 import controltower.Page
 import controltower.backend.ControlTowerBackend
 import controltower.component.Modal
@@ -24,7 +24,8 @@ import scala.language.implicitConversions
 import scala.util.Try
 
 // TODO: duplication
-given equalEventTarget[El <: org.scalajs.dom.Element]: CanEqual[org.scalajs.dom.EventTarget, El] = CanEqual.derived
+given equalEventTarget: [El <: org.scalajs.dom.Element] => CanEqual[org.scalajs.dom.EventTarget, El] =
+  CanEqual.derived
 
 private final class MapView(
     viewId: Int,
@@ -68,7 +69,7 @@ private final class MapView(
     controller.requestBus.events.addObserver(ws.send)(using owner)
     ws.events.foreach(handleIncoming)(using owner)
     // get the static reference data
-    rds.referenceAll().foreach { ref =>
+    rds.referenceAll().foreach { _ =>
       // render the top element (FUGLY FIXME)
       mapTop.set(Some(renderTop(using owner)))
     }
@@ -118,10 +119,7 @@ private final class MapView(
       SystemSignatureView(
         controller.selectedSystem,
         mapCtx.actions,
-        controller.mapSettings,
-        mapCtx.mapRole,
-        time,
-        ws.isConnected
+        controller.mapSettings
       )
 
     val connectionView = ConnectionInfoView(controller.selectedConnection)
@@ -185,7 +183,7 @@ private final class MapView(
 
     val selectionView =
       SelectionView(controller.selectedSystemId.signal, controller.bulkSelectedSystemIds.writer, systemNodes)
-    val contextMenuView = ContextMenuView(controller, ws.isConnected)
+    val contextMenuView = ContextMenuView(controller)
 
     div(
       idAttr := "map-view-inner",
@@ -199,7 +197,7 @@ private final class MapView(
         _.map(ev => (ev, ())),
         (_, onClose) =>
           Modal.show(
-            (closeMe, owner) => systemAddView(controller.actionsBus, closeMe, rds, controller.pos)(using owner),
+            (closeMe, _) => systemAddView(controller.actionsBus, closeMe, rds, controller.pos),
             onClose,
             true,
             cls := "system-add-dialog"
@@ -237,7 +235,7 @@ private final class MapView(
         "Delete",
         controller.roleController.canRemoveSystem,
         _.filterWith(controller.bulkSelectedSystemIds, _.nonEmpty).withCurrentValueOf(controller.bulkSelectedSystemIds),
-        (systemIds, onClose) => removeMultipleSystems(systemIds, controller.actionsBus, onClose)(using rds)
+        (systemIds, onClose) => removeMultipleSystems(systemIds, controller.actionsBus, onClose)
       ),
       // P -> paste system signatures
       modalKeyBinding(
@@ -252,9 +250,6 @@ private final class MapView(
             pasteSignaturesView(
               system,
               solarSystem,
-              solarSystem.systemClass
-                .flatMap(whc => static.signatureByClassAndGroup.get(whc))
-                .getOrElse(Map.empty),
               time,
               controller.actionsBus
             ),
@@ -288,7 +283,7 @@ private final class MapView(
           .map((ev, opt) => (ev, opt.get)),
         (system, onClose) =>
           Modal.show(
-            (closeMe, owner) =>
+            (closeMe, _) =>
               systemRenameView(
                 system.system.systemId,
                 system.system.name.getOrElse(""),
@@ -304,7 +299,7 @@ private final class MapView(
       controller.mapUiEvents.events --> Observer[MapUiEvent] {
         case MapUiEvent.AddSystemDialog =>
           Modal.show(
-            (closeMe, owner) => systemAddView(controller.actionsBus, closeMe, rds, controller.pos)(using owner),
+            (closeMe, _) => systemAddView(controller.actionsBus, closeMe, rds, controller.pos),
             Observer.empty,
             true,
             cls := "system-add-dialog"
@@ -314,7 +309,7 @@ private final class MapView(
         case MapUiEvent.RemoveSystemSelectionDialog(SystemSelectionState.Single(system)) =>
           removeSystemConfirm(system, controller.actionsBus, Observer.empty)(using rds)
         case MapUiEvent.RemoveSystemSelectionDialog(SystemSelectionState.Multiple(sIds)) =>
-          removeMultipleSystems(sIds, controller.actionsBus, Observer.empty)(using rds)
+          removeMultipleSystems(sIds, controller.actionsBus, Observer.empty)
         case MapUiEvent.RemoveSystemSelectionDialog(_) => () // no-op
         case _: MapUiEvent.ContextMenu                 => () // no-op
       },

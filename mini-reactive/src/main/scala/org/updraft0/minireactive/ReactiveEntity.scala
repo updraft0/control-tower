@@ -72,7 +72,7 @@ object MiniReactive:
   ): ZLayer[R, Nothing, MiniReactive[K, I, O]] =
     ZLayer.scoped(apply(entity, config))
 
-  def apply[R, K: Tag, S, I: Tag, O: Tag](
+  def apply[R, K: Tag, S, I, O](
       entity: ReactiveEntity[R, K, S, I, O],
       config: MiniReactiveConfig
   ): URIO[Scope & R, MiniReactive[K, I, O]] =

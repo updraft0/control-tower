@@ -39,9 +39,9 @@ case class WormholeType(
     targetClass: WormholeClass
 ):
   def massSize: WormholeMassSize =
-    if (maxJumpMass >= 1_000_000_000) WormholeMassSize.XL
-    else if (maxJumpMass >= 375_000_000) WormholeMassSize.L
-    else if (maxJumpMass >= 62_000_000) WormholeMassSize.M
+    if maxJumpMass >= 1_000_000_000 then WormholeMassSize.XL
+    else if maxJumpMass >= 375_000_000 then WormholeMassSize.L
+    else if maxJumpMass >= 62_000_000 then WormholeMassSize.M
     else WormholeMassSize.S
 
   def stablePoints: Double = (maxStableMass / 10_000_000).toDouble / 10.0d

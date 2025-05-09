@@ -116,8 +116,8 @@ object MapSession:
           .flatMap(ev => decodeMessage(ev) <*> mapRole.get)
           .flatMap:
             case (Right(msg), mapRole) if isAllowed(msg, mapRole) => processMessage(ctx, msg).unit
-            case (Right(msg), mapRole) => ourQ.offer(protocol.MapMessage.Error("Permission denied"))
-            case (Left(error), _)      => ourQ.offer(protocol.MapMessage.Error(error))
+            case (Right(_), _)    => ourQ.offer(protocol.MapMessage.Error("Permission denied"))
+            case (Left(error), _) => ourQ.offer(protocol.MapMessage.Error(error))
           .forever
           .forkScoped
         send <- resQ.take
@@ -156,7 +156,7 @@ object MapSession:
     msg match
       case MapSessionMessage.RoleChanged(charId, Some(newRole)) =>
         mapRole.set(newRole).when(charId == characterId)
-      case MapSessionMessage.RoleChanged(charId, None) =>
+      case MapSessionMessage.RoleChanged(_, None) =>
         // this should close the map
         ZIO.logInfo(s"character no longer has any roles") *> close
       case _ => ZIO.unit // no-op

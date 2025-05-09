@@ -9,6 +9,7 @@ import controltower.ui.*
 import org.updraft0.controltower.constant.*
 import org.updraft0.controltower.protocol.*
 
+import scala.annotation.unused
 import scala.collection.MapView
 import scala.collection.mutable
 
@@ -147,7 +148,7 @@ class SystemView(
               ) -->
               ((_, mss) =>
                 Modal.show(
-                  (closeMe, owner) => systemRenameView(systemId, mss.system.name.getOrElse(""), ctx.actions, closeMe),
+                  (closeMe, _) => systemRenameView(systemId, mss.system.name.getOrElse(""), ctx.actions, closeMe),
                   Observer.empty[Unit],
                   true,
                   cls := "system-rename-dialog"
@@ -244,7 +245,7 @@ private inline def systemOnlineChars(
           th(
             cls := "ship-points",
             child.text <-- chars
-              .map(_.foldLeft(0L)((s, cl) => shipTypes(cl.shipTypeId).mass))
+              .map(_.foldLeft(0L)((_, cl) => shipTypes(cl.shipTypeId).mass))
               .map(pointsFromMass)
               .map(p => s"∑ $p")
           ),
@@ -335,7 +336,7 @@ private inline def systemScanStatus(
     dataAttr("scan-status") <-- scanStatus.map(_.toString)
   )
 
-private inline def systemIntelGroupIndicator(s: Signal[MapSystemSnapshot]) =
+private inline def systemIntelGroupIndicator(@unused s: Signal[MapSystemSnapshot]) =
   // TODO - add support for intel groups
   mark(cls := "ti", cls := "system-group-indicator", dataAttr("intel-group") := IntelGroup.Unknown.toString)
 

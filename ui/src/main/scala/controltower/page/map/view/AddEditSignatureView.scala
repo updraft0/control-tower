@@ -36,7 +36,6 @@ private object SignatureId:
 class AddEditSignatureView(
     solarSystem: SolarSystem,
     signatureGroups: Map[SignatureGroup, List[SignatureClassified]],
-    wormholeTypes: Map[TypeId, WormholeType],
     existing: Option[MapSystemSignature],
     validationError: Var[Option[String]],
     onAdd: Observer[NewSystemSignature],

@@ -17,6 +17,8 @@ import zio.test.*
 import zio.test.Assertion.*
 import zio.logging.{ConsoleLoggerConfig, LogFilter, LogFormat, consoleLogger}
 
+import scala.annotation.nowarn
+
 import java.time.Instant
 import java.util.UUID
 
@@ -562,6 +564,7 @@ object MapReactiveSpec extends ZIOSpecDefault:
   //        - [x] adding a signature with a connection sends appropriate updates
   //        - [ ] rank of system signatures (e.g. when you have a ring)
 
+  @nowarn("msg=unused private member")
   private def modelSignature(
       mapId: MapId,
       systemId: SystemId,

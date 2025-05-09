@@ -47,21 +47,21 @@ object Json:
           Json.Num(in.readBigDecimal(null))
         case '[' =>
           val arr = new mutable.ArrayBuffer[Json]
-          if (!in.isNextToken(']'))
+          if !in.isNextToken(']') then
             in.rollbackToken()
             arr += decodeValue(in, default)
             while in.isNextToken(',')
             do arr += decodeValue(in, default)
-            if (!in.isCurrentToken(']')) in.arrayEndOrCommaError()
+            if !in.isCurrentToken(']') then in.arrayEndOrCommaError()
           new Json.Arr(arr.toVector)
         case '{' =>
           val obj = new java.util.LinkedHashMap[String, Json]
-          if (!in.isNextToken('}'))
+          if !in.isNextToken('}') then
             in.rollbackToken()
             obj.put(in.readKeyAsString(), decodeValue(in, default))
             while in.isNextToken(',')
             do obj.put(in.readKeyAsString(), decodeValue(in, default))
-            if (!in.isCurrentToken('}')) in.objectEndOrCommaError()
+            if !in.isCurrentToken('}') then in.objectEndOrCommaError()
           new Json.Obj(obj.asScala.toMap)
         case _ => in.decodeError("expected JSON value")
 
@@ -69,14 +69,14 @@ object Json:
       x match
         case Json.Obj(m) =>
           out.writeObjectStart()
-          for ((k, v) <- m) {
+          for (k, v) <- m do {
             out.writeKey(k)
             encodeValue(v, out)
           }
           out.writeObjectEnd()
         case Json.Arr(xs) =>
           out.writeArrayStart()
-          for (x <- xs) encodeValue(x, out)
+          for x <- xs do encodeValue(x, out)
           out.writeArrayEnd()
         case Json.Null =>
           out.writeNull()

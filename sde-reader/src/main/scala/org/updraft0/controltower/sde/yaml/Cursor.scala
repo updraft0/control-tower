@@ -79,8 +79,10 @@ private[yaml] case class ObjectCursor[K <: KeyType](v: YamlObject[K], path: Vect
         case null => ZIO.succeed(Map.empty[K2, T])
         case map: ju.LinkedHashMap[_, _] =>
           ZIO
-            .foreach(asScala(map.asInstanceOf[YamlObject[K2]])) { case ((k, v: ju.LinkedHashMap[_, _])) =>
-              f(k, ObjectCursor(v.asInstanceOf[YamlObject[K3]], Vector.empty)).map(fv => k -> fv)
+            .foreach(asScala(map.asInstanceOf[YamlObject[K2]])) {
+              case ((k, v: ju.LinkedHashMap[_, _])) =>
+                f(k, ObjectCursor(v.asInstanceOf[YamlObject[K3]], Vector.empty)).map(fv => k -> fv)
+              case _ => ??? // unreachable
             }
             .mapError(Error.Cursor(path, _))
         case other => ZIO.fail(Error.Cursor(path, Error.InvalidType("Object", other.getClass.getName)))
@@ -139,16 +141,16 @@ given FromYaml[Double] =
   case null         => ZIO.fail(Error.MissingValue("Double"))
   case other        => ZIO.fail(Error.InvalidType("Double", other.getClass.getName))
 
-given [T](using from: FromYaml[T]): FromYaml[Vector[T]] =
-  case al: ju.ArrayList[_] => ZIO.collectAll(al.asScala.map(from.from)).map(_.toVector)
+given [T: {FromYaml as from}] => FromYaml[Vector[T]] =
+  case al: ju.ArrayList[_] => ZIO.foreach(al.asScala)(from.from).map(_.toVector)
   case null                => ZIO.fail(Error.MissingValue("Array"))
   case other               => ZIO.fail(Error.InvalidType("Array", other.getClass.getName))
 
-given [T](using from: FromYaml[T]): FromYaml[Option[T]] =
-  case null  => ZIO.succeed(None)
+given [T: {FromYaml as from}] => FromYaml[Option[T]] =
+  case null  => ZIO.none
   case other => from.from(other).map(Some.apply)
 
-given [K, V](using fk: FromYaml[K], fv: FromYaml[V]): FromYaml[Map[K, V]] =
+given [K: {FromYaml as fk}, V: {FromYaml as fv}] => FromYaml[Map[K, V]] =
   case m: ju.LinkedHashMap[_, _] =>
     ZIO
       .foreach(asScala(m))((k, v) => fk.from(k).flatMap(key => fv.from(v).map(value => key -> value)))

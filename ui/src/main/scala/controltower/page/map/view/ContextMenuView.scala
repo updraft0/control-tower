@@ -16,10 +16,7 @@ enum ContextMenuState derives CanEqual:
   * The menu visually should appear only on the map canvas but needs to be able to be overlaid on top of it, so it's
   * position is relative to the outer container while the events received only happen on the (inner) canvas.
   */
-final class ContextMenuView(
-    controller: MapController,
-    isConnected: Signal[Boolean]
-):
+final class ContextMenuView(controller: MapController):
 
   private val state    = Var[ContextMenuState](ContextMenuState.Closed)
   private val isClosed = state.signal.map(_ == ContextMenuState.Closed)
@@ -49,6 +46,7 @@ final class ContextMenuView(
       button(
         tpe := "button",
         i(cls := "ti", cls := icon, iconMod),
+        cls("destructive") := isDestructive,
         label,
         onItemClick(onClick.mapToUnit),
         onClick.mapTo(ContextMenuState.Closed) --> state
@@ -95,7 +93,7 @@ final class ContextMenuView(
         case ContextMenuState.Closed => "none"
         case _                       => ""
       ,
-      inContext(self =>
+      inContext(_ =>
         styleAttr <-- state.signal
           .map:
             case ContextMenuState.Open(req) =>
@@ -252,7 +250,7 @@ final class ContextMenuView(
               iconMod = dataAttr("stance") := "hostile"
             )
           ).view
-        case ContextMenuState.Open(c: ContextMenuRequest.Generic) =>
+        case ContextMenuState.Open(_: ContextMenuRequest.Generic) =>
           ContextMenu(
             "map-action",
             menuItem(

@@ -4,7 +4,6 @@ import org.snakeyaml.engine.v2.api.{Load, LoadSettings}
 import org.snakeyaml.engine.v2.resolver.ModifiedFloatSchema
 import zio.{Tag as _, *}
 
-import java.util
 import scala.jdk.CollectionConverters.*
 
 enum Error:

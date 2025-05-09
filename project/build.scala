@@ -29,15 +29,15 @@ object build {
 
   val commonSettings = Seq(
     organization := "org.updraft0",
-    version      := "0.0.1-SNAPSHOT",
-    scalaVersion := "3.5.2",
+    version      := "0.1.0-SNAPSHOT",
+    scalaVersion := "3.7.0",
     manifestSetting,
     crossVersion := CrossVersion.binary,
     scalacOptions ++= Seq(
-//      "-Wunused:all",
+      "-preview",
+      "-Wunused:all",
       "-feature",
       "-deprecation",
-      "-Wunused:imports,privates,locals,implicits",
       "-Werror",
       "-language:implicitConversions",
       "-language:strictEquality",
@@ -50,7 +50,8 @@ object build {
     ThisBuild / usePipelining := true,
     Test / scalacOptions --= Seq(
       "-language:strictEquality", // TODO fixup tests and remove this
-      "-Wunused:imports,privates,locals,implicits"
+      "-Wunused:all",
+      "-Werror" // TODO: figure out what's causing the scala version mismatch
     ),
     Test / scalacOptions ++= Seq(
       "-Wunused:privates,locals,implicits"

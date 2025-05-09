@@ -35,7 +35,8 @@ import org.scalajs.dom.MouseEvent
 
 //  val el: ReactiveHtmlElement[dom.HTMLDialogElement] = dialog
 
-given equalEventTarget[El <: dom.Element]: CanEqual[dom.EventTarget, El] = CanEqual.derived
+given [El <: dom.Element] => CanEqual[dom.EventTarget, El] =
+  CanEqual.derived
 
 object Modal:
   val Shown: Var[Boolean]                  = Var(false)

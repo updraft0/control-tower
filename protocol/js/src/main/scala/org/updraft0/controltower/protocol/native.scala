@@ -11,7 +11,7 @@ object native:
 
   // constants
   given NativeConverter[SpaceType] = NativeConverter.derived
-  given NativeConverter[WormholeClass] with
+  given NativeConverter[WormholeClass]:
     extension (wc: WormholeClass) def toNative: js.Any = wc.value.toDouble
     def fromNative(ps: ParseState): WormholeClass =
       val idx = ps.json.asInstanceOf[Matchable] match
@@ -19,7 +19,7 @@ object native:
         case s: String => s.toIntOption.getOrElse(ps.fail("Int"))
         case _         => ps.fail("Int")
       WormholeClasses.ById.getOrElse(idx, ps.fail("WormholeClass.Id"))
-  given NativeConverter[WormholeEffect] with
+  given NativeConverter[WormholeEffect]:
     extension (we: WormholeEffect) def toNative: js.Any = we.typeId.toDouble
     def fromNative(ps: ParseState): WormholeEffect =
       val idx = ps.json.asInstanceOf[Matchable] match

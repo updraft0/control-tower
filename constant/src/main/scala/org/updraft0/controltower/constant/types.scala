@@ -11,11 +11,11 @@ object TypeId:
 
   def apply(i: Int): TypeId = i
 
-  given Conversion[TypeId, Int] with
-    override def apply(s: TypeId): Int = s
+  given Conversion[TypeId, Int]:
+    def apply(s: TypeId): Int = s
 
-  given Ordering[TypeId] with
-    override def compare(x: TypeId, y: TypeId): Int = x.compare(y)
+  given Ordering[TypeId]:
+    def compare(x: TypeId, y: TypeId): Int = x.compare(y)
 
   given CanEqual[TypeId, TypeId] = CanEqual.derived
 
@@ -30,11 +30,11 @@ object CharacterId:
 
   def apply(i: Long): CharacterId = i
 
-  given Conversion[CharacterId, Long] with
-    override def apply(s: CharacterId): Long = s
+  given Conversion[CharacterId, Long]:
+    def apply(s: CharacterId): Long = s
 
-  given Ordering[CharacterId] with
-    override def compare(x: CharacterId, y: CharacterId): Int = x.compare(y)
+  given Ordering[CharacterId]:
+    def compare(x: CharacterId, y: CharacterId): Int = x.compare(y)
 
   given CanEqual[CharacterId, CharacterId] = CanEqual.derived
 
@@ -46,11 +46,11 @@ opaque type CorporationId = Long
 object CorporationId:
   def apply(i: Long): CorporationId = i
 
-  given Conversion[CorporationId, Long] with
-    override def apply(s: CorporationId): Long = s
+  given Conversion[CorporationId, Long]:
+    def apply(s: CorporationId): Long = s
 
-  given Ordering[CorporationId] with
-    override def compare(x: CorporationId, y: CorporationId): Int = x.compare(y)
+  given Ordering[CorporationId]:
+    def compare(x: CorporationId, y: CorporationId): Int = x.compare(y)
 
   given CanEqual[CorporationId, CorporationId] = CanEqual.derived
 
@@ -62,11 +62,11 @@ opaque type AllianceId = Long
 object AllianceId:
   def apply(i: Long): AllianceId = i
 
-  given Conversion[AllianceId, Long] with
-    override def apply(s: AllianceId): Long = s
+  given Conversion[AllianceId, Long]:
+    def apply(s: AllianceId): Long = s
 
-  given Ordering[AllianceId] with
-    override def compare(x: AllianceId, y: AllianceId): Int = x.compare(y)
+  given Ordering[AllianceId]:
+    def compare(x: AllianceId, y: AllianceId): Int = x.compare(y)
 
   given CanEqual[AllianceId, AllianceId] = CanEqual.derived
 
@@ -80,11 +80,11 @@ object MapId:
 
   def apply(i: Long): MapId = i
 
-  given Conversion[MapId, Long] with
-    override def apply(s: MapId): Long = s
+  given Conversion[MapId, Long]:
+    def apply(s: MapId): Long = s
 
-  given Ordering[MapId] with
-    override def compare(x: MapId, y: MapId): Int = x.compare(y)
+  given Ordering[MapId]:
+    def compare(x: MapId, y: MapId): Int = x.compare(y)
 
   given CanEqual[MapId, MapId] = CanEqual.derived
 
@@ -98,11 +98,11 @@ object ConnectionId:
 
   def apply(i: Long): ConnectionId = i
 
-  given Conversion[ConnectionId, Long] with
-    override def apply(s: ConnectionId): Long = s
+  given Conversion[ConnectionId, Long]:
+    def apply(s: ConnectionId): Long = s
 
-  given Ordering[ConnectionId] with
-    override def compare(x: ConnectionId, y: ConnectionId): Int = x.compare(y)
+  given Ordering[ConnectionId]:
+    def compare(x: ConnectionId, y: ConnectionId): Int = x.compare(y)
 
   given CanEqual[ConnectionId, ConnectionId] = CanEqual.derived
 
@@ -116,11 +116,11 @@ object IntelNoteId:
 
   def apply(i: Int): IntelNoteId = i
 
-  given Conversion[IntelNoteId, Int] with
-    override def apply(s: IntelNoteId): Int = s
+  given Conversion[IntelNoteId, Int]:
+    def apply(s: IntelNoteId): Int = s
 
-  given Ordering[IntelNoteId] with
-    override def compare(x: IntelNoteId, y: IntelNoteId): Int = x.compare(y)
+  given Ordering[IntelNoteId]:
+    def compare(x: IntelNoteId, y: IntelNoteId): Int = x.compare(y)
 
   given CanEqual[IntelNoteId, IntelNoteId] = CanEqual.derived
 
@@ -134,11 +134,11 @@ object IntelStructureId:
 
   def apply(i: Int): IntelStructureId = i
 
-  given Conversion[IntelStructureId, Int] with
-    override def apply(s: IntelStructureId): Int = s
+  given Conversion[IntelStructureId, Int]:
+    def apply(s: IntelStructureId): Int = s
 
-  given Ordering[IntelStructureId] with
-    override def compare(x: IntelStructureId, y: IntelStructureId): Int = x.compare(y)
+  given Ordering[IntelStructureId]:
+    def compare(x: IntelStructureId, y: IntelStructureId): Int = x.compare(y)
 
   given CanEqual[IntelStructureId, IntelStructureId] = CanEqual.derived
 
@@ -152,11 +152,11 @@ object IntelPingId:
 
   def apply(i: Int): IntelPingId = i
 
-  given Conversion[IntelPingId, Int] with
-    override def apply(s: IntelPingId): Int = s
+  given Conversion[IntelPingId, Int]:
+    def apply(s: IntelPingId): Int = s
 
-  given Ordering[IntelPingId] with
-    override def compare(x: IntelPingId, y: IntelPingId): Int = x.compare(y)
+  given Ordering[IntelPingId]:
+    def compare(x: IntelPingId, y: IntelPingId): Int = x.compare(y)
 
   given CanEqual[IntelPingId, IntelPingId] = CanEqual.derived
 
@@ -169,11 +169,11 @@ opaque type SigId = String
 object SigId:
   def apply(s: String): SigId = s
 
-  given Conversion[SigId, String] with
-    override def apply(s: SigId): String = s
+  given Conversion[SigId, String]:
+    def apply(s: SigId): String = s
 
-  given Ordering[SigId] with
-    override def compare(x: SigId, y: SigId): Int = x.compare(y)
+  given Ordering[SigId]:
+    def compare(x: SigId, y: SigId): Int = x.compare(y)
 
   given CanEqual[SigId, SigId] = CanEqual.derived
 
@@ -186,11 +186,11 @@ opaque type SystemId = Long
 object SystemId:
   def apply(v: Long): SystemId = v
 
-  given Conversion[SystemId, Long] with
-    override def apply(v: SystemId): Long = v
+  given Conversion[SystemId, Long]:
+    def apply(v: SystemId): Long = v
 
-  given Ordering[SystemId] with
-    override def compare(x: SystemId, y: SystemId): Int = x.compare(y)
+  given Ordering[SystemId]:
+    def compare(x: SystemId, y: SystemId): Int = x.compare(y)
 
   given CanEqual[SystemId, SystemId] = CanEqual.derived
 
@@ -205,11 +205,11 @@ object UserId:
 
   def apply(v: Long): UserId = v
 
-  given Conversion[UserId, Long] with
-    override def apply(v: UserId): Long = v
+  given Conversion[UserId, Long]:
+    def apply(v: UserId): Long = v
 
-  given Ordering[UserId] with
-    override def compare(x: UserId, y: UserId): Int = x.compare(y)
+  given Ordering[UserId]:
+    def compare(x: UserId, y: UserId): Int = x.compare(y)
 
   given CanEqual[UserId, UserId] = CanEqual.derived
 

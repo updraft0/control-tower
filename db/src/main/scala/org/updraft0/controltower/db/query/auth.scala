@@ -3,7 +3,7 @@ package org.updraft0.controltower.db.query
 import io.getquill.*
 import org.updraft0.controltower.constant.*
 import org.updraft0.controltower.db.model.*
-import zio.{Chunk, ZIO}
+import zio.Chunk
 
 import java.util.UUID
 
@@ -119,7 +119,7 @@ object auth:
           (t, e) => t.refreshToken -> e.refreshToken,
           (t, e) => t.token -> e.token,
           (t, e) => t.expiresAt -> e.expiresAt,
-          (t, e) => t.updatedAt -> Some(unixepoch)
+          (t, _) => t.updatedAt -> Some(unixepoch)
         )
     )
 

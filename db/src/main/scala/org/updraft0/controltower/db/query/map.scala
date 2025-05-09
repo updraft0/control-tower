@@ -3,11 +3,14 @@ package org.updraft0.controltower.db.query
 import io.getquill.*
 import org.updraft0.controltower.constant.*
 import org.updraft0.controltower.db.model.*
-import zio.{ZIO, Chunk}
+import zio.Chunk
 
+import scala.annotation.nowarn
 import scala.collection.immutable.BitSet
+
 import java.time.Instant
 
+@nowarn("msg=unused import")
 object map:
   import auth.given
   import schema.*
@@ -437,7 +440,7 @@ object map:
             (t, e) => t.memberCount -> e.memberCount,
             (t, e) => t.ticker -> e.ticker,
             (t, e) => t.url -> e.url,
-            (t, e) => t.updatedAt -> unixepoch
+            (t, _) => t.updatedAt -> unixepoch
           )
       )
     )
@@ -450,7 +453,7 @@ object map:
           .onConflictUpdate(_.id)(
             (t, e) => t.ticker -> e.ticker,
             (t, e) => t.executorCorporationId -> e.executorCorporationId,
-            (t, e) => t.updatedAt -> unixepoch
+            (t, _) => t.updatedAt -> unixepoch
           )
       )
     )
@@ -465,7 +468,7 @@ object map:
             (t, e) => t.factionId -> e.factionId,
             (t, e) => t.securityStatus -> e.securityStatus,
             (t, e) => t.title -> e.title,
-            (t, e) => t.updatedAt -> unixepoch
+            (t, _) => t.updatedAt -> unixepoch
           )
       )
     )
@@ -640,9 +643,16 @@ object map:
       .map(_.sum)
 
   def hardDeleteMapWormholeConnections(mapId: MapId, connectionIds: Chunk[ConnectionId]): DbOperation[Long] =
-    ctx.run(quote(liftQuery(connectionIds).foreach(cId => mapWormholeConnection.filter(_.id == cId).delete))).map(_.sum)
+    ctx
+      .run(
+        quote(
+          liftQuery(connectionIds)
+            .foreach(cId => mapWormholeConnection.filter(_.mapId == lift(mapId)).filter(_.id == cId).delete)
+        )
+      )
+      .map(_.sum)
 
-  def hardDeleteMapWormholeConnectionJumps(mapId: MapId, connectionIds: Chunk[ConnectionId]): DbOperation[Long] =
+  def hardDeleteMapWormholeConnectionJumps(connectionIds: Chunk[ConnectionId]): DbOperation[Long] =
     ctx
       .run(
         quote(liftQuery(connectionIds).foreach(cId => mapWormholeConnectionJump.filter(_.connectionId == cId).delete))

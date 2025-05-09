@@ -1,7 +1,6 @@
 package controltower.page
 
 import com.raquo.laminar.api.L.*
-import com.raquo.laminar.nodes.ReactiveHtmlElement
 import controltower.backend.ControlTowerBackend
 import org.updraft0.controltower.protocol.*
 import controltower.component.Modal

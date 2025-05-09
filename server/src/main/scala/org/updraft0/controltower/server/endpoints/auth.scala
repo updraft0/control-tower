@@ -11,12 +11,9 @@ import sttp.model.headers.{Cookie, CookieValueWithMeta}
 import sttp.tapir.ztapir.*
 import zio.{Config as _, *}
 
-import java.util.UUID
-
 def loginRedirect = Endpoints.loginRedirect.zServerLogic[Config & SessionCrypto]: cookieOpt =>
   for
     conf                <- ZIO.service[Config]
-    now                 <- ZIO.clockWith(_.instant)
     sessionCookieOpt    <- cookieOpt.map(SessionCrypto.validate).getOrElse(ZIO.none)
     newSessionCookieOpt <- ZIO.when(sessionCookieOpt.isEmpty)(SessionCrypto.newSessionCookie).orDie
     callbackCode        <- SessionCrypto.callbackCode(sessionCookieOpt.orElse(newSessionCookieOpt).get)

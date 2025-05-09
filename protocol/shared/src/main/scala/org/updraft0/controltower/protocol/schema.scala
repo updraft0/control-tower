@@ -7,17 +7,18 @@ import sttp.tapir.*
 import sttp.tapir.SchemaType.SInteger
 import sttp.tapir.generic.Configuration
 
-import scala.util.NotGiven
+//import scala.util.NotGiven // FIXME?
 
 object schema:
   given Configuration = Configuration.default.withSnakeCaseMemberNames
 
-  given longMapSchema[V: Schema]: Schema[Map[Long, V]]               = Schema.schemaForMap[Long, V](_.toString)
-  given characterMapSchema[V: Schema]: Schema[Map[CharacterId, V]]   = Schema.schemaForMap[CharacterId, V](_.toString)
-  given connectionMapSchema[V: Schema]: Schema[Map[ConnectionId, V]] = Schema.schemaForMap[ConnectionId, V](_.toString)
-  given systemMapSchema[V: Schema]: Schema[Map[SystemId, V]]         = Schema.schemaForMap[SystemId, V](_.toString)
+  given longMapSchema: [V: Schema] => Schema[Map[Long, V]]             = Schema.schemaForMap[Long, V](_.toString)
+  given characterMapSchema: [V: Schema] => Schema[Map[CharacterId, V]] = Schema.schemaForMap[CharacterId, V](_.toString)
+  given connectionMapSchema: [V: Schema] => Schema[Map[ConnectionId, V]] =
+    Schema.schemaForMap[ConnectionId, V](_.toString)
+  given systemIdMapSchema: [V: Schema] => Schema[Map[SystemId, V]] = Schema.schemaForMap[SystemId, V](_.toString)
 
-  given unknownOrUnsetSchema[A: Schema]: Schema[UnknownOrUnset[A]] = Schema.derived
+  given [A: Schema] => Schema[UnknownOrUnset[A]] = Schema.derived
 
   // opaque
   given Schema[CharacterId]      = Schema(SInteger()).format("int64")
@@ -195,9 +196,8 @@ object jsoncodec extends OpaqueCodecs:
     CodecMakerConfig.withFieldNameMapper(JsonCodecMaker.enforce_snake_case).withDiscriminatorFieldName(None)
 
   // aux
-  given [A <: AnyRef: JsonValueCodec: scala.reflect.ClassTag](using
-      NotGiven[JsonValueCodec[Array[A]]]
-  ): JsonValueCodec[Array[A]] = JsonCodecMaker.make
+  given [A <: AnyRef: {JsonValueCodec, scala.reflect.ClassTag}] => JsonValueCodec[Array[A]] =
+    JsonCodecMaker.make
 
   // oops this seems to work for *any* long array?
   given connectionIdArray: JsonValueCodec[Array[ConnectionId]] =

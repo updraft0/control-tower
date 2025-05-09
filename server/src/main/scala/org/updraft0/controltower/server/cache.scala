@@ -42,11 +42,9 @@ object DataCache:
   /** Make a three-tier data source that uses a cache to store things in memory, has a backing datasource and a slower
     * non-batched populate function
     */
-  def dataSource[R, E, K <: Request[E, Option[V]], V](
-      source: DataSource[R, K],
-      populate: K => ZIO[R, E, Option[V]],
-      parallel: Int = 16
-  )(using CanEqual[K, K]): UIO[DataSource.Batched[R, K]] =
+  def dataSource[R, E, K <: Request[E, Option[V]], V](source: DataSource[R, K], populate: K => ZIO[R, E, Option[V]])(
+      using CanEqual[K, K]
+  ): UIO[DataSource.Batched[R, K]] =
     DataCache[K, V]().map: cache =>
       val populateSome: K => URIO[R, Unit] = (k: K) => populate(k).flatMap(v => cache.putSome(k, v)).ignoreLogged
       new DataSource.Batched[R, K]:

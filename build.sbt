@@ -3,7 +3,7 @@ import build._
 import org.scalajs.linker.interface.ModuleSplitStyle
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
-//Global / conflictManager := ConflictManager.strict
+// Global / conflictManager := ConflictManager.strict
 
 Global / excludeDependencies ++= Seq(
   // banish zio-json at least until the magnolia usage doesn't clash with tapir
@@ -116,7 +116,7 @@ lazy val server = project
         "CT_DB_PATH" -> "/app/db"
       ),
       dockerExposedVolumes := Seq("/app/db"),
-      dockerBaseImage      := "ghcr.io/graalvm/graalvm-community:22",
+      dockerBaseImage      := "ghcr.io/graalvm/graalvm-community:23",
       dockerExposedPorts   := Seq(8092),
       dockerRepository     := Some("ghcr.io"),
       dockerUsername       := Some("updraft0"),
@@ -134,7 +134,14 @@ lazy val `test-deps` =
   crossProject(JSPlatform, JVMPlatform)
     .crossType(CrossType.Full)
     .in(file("test-deps"))
-    .settings(commonSettings, Seq(libraryDependencies ++= jsoniter))
+    .settings(commonSettings)
+    .jvmSettings(
+      libraryDependencies ++= jsoniter,
+    )
+    .jsSettings(
+      libraryDependencies ++= jsoniter,
+      scalacOptions --= Seq("-Werror") // see https://github.com/scala/scala3/issues/22890
+    )
 
 lazy val ui = project
   .in(file("ui"))

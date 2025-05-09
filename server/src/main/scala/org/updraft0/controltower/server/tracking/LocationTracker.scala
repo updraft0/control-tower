@@ -3,8 +3,10 @@ package org.updraft0.controltower.server.tracking
 import org.updraft0.controltower.constant.*
 import org.updraft0.controltower.server.auth.CharacterAuth
 import org.updraft0.controltower.server.Log
-import org.updraft0.esi.client.{EsiClient, EsiError, ServerStatusResponse}
+import org.updraft0.esi.client.{EsiClient, EsiError}
 import zio.*
+
+import scala.annotation.unused
 
 import java.time.Instant
 
@@ -103,9 +105,9 @@ object LocationTracker:
   /** Handles inbound requests - this is mostly pure state management
     */
   private def handleInbound(
-      c: Config,
+      @unused c: Config,
       state: Ref[TrackerState],
-      out: Enqueue[LocationUpdate],
+      @unused out: Enqueue[LocationUpdate],
       msg: LocationTrackingRequest
   ) =
     for
@@ -157,8 +159,6 @@ object LocationTracker:
       parallel: Int
   ) =
     for
-      status <- ZIO.serviceWithZIO[ServerStatusTracker](_.status)
-
       curr <- state.get
       now  <- ZIO.clockWith(_.instant)
       withAuth = curr.charState.view.filter(_._2.auth.isDefined).values
@@ -191,7 +191,7 @@ object LocationTracker:
         ZIO
           .logWarning("Not refreshing character due to expiring/expired auth token")
           .as(st.copy(auth = None, state = CharacterLocationState.NoAuth, updatedAt = now))
-      case CharacterState(charId, prevState, Some(auth), prevAt, _) =>
+      case CharacterState(charId, prevState, Some(auth), _, _) =>
         // refresh with previous state
         doRefresh(esi, now, charId, prevState, auth)
           .foldZIO(
@@ -255,7 +255,7 @@ object LocationTracker:
         CharacterState(charId, newState, Some(auth), now, Some(prevState))
 
   private def traceLogNext(state: TrackerState) =
-    def byStateName(_c: CharacterId, state: CharacterState) =
+    def byStateName(@unused c: CharacterId, state: CharacterState) =
       state.state.productPrefix
     def stateGroups() =
       state.charState

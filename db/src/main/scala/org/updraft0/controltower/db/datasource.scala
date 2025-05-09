@@ -28,7 +28,7 @@ private[db] class MultiDbDatasource(cfg: Config, orig: DataSource, inSdeLoad: Bo
   private val logger = LoggerFactory.getLogger(getClass)
 
   private inline def executeLogged(s: java.sql.Statement, q: String) =
-    if (logger.isTraceEnabled) logger.trace(s"exec: ${q}")
+    if logger.isTraceEnabled then logger.trace(s"exec: ${q}")
     s.execute(q)
 
   override def getConnection: Connection =
@@ -39,7 +39,7 @@ private[db] class MultiDbDatasource(cfg: Config, orig: DataSource, inSdeLoad: Bo
       case (name, (path, _)) => executeLogged(s, s"ATTACH DATABASE '$path' AS $name;")
 
     // FIXME reenable foreign keys
-    if (false && !inSdeLoad)
+    if false && !inSdeLoad then
       executeLogged(s, "PRAGMA foreign_keys = ON;") // FIXME figure out why SDE load is violating FK
     s.close()
     c

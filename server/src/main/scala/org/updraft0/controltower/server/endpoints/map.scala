@@ -142,7 +142,7 @@ def mapWebSocket: zio.http.Routes[EndpointEnv, zio.http.Response] =
                 .getUserPreference(user.userId)
                 .logError("failed to lookup user preferences, using defaults")
                 .orElseSucceed(None)
-              prefs <- loadPreferences(user.userId, dbPrefs)
+              prefs <- loadPreferences(dbPrefs)
               resp  <- MapSession(mapId, characterOpt.get, user.userId, mapRole, sessionMsgs, prefs).toResponse
             yield resp
         else ZIO.fail(Response.notFound("Not a map websocket endpoint"))
@@ -291,4 +291,4 @@ def toProtocolRole(m: model.MapRole): MapRole = m match
 def toUserError(t: Throwable) = t match
   case ValidationError(msg)      => msg
   case NoRolesToDeleteMap(mapId) => s"Insufficient roles to delete map with id ${mapId}"
-  case ex                        => "Unknown error occurred"
+  case _                         => "Unknown error occurred"
