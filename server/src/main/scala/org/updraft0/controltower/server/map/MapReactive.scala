@@ -1110,16 +1110,18 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
       rSigCount <- query.map
         .hardDeleteMapWormholeSignatures(mapId, Chunk.fromIterable(hardDeleteSignatures))
         .when(hardDeleteSignatures.nonEmpty)
-        .someOrElse(0)
+        .someOrElse(0L)
       rCJumpCount <- query.map
         .hardDeleteMapWormholeConnectionJumps(Chunk.fromIterable(hardDeleteConnectionIds))
         .when(hardDeleteConnectionIds.nonEmpty)
-        .someOrElse(0)
+        .someOrElse(0L)
       rConnCount <- query.map
         .hardDeleteMapWormholeConnections(mapId, Chunk.fromIterable(hardDeleteConnectionIds))
         .when(hardDeleteConnectionIds.nonEmpty)
-        .someOrElse(0)
-      _ <- ZIO.logTrace(s"Hard deleted $rSigCount sigs, $rCJumpCount jumps and $rConnCount connections")
+        .someOrElse(0L)
+      _ <- ZIO.when(rSigCount + rCJumpCount + rConnCount > 0L)(
+        ZIO.logTrace(s"Hard deleted $rSigCount sigs, $rCJumpCount jumps and $rConnCount connections")
+      )
       // get expired connections
       expiredConnections <- MapQueries.getWormholeConnectionsWithSigsExpiredOrEol(
         mapId,

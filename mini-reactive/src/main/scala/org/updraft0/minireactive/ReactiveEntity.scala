@@ -7,8 +7,6 @@ import zio.metrics.*
 import java.util.concurrent.TimeoutException
 
 // TODO:
-//  - [ ] Monitoring
-//  - [ ] Timeouts for mailbox processing
 //  - [ ] Comprehensive tests
 
 /** A "reactive entity" is like a "persistent actor" - it has a typed {in,out}box, a hydrate/onStart state recovery
@@ -52,7 +50,9 @@ trait MiniReactive[K, I, O]:
 
   def subscribe(key: K): URIO[Scope, Dequeue[O]]
 
-  def destroy(key: K): UIO[Boolean]
+  def destroy(key: K): UIO[Unit]
+
+  private[minireactive] def restart(key: K): UIO[Unit]
 
 object MiniReactive:
   private case class State[K, S, I, O](
@@ -76,45 +76,39 @@ object MiniReactive:
       entity: ReactiveEntity[R, K, S, I, O],
       config: MiniReactiveConfig
   ): URIO[Scope & R, MiniReactive[K, I, O]] =
-    for
+    (for
       scope <- ZIO.environment[Scope]
       env   <- ZIO.environment[R]
-      s     <- Semaphore.make(1)
-      refs  <- Ref.make(Map.empty[K, State[K, S, I, O]])
-      sup   <- Supervisor.track(true) // TODO - is this necessary?
-    yield new MiniReactive[K, I, O]:
+      refs  <- Ref.Synchronized.make(Map.empty[K, State[K, S, I, O]])
+      // there's a queue to restart
+      restartQ <- Queue.unbounded[K]
+    yield (restartQ -> new MiniReactive[K, I, O]:
 
       override def enqueue(key: K): UIO[Enqueue[I]] =
-        lookupOrCreate(key).map(_.inbox) @@ ReactiveEntity.Tag(entity.tag) @@ ReactiveEntity.Id[K].apply(key)
+        lookupOrCreate(key).map(_.inbox) @@ ReactiveEntity.Tag(entity.tag) @@ ReactiveEntity.Id(key)
 
       override def subscribe(key: K): URIO[Scope, Dequeue[O]] =
-        lookupOrCreate(key).flatMap(_.outbox.subscribe)
+        lookupOrCreate(key).flatMap(_.outbox.subscribe) @@ ReactiveEntity.Tag(entity.tag) @@ ReactiveEntity.Id(key)
 
-      override def destroy(key: K): UIO[Boolean] =
+      override def destroy(key: K): UIO[Unit] =
         refs
-          .modify(refs => refs.get(key) -> (refs - key))
-          .flatMap(ZIO.fromOption)
-          .flatMap(stop)
-          .as(true)
-          .orElseSucceed(false) @@ ReactiveEntity.Tag(entity.tag) @@ ReactiveEntity.Id[K].apply(key)
+          .updateSomeZIO:
+            case m if m.contains(key) =>
+              stop(m(key)).as(m - key)
+        @@ ReactiveEntity.Tag(entity.tag) @@ ReactiveEntity.Id(key)
 
       private def lookupOrCreate(key: K): UIO[State[K, S, I, O]] =
-        s.withPermit(
-          refs.get.flatMap(allRefs =>
-            allRefs.get(key) match
-              case Some(state) => ZIO.succeed(state)
-              case None => create(key).provideEnvironment(scope).tap(state => refs.update(m => m + (key -> state)))
-          )
-        )
+        refs
+          .updateSomeAndGetZIO:
+            case m if !m.contains(key) => create(key).provideEnvironment(scope).map(state => m + (key -> state))
+          .map(m => m(key))
 
       private def create(key: K): URIO[Scope, State[K, S, I, O]] =
         for
-          inbox  <- Queue.bounded[I](config.mailboxSize)
-          outbox <- Hub.bounded[O](config.mailboxSize)
-          initialState <- entity
-            .hydrate(key, inbox)
-            .provideEnvironment(env.add(scope.get))
-            .flatMap(Ref.make) // TODO add timeout here too
+          _            <- ZIO.logInfo(s"starting entity")
+          inbox        <- Queue.bounded[I](config.mailboxSize)
+          outbox       <- Hub.bounded[O](config.mailboxSize)
+          initialState <- runHydration(key, inbox)
           labels        = Set(MetricLabel("entity_tag", entity.tag), MetricLabel("key", key.toString))
           inboxCounter  = Metric.counter("entity_inbox_count").fromConst(1).tagged(labels)
           outboxCounter = Metric.counter("entity_outbox_count").tagged(labels)
@@ -123,6 +117,32 @@ object MiniReactive:
             .tagged(labels)
           fiber <- runEntity(key, inbox, outbox, initialState, inboxCounter, outboxCounter, processingTime)
         yield State(inbox, outbox, key, initialState, fiber, inboxCounter, outboxCounter, processingTime)
+
+      private def runHydration(key: K, inbox: Queue[I]) =
+        entity
+          .hydrate(key, inbox)
+          .timeoutFailCause(Cause.die(new TimeoutException("entity failed to hydrate in time")))(
+            config.handlerTimeout
+          )
+          .provideEnvironment(env.add(scope.get))
+          .flatMap(Ref.make)
+
+      private[minireactive] def restart(key: K): UIO[Unit] =
+        ZIO.logDebug("restarting entity") *> refs.updateZIO: m =>
+          for
+            prev = m(key)
+            initialState <- runHydration(key, prev.inbox)
+            fiber <- runEntity(
+              key,
+              prev.inbox,
+              prev.outbox,
+              initialState,
+              prev.inboxCounter,
+              prev.outboxCounter,
+              prev.processingTime
+            ).provideEnvironment(env.add(scope.get))
+            next = prev.copy(current = initialState, fiber = fiber)
+          yield m.updated(key, next)
 
       private def runEntity(
           key: K,
@@ -140,21 +160,21 @@ object MiniReactive:
           resT <- entity
             .handle(key, state, inMsg)
             .provideEnvironment(env)
-            .timeoutFailCause(Cause.die(new TimeoutException("entity failed to process message")))(
+            .timeoutFailCause(Cause.die(new TimeoutException("entity failed to process message in time")))(
               config.handlerTimeout
             )
             .timed
           (took, res) = resT
           _ <- processingTime.update(took.toMillis.toDouble)
-          // FIXME do timeout
           (nextState, msgs) = res
           _ <- stateRef.set(nextState)
           _ <- outboxCounter.update(msgs.size)
-          _ <- ZIO.iterate(msgs)(_.nonEmpty)(outbox.offerAll)
-        yield ()).forever.supervised(sup).forkScoped
+          _ <- outbox.offerAll(msgs)
+        yield ()).forever.forkScoped.onError(c => ZIO.logDebugCause(s"failed for $key", c) *> restartQ.offer(key))
 
       private def stop(state: State[K, S, I, O]): UIO[Unit] =
         ZIO.logInfo("stopping entity") *>
           state.fiber.interrupt.ignoreLogged *>
           state.inbox.shutdown *>
           state.outbox.shutdown
+    )).flatMap((restartQ, res) => restartQ.take.flatMap(res.restart).forever.forkScoped.as(res))
