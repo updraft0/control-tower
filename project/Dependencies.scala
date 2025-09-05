@@ -8,26 +8,26 @@ import sbt.Keys.libraryDependencies
 object Dependencies {
 
   object Versions {
-    val brotli             = "1.18.0"
+    val brotli             = "1.20.0"
     val flyway             = "11.3.0" // fixed at this version for now - the jackson databind dependency is no longer optional in later versions
-    val jsoniter           = "2.35.3"
-    val jwt                = "10.0.4"
-    val laminar            = "17.2.0"
-    val `laminar-form-derivation` = "0.24.0"
-    val laminext           = "0.17.0"
+    val jsoniter           = "2.37.8"
+    val jwt                = "11.0.2"
+    val laminar            = "17.2.1"
+    val `laminar-form-derivation` = "1.2.4"
+    val laminext           = "0.17.0" // 0.17.1
     val `native-converter` = "0.9.0"
     val quill              = "4.8.6"
     val `scala-java-time`  = "2.6.0"
-    val `sjs-dom`          = "2.8.0+45-53f9a1a2-SNAPSHOT" // FIXME wait for 2.9.0 release
-    val snakeyaml          = "2.9"
-    val sqlite             = "3.49.1.0"
+    val `sjs-dom`          = "2.8.1"
+    val snakeyaml          = "2.10"
+    val sqlite             = "3.50.3.0"
     val sttp               = "3.11.0"
-    val tapir              = "1.11.25"
+    val tapir              = "1.11.43"
     val waypoint           = "9.0.0"
-    val zio                = "2.1.17"
+    val zio                = "2.1.21"
     val `zio-config`       = "4.0.4"
-    val `zio-logging`      = "2.5.0"
-    val `zio-metrics`      = "2.3.1"
+    val `zio-logging`      = "2.5.1"
+    val `zio-metrics`      = "2.5.0"
     val `zio-query`        = "0.7.7"
   }
 

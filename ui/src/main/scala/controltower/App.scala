@@ -8,7 +8,7 @@ object App:
   def main(args: Array[String]): Unit =
     val _ = documentEvents(_.onDomContentLoaded).foreach { _ =>
       val container = document.getElementById("app")
-      val _ =
+      val _         =
         render(
           container,
           // TODO: insert page chrome for navigation etc.

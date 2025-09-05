@@ -32,7 +32,7 @@ object Server extends ZIOAppDefault:
   override def run =
     (updateReferenceData *> ZServer
       .serve[EndpointEnv & PrometheusPublisher](httpApp ++ prometheusRouter ++ mapWebSocket))
-      .provideSome(
+      .provide(
         // http server + main app
         ZServer.live,
         UserSession.layer,

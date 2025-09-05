@@ -58,7 +58,7 @@ private final class MapView(
   private def handleIncoming(msg: WebSocketEvent[MapMessage]): Unit =
     msg match
       case WebSocketEvent.Received(msg) => controller.responseBus.writer.onNext(msg)
-      case WebSocketEvent.Error(ex) =>
+      case WebSocketEvent.Error(ex)     =>
         if (io.laminext.websocket.WebSocketError.eq(ex)) () // no-op
         else org.scalajs.dom.console.error(s"Unhandled error in MapControllerView: $ex")
       case _ => // no-op
@@ -86,7 +86,7 @@ private final class MapView(
   private def renderTop(using Owner) =
     given mapCtx: MapViewContext = controller.context
 
-    val static = mapCtx.staticData
+    val static      = mapCtx.staticData
     val toolbarView = ToolbarView(
       controller.selectedSystem,
       controller.selectedConnection,
@@ -176,8 +176,8 @@ private final class MapView(
         (view, _) => view.view
       )
 
-    val systemNodes     = systemNodesTransformer.run(controller.allSystemChangesStream)
-    val connectionNodes = connectionNodeTransformer.run(controller.allConnectionChangesStream)
+    val systemNodes          = systemNodesTransformer.run(controller.allSystemChangesStream)
+    val connectionNodes      = connectionNodeTransformer.run(controller.allConnectionChangesStream)
     val connectionInProgress =
       ConnectionInProgressView(connectingSystem, controller.pos, controller.BoxSize, controller.actionsBus)
 

@@ -96,7 +96,7 @@ object LocationTracker:
     for
       authTracker <- ZIO.service[CharacterAuthTracker]
       updateQ     <- authTracker.updates
-      _ <- updateQ.take
+      _           <- updateQ.take
         .flatMap(cas => lt.inbound.offer(LocationTrackingRequest.AuthUpdated(cas)))
         .forever
         .forkScoped
@@ -112,7 +112,7 @@ object LocationTracker:
   ) =
     for
       now <- ZIO.clockWith(_.instant)
-      _ <- msg match
+      _   <- msg match
         case LocationTrackingRequest.AddCharacters(chars) =>
           state
             .update(s => s.copy(charState = chars.foldLeft(s.charState)((s, c) => updateCharAt(s, c, None, now))))
@@ -173,7 +173,7 @@ object LocationTracker:
 
   private def updateOnRefresh(m: Map[CharacterId, CharacterState], s: CharacterState) =
     m.updatedWith(s.charId):
-      case None => Some(s)
+      case None    => Some(s)
       case Some(p) =>
         Some(s.copy(auth = p.auth)) // update auth in case it was refreshed during checking locations
 
@@ -197,7 +197,7 @@ object LocationTracker:
           .foldZIO(
             {
               case _: EsiError.BadGateway => ZIO.succeed(st) // ignore bad gateway errors
-              case t: EsiError.Timeout =>
+              case t: EsiError.Timeout    =>
                 ZIO.logTrace(s"Timed out during ESI call: ${t.error}").as(st) // ignore gateway timeouts
               case e =>
                 ZIO

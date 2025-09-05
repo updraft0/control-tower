@@ -8,7 +8,7 @@ import org.updraft0.controltower.constant.SystemId
 import org.updraft0.controltower.protocol.*
 import org.updraft0.controltower.protocol.native.given
 
-import scala.annotation.{nowarn, unused}
+import scala.annotation.unused
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Future, Promise}
 import scala.scalajs.js
@@ -139,7 +139,7 @@ object IdbReferenceDataStore:
       trx1 = db.transaction(SolarSystem, TransactionMode.readonly)
       solarSystemKeys <- inTransaction(trx1, SolarSystem, _.getAllKeys())
       _               <- onFinished(trx1)
-      _ <-
+      _               <-
         if (doForce || solarSystemKeys.length < NumSolarSystemsApprox) populateAllSolarSystems(db)
         else Future.successful(())
       // second transaction - make sure reference table is populated
@@ -202,7 +202,6 @@ object IdbReferenceDataStore:
       val _ = db.createObjectStore(VersionInfo)
     }
 
-@nowarn("msg=unused explicit parameter")
 class IndexedDbError(msg: String, @unused cause: org.scalajs.dom.Event) extends RuntimeException(msg)
 
 private def indexedDb: Try[org.scalajs.dom.idb.Factory] =

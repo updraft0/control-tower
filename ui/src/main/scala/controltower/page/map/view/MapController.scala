@@ -100,8 +100,8 @@ final class MapController(val rds: ReferenceDataStore, val clock: Signal[Instant
   // derived data
   val mapMetaSignal: Signal[MapMessage.MapMeta] = mapMeta.signal.map(_.get).recoverIgnoreErrors
 
-  val mapRole: Signal[MapRole] = mapMeta.signal.map(_.map(_.role).getOrElse(MapRole.Viewer))
-  val mapId: Signal[MapId]     = mapMeta.signal.map(_.map(_.info.id).getOrElse(MapId.Invalid))
+  val mapRole: Signal[MapRole]                 = mapMeta.signal.map(_.map(_.role).getOrElse(MapRole.Viewer))
+  val mapId: Signal[MapId]                     = mapMeta.signal.map(_.map(_.info.id).getOrElse(MapId.Invalid))
   val userPreferences: Signal[UserPreferences] =
     mapMeta.signal.map(_.map(_.preferences).getOrElse(UserPreferences.Default))
   val characterId: Signal[CharacterId] =
@@ -186,7 +186,7 @@ final class MapController(val rds: ReferenceDataStore, val clock: Signal[Instant
     .referenceAll()
     .onComplete:
       case Success(refAll) => cacheReference = Some(refAll)
-      case Failure(ex) =>
+      case Failure(ex)     =>
         lastError.set(Some("Failed to lookup reference values"))
         org.scalajs.dom.console.error(s"Failed to lookup reference values: ${ex}")
 
@@ -203,7 +203,7 @@ final class MapController(val rds: ReferenceDataStore, val clock: Signal[Instant
       override def actions     = self.actionsBus
       override def characterId = self.characterId
       override def mapRole     = self.mapRole
-      override def staticData = SystemStaticData(
+      override def staticData  = SystemStaticData(
         cacheSolarSystem.view,
         cacheReference.getOrElse(
           throw new IllegalStateException("expected reference to be set when getting static data")
@@ -387,8 +387,8 @@ final class MapController(val rds: ReferenceDataStore, val clock: Signal[Instant
             conns.removedAll(whcs.map(_.id))
           )
         )
-      case MapMessage.Error(text)   => lastError.set(Some(text))
-      case meta: MapMessage.MapMeta => mapMeta.set(Some(meta))
+      case MapMessage.Error(text)                       => lastError.set(Some(text))
+      case meta: MapMessage.MapMeta                     => mapMeta.set(Some(meta))
       case MapMessage.MapSnapshot(systems, connections) =>
         inline def doUpdate() =
           Var.set(
@@ -422,8 +422,8 @@ final class MapController(val rds: ReferenceDataStore, val clock: Signal[Instant
               st.updated(mss.system.systemId, mss)
             }
           ),
-          selectedSystemId      -> ((sOpt: Option[SystemId]) => sOpt.filterNot(removedSystemIds.contains)),
-          bulkSelectedSystemIds -> ((selection: Array[SystemId]) => selection.filterNot(removedSystemIds.contains)),
+          selectedSystemId       -> ((sOpt: Option[SystemId]) => sOpt.filterNot(removedSystemIds.contains)),
+          bulkSelectedSystemIds  -> ((selection: Array[SystemId]) => selection.filterNot(removedSystemIds.contains)),
           allConnections.current -> ((conns: Map[ConnectionId, MapWormholeConnectionWithSigs]) =>
             updatedConnections.foldLeft(conns.removedAll(removedConnectionIds)) { case (conns, (cid, whc)) =>
               conns.updated(cid, whc)
@@ -438,7 +438,7 @@ final class MapController(val rds: ReferenceDataStore, val clock: Signal[Instant
       case MapMessage.SystemSnapshot(systemId, system, connections) =>
         inline def doUpdate(@unused solarSystem: SolarSystem) =
           Var.update(
-            allSystems.current -> ((map: Map[SystemId, MapSystemSnapshot]) => map.updated(systemId, system)),
+            allSystems.current     -> ((map: Map[SystemId, MapSystemSnapshot]) => map.updated(systemId, system)),
             allConnections.current -> ((conns: Map[ConnectionId, MapWormholeConnectionWithSigs]) =>
               connections.foldLeft(conns) { case (conns, (cid, whc)) =>
                 conns.updated(cid, whc)
@@ -527,7 +527,7 @@ private inline def updateConnectionById(
     whc: MapWormholeConnection
 ): Array[MapWormholeConnection] =
   connections.indexWhere(_.id == whc.id) match
-    case -1 => connections.appended(whc)
+    case -1  => connections.appended(whc)
     case idx =>
       connections.update(idx, whc)
       connections

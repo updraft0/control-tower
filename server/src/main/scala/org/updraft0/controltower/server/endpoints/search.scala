@@ -19,7 +19,7 @@ def searchEntity = Endpoints.searchEntity
   .serverLogic(user =>
     (searchType, search) =>
       for
-        _ <- ZIO.fail(SearchErrors.StringTooShort).unlessDiscard(search.length >= 3)
+        _         <- ZIO.fail(SearchErrors.StringTooShort).unlessDiscard(search.length >= 3)
         authToken <- Users
           .loadAnyAuthTokenForUser(user.userId)
           .logError("failed to lookup auth token")

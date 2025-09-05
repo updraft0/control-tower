@@ -30,7 +30,7 @@ def validateSession(
   for
     now           <- ZIO.clockWith(_.instant)
     sessionCookie <- validateCookie(cookie)
-    authResult <- AuthQueries
+    authResult    <- AuthQueries
       .getUserCharactersBySessionId(sessionCookie.id)
       .tapErrorCause(ZIO.logWarningCause("failed query", _))
       .orElseFail(UserSessionError.DbQueryFailure)
@@ -143,7 +143,7 @@ private def toProtocol(role: model.MapRole) =
 private def loadPreferences(prefsOpt: Option[model.UserPreference]): UIO[UserPreferences] =
   import protocol.jsoncodec.given
   prefsOpt match
-    case None => ZIO.succeed(UserPreferences.Default)
+    case None        => ZIO.succeed(UserPreferences.Default)
     case Some(prefs) =>
       ZIO
         .attempt(jsoniter_scala.core.readFromString[UserPreferences](prefs.preferenceJson))

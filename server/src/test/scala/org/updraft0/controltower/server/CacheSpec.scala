@@ -4,6 +4,7 @@ import zio.*
 import zio.concurrent.*
 import zio.query.*
 import zio.test.*
+import zio.stream.*
 
 object DataCacheSpec extends ZIOSpecDefault:
 

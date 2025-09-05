@@ -69,12 +69,12 @@ object Esi:
 
 private def extractAndValidateJwt(r: JwtAuthResponse): ZIO[Config, EsiError, (JwtAuthResponse, EsiTokenMeta)] =
   for
-    conf <- ZIO.service[Config]
+    conf  <- ZIO.service[Config]
     claim <- ZIO
       .fromTry(Jwt.decode(r.accessToken.value, conf.auth.esi.keys.rs256.key, Seq(JwtAlgorithm.RS256)))
       .mapError(EsiError.InvalidJwt.apply)
-    esiInfo <- ZIO.attempt(readFromString[JwtEsiInfo](claim.content)).mapError(EsiError.InvalidJwt.apply)
-    _       <- validateEsiInfo(esiInfo, conf.auth.esi.host)
+    esiInfo     <- ZIO.attempt(readFromString[JwtEsiInfo](claim.content)).mapError(EsiError.InvalidJwt.apply)
+    _           <- validateEsiInfo(esiInfo, conf.auth.esi.host)
     characterId <- ZIO
       .attempt(esiInfo.sub.stripPrefix(CharacterSubjectPrefix).toLong)
       .mapError(e => EsiError.ValidationError(s"Cannot get character id: ${e}"))

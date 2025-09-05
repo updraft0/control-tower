@@ -109,9 +109,9 @@ object MiniReactive:
           inbox        <- Queue.bounded[I](config.mailboxSize)
           outbox       <- Hub.bounded[O](config.mailboxSize)
           initialState <- runHydration(key, inbox)
-          labels        = Set(MetricLabel("entity_tag", entity.tag), MetricLabel("key", key.toString))
-          inboxCounter  = Metric.counter("entity_inbox_count").fromConst(1).tagged(labels)
-          outboxCounter = Metric.counter("entity_outbox_count").tagged(labels)
+          labels         = Set(MetricLabel("entity_tag", entity.tag), MetricLabel("key", key.toString))
+          inboxCounter   = Metric.counter("entity_inbox_count").fromConst(1).tagged(labels)
+          outboxCounter  = Metric.counter("entity_outbox_count").tagged(labels)
           processingTime = Metric
             .summary("entity_processing_ms", 2.hours, 100, 0.02d, Chunk(0.1, 0.5, 0.95, 0.99))
             .tagged(labels)
@@ -132,7 +132,7 @@ object MiniReactive:
           for
             prev = m(key)
             initialState <- runHydration(key, prev.inbox)
-            fiber <- runEntity(
+            fiber        <- runEntity(
               key,
               prev.inbox,
               prev.outbox,
@@ -157,7 +157,7 @@ object MiniReactive:
           inMsg <- inbox.take
           _     <- inboxCounter.update(1)
           state <- stateRef.get
-          resT <- entity
+          resT  <- entity
             .handle(key, state, inMsg)
             .provideEnvironment(env)
             .timeoutFailCause(Cause.die(new TimeoutException("entity failed to process message in time")))(

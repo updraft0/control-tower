@@ -199,7 +199,7 @@ private given DropdownItem[PlayerStructureSize]:
 private given DropdownItem[(TypeId, String)]:
   def key(ts: (TypeId, String)): String           = ts._1.toString
   def group(ts: (TypeId, String)): Option[String] = None
-  def view(ts: (TypeId, String)): Element =
+  def view(ts: (TypeId, String)): Element         =
     if (ts._1 == TypeId.Invalid) span("Invalid")
     else span(dataAttr("structure-type-id") := ts._1.toString, ESI.typeIcon(ts._1, Some(ts._2)), ts._2)
 
@@ -282,7 +282,7 @@ private def addEditStructureView(
       .combineWith(upwellSize.signal, playerSize.signal)
       .distinct
       .map:
-        case (StructureCategory.Unknown, _, _) => Nil
+        case (StructureCategory.Unknown, _, _)         => Nil
         case (StructureCategory.PlayerOwned, _, pSize) =>
           playerTypes.withFilter(_.size == pSize).map(_.typeAndName).toSeq.sortBy(_._2)
         case (StructureCategory.Upwell, uSize, _) =>

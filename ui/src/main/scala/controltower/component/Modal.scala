@@ -52,7 +52,7 @@ object Modal:
   ): Unit =
     val closeBus = new EventBus[Unit]
     val owner    = new ManualOwner()
-    val dialog = dialogTag(
+    val dialog   = dialogTag(
       role := "alertDialog",
       mods,
       inContext(self => onClick --> (ev => if (clickCloses) onDialogClickClose(ev, self.ref, closeBus))),
@@ -125,7 +125,7 @@ private inline def onDialogClickClose[Ref <: org.scalajs.dom.Element](
     closeBus: EventBus[Unit]
 ) =
   if (ev.target == ref) {
-    val rec = ref.getBoundingClientRect()
+    val rec      = ref.getBoundingClientRect()
     val inDialog =
       rec.top <= ev.clientY && ev.clientY <= rec.top + rec.height && rec.left <= ev.clientX && ev.clientX <= rec.left + rec.width
     if (!inDialog) closeBus.writer.onNext(())

@@ -14,7 +14,7 @@ object MapProtocolSpec extends ZIOSpecDefault:
     suite("map protocol")(
       test("can reset system name to be unset"):
         val value: MapRequest = MapRequest.UpdateSystem(SystemId(1), name = Some(None))
-        val json = Json.Obj(
+        val json              = Json.Obj(
           "UpdateSystem" -> Json.Obj(
             "system_id" -> Json.Num(1),
             "name"      -> Json.Str("None")

@@ -12,7 +12,7 @@ object Endpoints:
 
   // FIXME FIXME FIXME __Secure- cookie prefix - figure out why Chrome does not like it for localhost
   private[controltower] val SessionCookieName = "CT-Session"
-  private val SessionCookieOpt =
+  private val SessionCookieOpt                =
     cookie[Option[String]](SessionCookieName).map(_.map(SessionCookie.apply))(_.map(_.value))
   private val SessionCookieDef = cookie[String](SessionCookieName).map(SessionCookie.apply)(_.value)
 
@@ -24,7 +24,7 @@ object Endpoints:
   // opaque
   given Codec[String, CharacterId, CodecFormat.TextPlain] = Codec.long.map(CharacterId.apply)(_.asInstanceOf[Long])
   given Codec[String, MapId, CodecFormat.TextPlain]       = Codec.long.map(MapId.apply)(_.asInstanceOf[Long])
-  given Codec[String, SearchType, CodecFormat.TextPlain] =
+  given Codec[String, SearchType, CodecFormat.TextPlain]  =
     Codec.string.map(s => SearchType.valueOf(s.capitalize))(_.toString.toLowerCase)
 
   val getSolarSystem =

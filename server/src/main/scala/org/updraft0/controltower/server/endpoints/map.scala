@@ -69,7 +69,7 @@ def updateMap = Endpoints.updateMap
             _ <- MapQueries.updateMap(mapId, mapUpdate.map.name, toModelMapDisplayType(mapUpdate.map.displayType))
             updatedAt            <- ZIO.clockWith(_.instant)
             currentPolicyMembers <- AuthQueries.getMapPolicyMembers(mapId)
-            _ <- updatePolicyMembers(
+            _                    <- updatePolicyMembers(
               mapId,
               user.userId,
               currentPolicyMembers,
@@ -134,11 +134,11 @@ def mapWebSocket: zio.http.Routes[EndpointEnv, zio.http.Response] =
               user         <- validCookie(req)
               characterOpt <- lookupCharacter(character)
               _            <- ZIO.fail(Response.notFound("No character found")).unless(characterOpt.isDefined)
-              mapTup <- checkUserCanAccessMap(user, characterOpt.get.id, mapName)
+              mapTup       <- checkUserCanAccessMap(user, characterOpt.get.id, mapName)
                 .mapError(Response.unauthorized)
               (mapId, mapRole) = mapTup
               sessionMsgs <- ZIO.serviceWithZIO[MapPermissionTracker](_.subscribeSession(mapId, characterOpt.get.id))
-              dbPrefs <- AuthQueries
+              dbPrefs     <- AuthQueries
                 .getUserPreference(user.userId)
                 .logError("failed to lookup user preferences, using defaults")
                 .orElseSucceed(None)

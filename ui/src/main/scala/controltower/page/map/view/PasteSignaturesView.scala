@@ -38,7 +38,7 @@ class PasteSignaturesView(
     extends ViewController:
 
   override def view =
-    val signatures = Var("")
+    val signatures       = Var("")
     val signaturesParsed = signatures.signal
       .map(parseLines)
       .withCurrentValueOf(time)
@@ -185,7 +185,7 @@ class PasteSignaturesView(
     case _: SignatureUpdate.Updated   => "signature-updated"
     case _: SignatureUpdate.Removed   => "signature-removed"
 
-  private inline def signatureId(su: SignatureUpdate) = su.signatureId
+  private inline def signatureId(su: SignatureUpdate)    = su.signatureId
   private inline def signatureGroup(su: SignatureUpdate) = su match
     case SignatureUpdate.Added(a)        => a.signatureGroup
     case SignatureUpdate.Unchanged(p, _) => p.signatureGroup
@@ -210,14 +210,14 @@ class PasteSignaturesView(
     case SignatureUpdate.Updated(_, u)   => updatedAt(u)
 
   private inline def nameOf(s: NewSystemSignature): HtmlMod = s match
-    case _: NewSystemSignature.Unknown => ""
-    case s: NewSystemSignature.Site    => span(cls := "site-name", s.name.getOrElse(""))
+    case _: NewSystemSignature.Unknown  => ""
+    case s: NewSystemSignature.Site     => span(cls := "site-name", s.name.getOrElse(""))
     case w: NewSystemSignature.Wormhole =>
       wormholeTypeCell(w.connectionType, w.isEol, w.massStatus, w.massSize, w.connectionId.asOption, ctx.staticData)
 
   private inline def nameOf(s: MapSystemSignature): HtmlMod = s match
-    case _: MapSystemSignature.Unknown => ""
-    case s: MapSystemSignature.Site    => span(cls := "site-name", s.name.getOrElse(""))
+    case _: MapSystemSignature.Unknown  => ""
+    case s: MapSystemSignature.Site     => span(cls := "site-name", s.name.getOrElse(""))
     case w: MapSystemSignature.Wormhole =>
       wormholeTypeCell(w.connectionType, w.eolAt.isDefined, w.massStatus, w.massSize, w.connectionId, ctx.staticData)
 
@@ -267,7 +267,7 @@ private def signatureGroupFor(line: ParsedLine) = (line.tpe, line.group) match
 
 private def signatureFrom(sigId: SigId, group: SignatureGroup, line: ParsedLine, now: Instant) =
   group match
-    case SignatureGroup.Unknown => NewSystemSignature.Unknown(sigId, now)
+    case SignatureGroup.Unknown  => NewSystemSignature.Unknown(sigId, now)
     case SignatureGroup.Wormhole =>
       NewSystemSignature.Wormhole(
         id = sigId,
@@ -321,7 +321,7 @@ private[view] def wormholeTypeCell(
     @unused connectionId: Option[ConnectionId],
     static: SystemStaticData
 ): HtmlMod = ct match
-  case WormholeConnectionType.Unknown => "Unknown"
+  case WormholeConnectionType.Unknown       => "Unknown"
   case WormholeConnectionType.Known(typeId) =>
     val whType = static.wormholeTypes(typeId)
     nodeSeq(
@@ -381,8 +381,8 @@ private inline def massSizeNotUnknown(ms: WormholeMassSize) =
 extension (v: MapSystemSignature)
   def asNew: NewSystemSignature =
     v match
-      case u: MapSystemSignature.Unknown => NewSystemSignature.Unknown(u.id, u.createdAt)
-      case s: MapSystemSignature.Site    => NewSystemSignature.Site(s.id, s.createdAt, s.signatureGroup, s.name)
+      case u: MapSystemSignature.Unknown  => NewSystemSignature.Unknown(u.id, u.createdAt)
+      case s: MapSystemSignature.Site     => NewSystemSignature.Site(s.id, s.createdAt, s.signatureGroup, s.name)
       case w: MapSystemSignature.Wormhole =>
         NewSystemSignature.Wormhole(
           w.id,

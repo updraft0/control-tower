@@ -26,8 +26,8 @@ def oauth2Callback = Endpoints.oauth2Callback.zServerLogic: code =>
   for
     redirectBack <- ZIO.serviceWith[Config](uiUrl)
     sessionIdOpt <- SessionCrypto.validateCallbackCode(code.state)
-    _ <- sessionIdOpt match
-      case None => ZIO.logWarning("no valid callback session code found, login will not proceed")
+    _            <- sessionIdOpt match
+      case None      => ZIO.logWarning("no valid callback session code found, login will not proceed")
       case Some(sid) =>
         Users
           .loginCallback(code.code, sid)

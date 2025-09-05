@@ -112,7 +112,7 @@ final class ContextMenuView(controller: MapController):
             case _ => "display: none;"
       ),
       child <-- state.signal.map:
-        case ContextMenuState.Closed => emptyNode
+        case ContextMenuState.Closed                                 => emptyNode
         case ContextMenuState.Open(c: ContextMenuRequest.Connection) =>
           ContextMenu(
             "connection-action",

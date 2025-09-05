@@ -24,7 +24,7 @@ object ReferenceProtocolSpec extends ZIOSpecDefault:
         val json = Json.Obj(
           "operation_id"   -> Json.Num(42),
           "operation_name" -> Json.Str("Law School"),
-          "services" -> Json.Arr(
+          "services"       -> Json.Arr(
             Json.Obj("id" -> Json.Num(5), "name" -> Json.Str("Reprocessing Plant")),
             Json.Obj("id" -> Json.Num(9), "name" -> Json.Str("Stock Exchange"))
           )

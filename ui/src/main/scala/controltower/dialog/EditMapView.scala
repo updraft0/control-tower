@@ -24,7 +24,7 @@ object EditMapView:
   )(using ct: ControlTowerBackend): HtmlElement =
     val name            = Var(existing.map(_.map.name).getOrElse(""))
     val validationError = Var(Option.empty[String])
-    val permissionsAll = ArrayRenderedVar(
+    val permissionsAll  = ArrayRenderedVar(
       renderPolicyMember,
       existing
         .map(_.policyMembers)

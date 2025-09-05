@@ -13,7 +13,7 @@ object MapPolicy:
   ): ZIO[Env, Throwable, Map[CharacterId, List[(model.MapModel, model.MapRole)]]] =
     for
       mapRoleByCharacterId <- allowedMapIdsForCharacters(characterIds)
-      mapsById <- MapQueries
+      mapsById             <- MapQueries
         .getMapsById(mapRoleByCharacterId.flatMap(_._2.map(_._1)).toList)
         .map(_.map(m => m.id -> m).toMap)
     yield
@@ -46,7 +46,7 @@ object MapPolicy:
     */
   def allowedMapIdsForUser(userId: UserId): RIO[Env, List[(CharacterId, MapId, model.MapRole)]] =
     AuthQueries.getUserCharactersById(userId).flatMap {
-      case None => ZIO.succeed(List.empty[(CharacterId, MapId, model.MapRole)])
+      case None                => ZIO.succeed(List.empty[(CharacterId, MapId, model.MapRole)])
       case Some((_, chars, _)) =>
         allowedMapIdsForCharacters(chars.map(_.id)).map(_.toList.flatMap((k, v) => v.map(mp => (k, mp._1, mp._2))))
     }

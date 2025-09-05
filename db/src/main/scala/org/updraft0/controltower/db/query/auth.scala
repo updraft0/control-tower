@@ -89,11 +89,11 @@ object auth:
       schema.character
         .insertValue(lift(char))
         .onConflictUpdate(_.id)(
-          (t, e) => t.ownerHash -> e.ownerHash,
+          (t, e) => t.ownerHash     -> e.ownerHash,
           (t, e) => t.corporationId -> e.corporationId,
-          (t, e) => t.allianceId -> e.allianceId,
-          (t, e) => t.lastOnlineAt -> e.lastOnlineAt,
-          (t, _) => t.updatedAt -> Some(unixepoch)
+          (t, e) => t.allianceId    -> e.allianceId,
+          (t, e) => t.lastOnlineAt  -> e.lastOnlineAt,
+          (t, _) => t.updatedAt     -> Some(unixepoch)
         )
     )
 
@@ -115,11 +115,11 @@ object auth:
       schema.characterAuthToken
         .insertValue(lift(tok))
         .onConflictUpdate(_.characterId)(
-          (t, e) => t.nonce -> e.nonce,
+          (t, e) => t.nonce        -> e.nonce,
           (t, e) => t.refreshToken -> e.refreshToken,
-          (t, e) => t.token -> e.token,
-          (t, e) => t.expiresAt -> e.expiresAt,
-          (t, _) => t.updatedAt -> Some(unixepoch)
+          (t, e) => t.token        -> e.token,
+          (t, e) => t.expiresAt    -> e.expiresAt,
+          (t, _) => t.updatedAt    -> Some(unixepoch)
         )
     )
 

@@ -7,7 +7,7 @@ import java.security.SecureRandom
 import javax.crypto.Cipher
 import javax.crypto.spec.{GCMParameterSpec, SecretKeySpec}
 
-def secureRandom: ZLayer[Any, Throwable, SecureRandom] = ZLayer(ZIO.attempt(new SecureRandom()))
+def secureRandom: ZLayer[Any, Throwable, SecureRandom]                      = ZLayer(ZIO.attempt(new SecureRandom()))
 def secureRandomBytes(length: Int): ZIO[SecureRandom, Nothing, Array[Byte]] =
   ZIO.serviceWith[SecureRandom]: sr =>
     val bytes = new Array[Byte](length)

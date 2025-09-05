@@ -46,7 +46,7 @@ object MapPermissionTracker:
         .forkScoped
       // process messages
       inQ <- inHub.subscribe
-      _ <- (inQ.take.flatMap(msg => processIn(state, outHub, msg)).ignoreLogged @@ Log.BackgroundOperation(
+      _   <- (inQ.take.flatMap(msg => processIn(state, outHub, msg)).ignoreLogged @@ Log.BackgroundOperation(
         "mapPermissionTracker"
       )).forever.forkScoped
     yield new MapPermissionTracker:
@@ -56,7 +56,7 @@ object MapPermissionTracker:
           filterQ <- Queue.dropping[MapSessionMessage](SubscriberQueueCapacity)
           deQ     <- outHub.subscribe
           _       <- inHub.publish(InternalMessage.RefreshMap(mapId, ignoreUpToDate = true))
-          _ <- (deQ.take
+          _       <- (deQ.take
             .flatMap {
               case msg @ MapSessionMessage.MapCharacters(`mapId`, _) => filterQ.offer(msg)
               case _                                                 => ZIO.unit
@@ -70,7 +70,7 @@ object MapPermissionTracker:
         for
           filterQ <- Queue.dropping[MapSessionMessage](SubscriberQueueCapacity)
           deQ     <- outHub.subscribe
-          _ <- deQ.take
+          _       <- deQ.take
             .flatMap {
               case MapSessionMessage.MapCharacters(`mapId`, allChars) =>
                 filterQ.offer(MapSessionMessage.RoleChanged(characterId, allChars.get(characterId)))
@@ -98,18 +98,18 @@ object MapPermissionTracker:
       ignoreUpToDate: Boolean
   ) =
     for
-      roleMap <- MapPolicy.characterIdsForMap(mapId)
+      roleMap    <- MapPolicy.characterIdsForMap(mapId)
       isUpToDate <- state.modify { currSt =>
         var upToDate = false
-        val res = currSt.updatedWith(mapId):
-          case None => Some(ByMapState(roleMap)) // should not happen but
+        val res      = currSt.updatedWith(mapId):
+          case None          => Some(ByMapState(roleMap)) // should not happen but
           case Some(prevMap) =>
             upToDate = prevMap.allCharacters == roleMap
             Some(ByMapState(roleMap))
         upToDate -> res
       }
       curr <- state.get
-      _ <- outQ
+      _    <- outQ
         .offer(MapSessionMessage.MapCharacters(mapId, curr(mapId).allCharacters))
         .unless(isUpToDate && !ignoreUpToDate)
     yield ()

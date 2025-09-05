@@ -25,7 +25,7 @@ final class SelectionView(
     selection: Observer[Array[SystemId]],
     systemNodes: EventStream[CollectionCommand[Element]]
 ):
-  private val state = Var(SelectionState.Stopped)
+  private val state          = Var(SelectionState.Stopped)
   private val stateSelecting = state.signal.map:
     case _: SelectionState.Selecting => true
     case _                           => false

@@ -33,7 +33,7 @@ trait Cursor[K <: KeyType]:
   def mapObject[K2 <: KeyType, K3 <: KeyType, T](f: (K2, Cursor[K3]) => YamlValue[T]): YamlValue[Iterable[(K2, T)]]
 
 private[yaml] case class ObjectCursor[K <: KeyType](v: YamlObject[K], path: Vector[K]) extends Cursor[K]:
-  override def downField(name: K): Cursor[K] = copy(path = path.appended(name))
+  override def downField(name: K): Cursor[K]                = copy(path = path.appended(name))
   override def as[T](using from: FromYaml[T]): YamlValue[T] =
     ZIO
       .attempt(downObjectRaw(v, path))
@@ -45,7 +45,7 @@ private[yaml] case class ObjectCursor[K <: KeyType](v: YamlObject[K], path: Vect
       .attempt(downObjectRaw(v, path))
       .mapError(ex => Error.Cursor(path, Error.Raw(ex)))
       .flatMap {
-        case null => ZIO.succeed(None)
+        case null                        => ZIO.succeed(None)
         case obj: ju.LinkedHashMap[_, _] =>
           f(ObjectCursor[K](obj.asInstanceOf[YamlObject[K]], Vector.empty[K])).map(Some(_))
         case other => ZIO.fail(Error.InvalidType("Optional(Object)", other.getClass.getName))
@@ -57,7 +57,7 @@ private[yaml] case class ObjectCursor[K <: KeyType](v: YamlObject[K], path: Vect
       .attempt(downObjectRaw(v, path))
       .mapError(ex => Error.Cursor(path, Error.Raw(ex)))
       .flatMap {
-        case null => ZIO.succeed(Vector.empty[T])
+        case null                 => ZIO.succeed(Vector.empty[T])
         case arr: ju.ArrayList[_] =>
           ZIO
             .foreach(arr.asScala) {
@@ -76,7 +76,7 @@ private[yaml] case class ObjectCursor[K <: KeyType](v: YamlObject[K], path: Vect
       .attempt(downObjectRaw(v, path))
       .mapError(ex => Error.Cursor(path, Error.Raw(ex)))
       .flatMap {
-        case null => ZIO.succeed(Map.empty[K2, T])
+        case null                        => ZIO.succeed(Map.empty[K2, T])
         case map: ju.LinkedHashMap[_, _] =>
           ZIO
             .foreach(asScala(map.asInstanceOf[YamlObject[K2]])) {

@@ -317,7 +317,7 @@ private def signatureRow(
     solarSystem.map(_.systemClass.map(whc => static.signatureByClassAndGroup(whc)).getOrElse(Map.empty))
 
   def signatureGroupCell(s: MapSystemSignature) =
-    val group = Var(s.signatureGroup)
+    val group    = Var(s.signatureGroup)
     val dropdown = OptionDropdown(
       SignatureGroup.values.toSeq.filterNot(s.signatureGroup != SignatureGroup.Unknown && _ == SignatureGroup.Unknown),
       group,
@@ -441,7 +441,7 @@ private def isVisibleWithFilter(filter: SignatureFilter, sig: MapSystemSignature
   case (_, _: MapSystemSignature.Unknown)                   => false
   case (_, _: MapSystemSignature.Wormhole)                  => true
   case (SignatureFilter.All, _: MapSystemSignature.Site)    => true
-  case (SignatureFilter.Indy, s: MapSystemSignature.Site) =>
+  case (SignatureFilter.Indy, s: MapSystemSignature.Site)   =>
     s.signatureGroup == SignatureGroup.Ore || s.signatureGroup == SignatureGroup.Gas
   case (SignatureFilter.Hacking, s: MapSystemSignature.Site) =>
     s.signatureGroup == SignatureGroup.Relic || s.signatureGroup == SignatureGroup.Data || s.signatureGroup == SignatureGroup.Ghost
@@ -463,7 +463,7 @@ private def selectGroup(currentValue: SignatureGroup, newGroup: Observer[Signatu
 
 private def changeSignatureGroup(newGroup: SignatureGroup, prev: MapSystemSignature): NewSystemSignature =
   (newGroup, prev) match
-    case (SignatureGroup.Unknown, _) => NewSystemSignature.Unknown(prev.id, prev.createdAt)
+    case (SignatureGroup.Unknown, _)                              => NewSystemSignature.Unknown(prev.id, prev.createdAt)
     case (SignatureGroup.Wormhole, u: MapSystemSignature.Unknown) =>
       NewSystemSignature.Wormhole(
         id = u.id,
@@ -549,7 +549,7 @@ given DropdownItem[ConnectionTarget]:
     case _: ConnectionTarget.Unknown  => "unknown"
     case w: ConnectionTarget.Wormhole => w.id.toString
   def group(ct: ConnectionTarget): Option[String] = None
-  def view(ct: ConnectionTarget): Element = ct match
+  def view(ct: ConnectionTarget): Element         = ct match
     case ConnectionTarget.Unknown(isEol, massStatus) =>
       span(
         dataAttr("connection-type") := "Unknown",
@@ -584,7 +584,7 @@ given DropdownItem[ConnectionTarget]:
 given (static: SystemStaticData) => DropdownItem[WormholeSelectInfo]:
   def key(wsi: WormholeSelectInfo): String           = wsi.key
   def group(wsi: WormholeSelectInfo): Option[String] = Some(wsi.group)
-  def view(wsi: WormholeSelectInfo): Element =
+  def view(wsi: WormholeSelectInfo): Element         =
     div(
       dataAttr("wormhole-type") := wsi.key,
       wormholeTypeCell(wsi.connectionType, false, WormholeMassStatus.Unknown, WormholeMassSize.Unknown, None, static)
@@ -650,7 +650,7 @@ private def addSingleSignatureView(
     @unused owner: Owner
 )(using SystemStaticData) =
   val validationError = Var(Option.empty[String])
-  val addEdit = AddEditSignatureView(
+  val addEdit         = AddEditSignatureView(
     solarSystem,
     signatureGroups,
     None,
@@ -682,7 +682,7 @@ private def editSingleSignatureView(
     canEdit: Signal[Boolean]
 )(closeMe: Observer[Unit], @unused owner: Owner)(using SystemStaticData) =
   val validationError = Var(Option.empty[String])
-  val addEdit = AddEditSignatureView(
+  val addEdit         = AddEditSignatureView(
     solarSystem,
     signatureGroups,
     Some(sig),

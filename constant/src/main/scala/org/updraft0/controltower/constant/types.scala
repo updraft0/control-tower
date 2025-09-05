@@ -233,7 +233,7 @@ enum UnknownOrUnset[A]:
       case _                  => update
 
 object UnknownOrUnset:
-  inline def apply[A](value: A): UnknownOrUnset[A] = UnknownOrUnset.Known(value)
+  inline def apply[A](value: A): UnknownOrUnset[A]          = UnknownOrUnset.Known(value)
   inline def apply[A](option: Option[A]): UnknownOrUnset[A] =
     option match
       case Some(value) => UnknownOrUnset.Known(value)

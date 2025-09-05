@@ -34,9 +34,9 @@ object AuthQueries:
   ): Result[Option[(model.AuthUser, List[model.AuthCharacter], List[CharacterId])]] =
     run(quote {
       for
-        user           <- user.filter(_.id == lift(userId))
-        userCharacters <- userCharacter.join(_.userId == user.id)
-        characters     <- character.join(_.id == userCharacters.characterId)
+        user                <- user.filter(_.id == lift(userId))
+        userCharacters      <- userCharacter.join(_.userId == user.id)
+        characters          <- character.join(_.id == userCharacters.characterId)
         authTokenCharacters <- characterAuthToken
           .filter(_.updatedAt.exists(_ > unixepochMinusSeconds(ThirtyDaysInSeconds)))
           .leftJoin(_.characterId == userCharacters.characterId)
@@ -82,8 +82,8 @@ object AuthQueries:
   def getSomeCharacterAuthToken(userId: UserId): Result[Option[(model.AuthCharacter, model.CharacterAuthToken)]] =
     run(quote {
       for
-        uc <- userCharacter.filter(uc => uc.userId == lift(userId))
-        ac <- character.join(ac => uc.characterId == ac.id)
+        uc  <- userCharacter.filter(uc => uc.userId == lift(userId))
+        ac  <- character.join(ac => uc.characterId == ac.id)
         cat <- characterAuthToken
           .filter(_.expiresAt > unixepoch)
           .join(cat => cat.characterId == uc.characterId)
@@ -102,7 +102,7 @@ object AuthQueries:
   ): Result[Map[CharacterId, List[model.MapPolicyMember]]] =
     inline def userRoles(inline cids: Query[CharacterId]) =
       for
-        char <- character.filter(c => cids.contains(c.id))
+        char  <- character.filter(c => cids.contains(c.id))
         roles <- mapPolicyMember
           .join(m => infix"${m.memberId} = ${char.id}".asCondition)
           // .join(_.memberId == char.id) FIXME workaround against opaque type vs non-opaque join
@@ -111,7 +111,7 @@ object AuthQueries:
 
     inline def userCorporationRoles(inline cids: Query[CharacterId]) =
       for
-        char <- character.filter(c => cids.contains(c.id))
+        char  <- character.filter(c => cids.contains(c.id))
         roles <- mapPolicyMember
           .join(m => infix"${m.memberId} = ${char.corporationId}".asCondition) // see comment above
           .filter(_.memberType == lift(model.PolicyMemberType.Corporation))
@@ -119,7 +119,7 @@ object AuthQueries:
 
     inline def userAllianceRoles(inline cids: Query[CharacterId]) =
       for
-        char <- character.filter(c => cids.contains(c.id))
+        char  <- character.filter(c => cids.contains(c.id))
         roles <- mapPolicyMember
           .join(m => infix"${m.memberId} = ${char.allianceId}".asCondition) // see comment above
           .filter(_.memberType == lift(model.PolicyMemberType.Alliance))

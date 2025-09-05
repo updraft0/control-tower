@@ -33,7 +33,7 @@ object ReferenceQueries:
 
   private given JsonValueCodec[StargateBothSides] = JsonCodecMaker.make(config)
 
-  private val ShipCategoryId = 6
+  private val ShipCategoryId    = 6
   private val StructureGroupIds = Set(
     1404 /* Engineering Complex */,
     1406 /* Refinery */,

@@ -77,10 +77,10 @@ object map:
   /** Each table lives in the `map` schema, but Quill has no config annotation/etc. for that
     */
   object schema:
-    inline def mapModel              = quote(querySchema[MapModel]("map.map"))
-    inline def mapSystem             = quote(querySchema[MapSystem]("map.map_system"))
-    inline def mapSystemDisplay      = quote(querySchema[MapSystemDisplay]("map.map_system_display"))
-    inline def mapWormholeConnection = quote(querySchema[MapWormholeConnection]("map.map_wormhole_connection"))
+    inline def mapModel                  = quote(querySchema[MapModel]("map.map"))
+    inline def mapSystem                 = quote(querySchema[MapSystem]("map.map_system"))
+    inline def mapSystemDisplay          = quote(querySchema[MapSystemDisplay]("map.map_system_display"))
+    inline def mapWormholeConnection     = quote(querySchema[MapWormholeConnection]("map.map_wormhole_connection"))
     inline def mapWormholeConnectionJump = quote(
       querySchema[MapWormholeConnectionJump]("map.map_wormhole_connection_jump")
     )
@@ -267,8 +267,8 @@ object map:
       mapSystem
         .filter(ms => ms.mapId == lift(mapId) && ms.systemId == lift(systemId))
         .update(
-          ms => ms.stance -> lift(intelStance).getOrElse(ms.stance),
-          ms => ms.isPinned -> lift(isPinned).getOrElse(ms.isPinned),
+          ms => ms.stance        -> lift(intelStance).getOrElse(ms.stance),
+          ms => ms.isPinned      -> lift(isPinned).getOrElse(ms.isPinned),
           _.updatedAt            -> lift(updatedAt),
           _.updatedByCharacterId -> lift(updatedByCharacterId)
         )
@@ -295,7 +295,7 @@ object map:
       mapModel
         .insertValue(lift(value))
         .onConflictUpdate(_.id)(
-          (t, e) => t.name -> e.name,
+          (t, e) => t.name        -> e.name,
           (t, e) => t.displayType -> e.displayType
         )
     })
@@ -305,12 +305,12 @@ object map:
       mapSystem
         .insertValue(lift(value))
         .onConflictUpdate(_.mapId, _.systemId)(
-          (t, e) => t.name -> e.name,
-          (t, e) => t.isPinned -> e.isPinned,
-          (t, e) => t.chainNamingStrategy -> e.chainNamingStrategy,
-          (t, e) => t.description -> e.description,
-          (t, e) => t.stance -> e.stance,
-          (t, e) => t.updatedAt -> e.updatedAt,
+          (t, e) => t.name                 -> e.name,
+          (t, e) => t.isPinned             -> e.isPinned,
+          (t, e) => t.chainNamingStrategy  -> e.chainNamingStrategy,
+          (t, e) => t.description          -> e.description,
+          (t, e) => t.stance               -> e.stance,
+          (t, e) => t.updatedAt            -> e.updatedAt,
           (t, e) => t.updatedByCharacterId -> e.updatedByCharacterId
         )
     })
@@ -322,7 +322,7 @@ object map:
           .insertValue(lift(value))
           .onConflictUpdate(_.mapId, _.systemId)(
             (t, e) => t.displayType -> e.displayType,
-            (t, e) => t.data -> e.data
+            (t, e) => t.data        -> e.data
           )
       }
     )
@@ -333,16 +333,16 @@ object map:
         intelSystemStructure
           .insertValue(lift(value))
           .onConflictUpdate(_.id)(
-            (t, e) => t.name -> e.name,
-            (t, e) => t.ownerCorporationId -> e.ownerCorporationId,
-            (t, e) => t.itemTypeId -> e.itemTypeId,
-            (t, e) => t.nearestPlanetIdx -> e.nearestPlanetIdx,
-            (t, e) => t.nearestMoonIdx -> e.nearestMoonIdx,
-            (t, e) => t.isOnline -> e.isOnline,
-            (t, e) => t.isDeleted -> e.isDeleted,
-            (t, e) => t.updatedAt -> e.updatedAt,
+            (t, e) => t.name                 -> e.name,
+            (t, e) => t.ownerCorporationId   -> e.ownerCorporationId,
+            (t, e) => t.itemTypeId           -> e.itemTypeId,
+            (t, e) => t.nearestPlanetIdx     -> e.nearestPlanetIdx,
+            (t, e) => t.nearestMoonIdx       -> e.nearestMoonIdx,
+            (t, e) => t.isOnline             -> e.isOnline,
+            (t, e) => t.isDeleted            -> e.isDeleted,
+            (t, e) => t.updatedAt            -> e.updatedAt,
             (t, e) => t.updatedByCharacterId -> e.updatedByCharacterId,
-            (t, e) => t.deletedAt -> e.deletedAt,
+            (t, e) => t.deletedAt            -> e.deletedAt,
             (t, e) => t.deletedByCharacterId -> e.deletedByCharacterId
           )
       }
@@ -355,10 +355,10 @@ object map:
           .insertValue(lift(value))
           .onConflictUpdate(_.mapId, _.systemId)(
             (t, e) => t.primaryCorporationId -> e.primaryCorporationId,
-            (t, e) => t.primaryAllianceId -> e.primaryAllianceId,
-            (t, e) => t.intelGroup -> e.intelGroup,
-            (t, e) => t.isEmpty -> e.isEmpty,
-            (t, e) => t.updatedAt -> e.updatedAt,
+            (t, e) => t.primaryAllianceId    -> e.primaryAllianceId,
+            (t, e) => t.intelGroup           -> e.intelGroup,
+            (t, e) => t.isEmpty              -> e.isEmpty,
+            (t, e) => t.updatedAt            -> e.updatedAt,
             (t, e) => t.updatedByCharacterId -> e.updatedByCharacterId
           )
       }
@@ -370,8 +370,8 @@ object map:
         intelGroupStance
           .insertValue(lift(value))
           .onConflictUpdate(_.mapId, _.corporationId, _.allianceId)(
-            (t, e) => t.stance -> e.stance,
-            (t, e) => t.updatedAt -> e.updatedAt,
+            (t, e) => t.stance               -> e.stance,
+            (t, e) => t.updatedAt            -> e.updatedAt,
             (t, e) => t.updatedByCharacterId -> e.updatedByCharacterId
           )
       }
@@ -382,8 +382,8 @@ object map:
       mapWormholeConnection
         .insertValue(lift(value))
         .onConflictUpdate(_.id)(
-          (t, e) => t.isDeleted -> e.isDeleted,
-          (t, e) => t.updatedAt -> e.updatedAt,
+          (t, e) => t.isDeleted            -> e.isDeleted,
+          (t, e) => t.updatedAt            -> e.updatedAt,
           (t, e) => t.updatedByCharacterId -> e.updatedByCharacterId
         )
     )
@@ -393,17 +393,17 @@ object map:
       mapSystemSignature
         .insertValue(lift(value))
         .onConflictUpdate(_.mapId, _.systemId, _.signatureId)(
-          (t, e) => t.isDeleted -> e.isDeleted,
-          (t, e) => t.signatureGroup -> e.signatureGroup,
-          (t, e) => t.signatureTypeName -> e.signatureTypeName,
-          (t, e) => t.wormholeIsEol -> e.wormholeIsEol,
-          (t, e) => t.wormholeEolAt -> e.wormholeEolAt,
-          (t, e) => t.wormholeTypeId -> e.wormholeTypeId,
-          (t, e) => t.wormholeMassSize -> e.wormholeMassSize,
-          (t, e) => t.wormholeMassStatus -> e.wormholeMassStatus,
-          (t, e) => t.wormholeK162Type -> e.wormholeK162Type,
+          (t, e) => t.isDeleted            -> e.isDeleted,
+          (t, e) => t.signatureGroup       -> e.signatureGroup,
+          (t, e) => t.signatureTypeName    -> e.signatureTypeName,
+          (t, e) => t.wormholeIsEol        -> e.wormholeIsEol,
+          (t, e) => t.wormholeEolAt        -> e.wormholeEolAt,
+          (t, e) => t.wormholeTypeId       -> e.wormholeTypeId,
+          (t, e) => t.wormholeMassSize     -> e.wormholeMassSize,
+          (t, e) => t.wormholeMassStatus   -> e.wormholeMassStatus,
+          (t, e) => t.wormholeK162Type     -> e.wormholeK162Type,
           (t, e) => t.wormholeConnectionId -> e.wormholeConnectionId,
-          (t, e) => t.updatedAt -> e.updatedAt,
+          (t, e) => t.updatedAt            -> e.updatedAt,
           (t, e) => t.updatedByCharacterId -> e.updatedByCharacterId
         )
     )
@@ -434,13 +434,13 @@ object map:
         corporation
           .insertValue(lift(value))
           .onConflictUpdate(_.id)(
-            (t, e) => t.allianceId -> e.allianceId,
+            (t, e) => t.allianceId     -> e.allianceId,
             (t, e) => t.ceoCharacterId -> e.ceoCharacterId,
-            (t, e) => t.homeStationId -> e.homeStationId,
-            (t, e) => t.memberCount -> e.memberCount,
-            (t, e) => t.ticker -> e.ticker,
-            (t, e) => t.url -> e.url,
-            (t, _) => t.updatedAt -> unixepoch
+            (t, e) => t.homeStationId  -> e.homeStationId,
+            (t, e) => t.memberCount    -> e.memberCount,
+            (t, e) => t.ticker         -> e.ticker,
+            (t, e) => t.url            -> e.url,
+            (t, _) => t.updatedAt      -> unixepoch
           )
       )
     )
@@ -451,9 +451,9 @@ object map:
         alliance
           .insertValue(lift(value))
           .onConflictUpdate(_.id)(
-            (t, e) => t.ticker -> e.ticker,
+            (t, e) => t.ticker                -> e.ticker,
             (t, e) => t.executorCorporationId -> e.executorCorporationId,
-            (t, _) => t.updatedAt -> unixepoch
+            (t, _) => t.updatedAt             -> unixepoch
           )
       )
     )
@@ -464,11 +464,11 @@ object map:
         intelCharacter
           .insertValue(lift(value))
           .onConflictUpdate(_.id)(
-            (t, e) => t.corporationId -> e.corporationId,
-            (t, e) => t.factionId -> e.factionId,
+            (t, e) => t.corporationId  -> e.corporationId,
+            (t, e) => t.factionId      -> e.factionId,
             (t, e) => t.securityStatus -> e.securityStatus,
-            (t, e) => t.title -> e.title,
-            (t, _) => t.updatedAt -> unixepoch
+            (t, e) => t.title          -> e.title,
+            (t, _) => t.updatedAt      -> unixepoch
           )
       )
     )

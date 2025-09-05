@@ -56,7 +56,7 @@ private def inDraggable(
         onPointerUp.mapToUnit.compose(_.withCurrentValueOf(position.signal)) --> (currentPos =>
           Var.update(
             downMouse -> ((_: Option[Coord]) => None),
-            stateVar -> { (prev: DragState) =>
+            stateVar  -> { (prev: DragState) =>
               if (prev.initial != currentPos) updatePos(currentPos)
               DragState(isDragging = false, initial = currentPos)
             }

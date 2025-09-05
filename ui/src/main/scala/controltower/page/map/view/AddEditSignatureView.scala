@@ -53,7 +53,7 @@ class AddEditSignatureView(
     val relicSignatureType  = Var(existing.filter(_.signatureGroup == SignatureGroup.Relic).flatMap(getSiteName))
     val dataSignatureType   = Var(existing.filter(_.signatureGroup == SignatureGroup.Data).flatMap(getSiteName))
     val ghostSignatureType  = Var(existing.filter(_.signatureGroup == SignatureGroup.Ghost).flatMap(getSiteName))
-    val wormholeType = Var(
+    val wormholeType        = Var(
       existing
         .filter(_.signatureGroup == SignatureGroup.Wormhole)
         .flatMap(getWormholeType)
@@ -111,13 +111,13 @@ class AddEditSignatureView(
         cls := "add-signature-line",
         // FIXME - the default selections don't work right now :/
         child <-- signatureGroup.signal.flatMapSwitch:
-          case SignatureGroup.Unknown => Val(emptyNode)
-          case SignatureGroup.Relic   => Val(selectSite(SignatureGroup.Relic, relicSignatureType, signatureGroups))
-          case SignatureGroup.Data    => Val(selectSite(SignatureGroup.Data, dataSignatureType, signatureGroups))
-          case SignatureGroup.Combat  => Val(selectSite(SignatureGroup.Combat, combatSignatureType, signatureGroups))
-          case SignatureGroup.Ore     => Val(selectSite(SignatureGroup.Ore, oreSignatureType, signatureGroups))
-          case SignatureGroup.Gas     => Val(selectSite(SignatureGroup.Gas, gasSignatureType, signatureGroups))
-          case SignatureGroup.Ghost   => Val(selectSite(SignatureGroup.Ghost, ghostSignatureType, signatureGroups))
+          case SignatureGroup.Unknown  => Val(emptyNode)
+          case SignatureGroup.Relic    => Val(selectSite(SignatureGroup.Relic, relicSignatureType, signatureGroups))
+          case SignatureGroup.Data     => Val(selectSite(SignatureGroup.Data, dataSignatureType, signatureGroups))
+          case SignatureGroup.Combat   => Val(selectSite(SignatureGroup.Combat, combatSignatureType, signatureGroups))
+          case SignatureGroup.Ore      => Val(selectSite(SignatureGroup.Ore, oreSignatureType, signatureGroups))
+          case SignatureGroup.Gas      => Val(selectSite(SignatureGroup.Gas, gasSignatureType, signatureGroups))
+          case SignatureGroup.Ghost    => Val(selectSite(SignatureGroup.Ghost, ghostSignatureType, signatureGroups))
           case SignatureGroup.Wormhole =>
             wormholeType.signal.map: wct =>
               div(
@@ -168,7 +168,7 @@ class AddEditSignatureView(
           val sigId          = signatureId.now()
           val connectionType = wormholeType.now()
           val now            = Instant.now()
-          val resOpt = (SignatureId.isValidSigId(sigId), sigId, signatureGroup.now()) match
+          val resOpt         = (SignatureId.isValidSigId(sigId), sigId, signatureGroup.now()) match
             case (false, _, _) =>
               validationError.set(Some("Invalid sig id"))
               None

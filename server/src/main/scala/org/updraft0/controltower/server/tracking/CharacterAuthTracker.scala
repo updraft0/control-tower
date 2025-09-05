@@ -81,7 +81,7 @@ object CharacterAuthTracker:
     for
       now <- ZIO.clockWith(_.instant)
       nowExp = now.plus(PollInterval.multipliedBy(PollIntervalExpiryMultiplier))
-      curr <- state.get
+      curr       <- state.get
       nextStates <- ZIO.foreachExec(curr.keys.zip(curr.values))(ExecutionStrategy.ParallelN(EsiParallel))((cId, cSt) =>
         handleRefresh(cSt, nowExp)
           .map(s => (cId, s)) @@ Log.CharacterId(cId) @@ Log.BackgroundOperation("authTracker")
@@ -116,7 +116,7 @@ object CharacterAuthTracker:
           .refreshToken(auth.refreshToken)
           .tapError(ex => ZIO.logWarningCause("Failed to refresh token for character", Cause.fail(ex)))
           .fold(
-            _ => 0 -> CharacterState.RefreshFailure(auth, 1, nowExp.plus(FailedRefreshInterval)),
+            _ => 0    -> CharacterState.RefreshFailure(auth, 1, nowExp.plus(FailedRefreshInterval)),
             next => 1 -> CharacterState.Active(next)
           )
       case CharacterState.RefreshFailure(prev, count, nextAt) if nextAt.isBefore(nowExp) =>

@@ -14,7 +14,7 @@ import scala.util.{Failure, Success, Try}
 object Routes:
   private val landingRoute   = Route.static[Page.Landing.type](Page.Landing, root)
   private val mapEditorRoute = Route.static[Page.MapEditor.type](Page.MapEditor, root / "maps")
-  private val mapRoute = Route[Page.Map, (String, String)](
+  private val mapRoute       = Route[Page.Map, (String, String)](
     encode = m => (m.name, m.character),
     decode = (name, character) => Page.Map(name, character),
     pattern = root / "map" / segment[String] / "char" / segment[String] / endOfSegments

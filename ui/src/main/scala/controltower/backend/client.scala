@@ -30,7 +30,7 @@ final class ControlTowerBackend(
   val getSolarSystemsAll: () => Future[ReferenceSolarSystems] = () => callNormalThrows(Endpoints.getAllSolarSystems)(())
   val getReferenceAll: () => Future[Reference]                = () => callNormalThrows(Endpoints.getAllReference)(())
 
-  val getUserInfo: () => Future[Either[String, UserInfo]] = () => callSecure(Endpoints.getUserInfo)(())
+  val getUserInfo: () => Future[Either[String, UserInfo]]              = () => callSecure(Endpoints.getUserInfo)(())
   val logoutUserCharacter: CharacterId => Future[Either[String, Unit]] = (id: CharacterId) =>
     callSecure(Endpoints.logoutUserCharacter)(id)
 

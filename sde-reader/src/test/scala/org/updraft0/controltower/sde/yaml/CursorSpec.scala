@@ -124,7 +124,7 @@ object CursorSpec extends ZIOSpecDefault:
         val getValues = (_: String, c: Cursor[String]) => c.downField("value").as[Int]
         assertCursor(yaml, _.mapObject(getValues).map(_.toVector), Vector("a" -> 1, "c" -> 3, "d" -> 2))
       }
-    ).provideSomeShared(YAML.layer)
+    ).provideShared(YAML.layer)
 
   private def assertCursor[K <: KeyType, A](y: String, op: Cursor[K] => YamlValue[A], expected: A) =
     YAML.cursor(y).flatMap(op).flatMap(got => assertTrue(got == expected))

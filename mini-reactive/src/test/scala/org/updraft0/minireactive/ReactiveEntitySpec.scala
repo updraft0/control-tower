@@ -16,8 +16,8 @@ object ReactiveEntitySpec extends ZIOSpecDefault:
     case Current(value: Int)
 
   object CounterEntity extends ReactiveEntity[Any, String, Int, CounterMessage, CounterReply]:
-    override def tag                                               = "counter"
-    override def hydrate(key: String, in: Enqueue[CounterMessage]) = ZIO.succeed(0)
+    override def tag                                                 = "counter"
+    override def hydrate(key: String, in: Enqueue[CounterMessage])   = ZIO.succeed(0)
     override def handle(key: String, state: Int, in: CounterMessage) =
       in match
         case Get  => ZIO.succeed(state -> Chunk.succeed(CounterReply.Current(state)))

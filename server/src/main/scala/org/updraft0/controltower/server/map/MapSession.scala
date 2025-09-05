@@ -107,7 +107,7 @@ object MapSession:
         ctx = Context(mapId, character, prefs, sid, userId, mapRole, mapQ, resQ, ourQ, sessionMessages, structureTypes)
         // close the scope (and the subscription) if the websocket is closed
         close <- ZIO.serviceWith[Scope.Closeable](scope => scope.close(Exit.succeed(())))
-        _ <- chan.awaitShutdown
+        _     <- chan.awaitShutdown
           .zipRight(ZIO.logDebug("finished map session due to socket closure"))
           .zipRight(close)
           .forkDaemon
@@ -167,7 +167,7 @@ object MapSession:
     for
       sessionId <- ZIO.attempt(UUID.randomUUID()).map(MapSessionId(characterId, _, userId))
       scope     <- Scope.make
-      res <- f
+      res       <- f
         .tapError(ex => ZIO.logErrorCause("Map session failed unexpectedly", Cause.fail(ex)))
         .provideSome[R](ZLayer.succeed(scope), ZLayer.succeed(sessionId)) @@ Log.SessionId(
         sessionId.sessionId
@@ -360,7 +360,7 @@ private def sendServerStatus(ourQ: Enqueue[protocol.MapMessage]) =
   ZIO
     .serviceWithZIO[ServerStatusTracker](_.status)
     .flatMap:
-      case Left(_) => ourQ.offer(protocol.MapMessage.ServerStatus(protocol.MapServerStatus.Error))
+      case Left(_)  => ourQ.offer(protocol.MapMessage.ServerStatus(protocol.MapServerStatus.Error))
       case Right(s) =>
         ourQ.offer(
           protocol.MapMessage.ServerStatus(

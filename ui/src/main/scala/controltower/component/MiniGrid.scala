@@ -51,17 +51,17 @@ final class MiniGrid[R: ClassTag](
 
 //  private val pageWindow = Var((-1, -1))
 
-  private val pageSize = config.pageSize.getOrElse(10)
+  private val pageSize                                                = config.pageSize.getOrElse(10)
   private val overrideSortedBy: Option[(Column[R, ?], SortDirection)] = config.overrideSort.map:
     case (colName, dir) => columns.find(_.name == colName).get -> dir
   private val sortedBy: Var[Option[(Column[R, ?], SortDirection)]] = Var(config.initialSort.map:
     case (colName, dir) => columns.find(_.name == colName).get -> dir)
-  private val dataArr     = Var(Array.empty[R])
-  private val currentPage = Var(config.pageSize.map(_ => 0)).distinct
+  private val dataArr      = Var(Array.empty[R])
+  private val currentPage  = Var(config.pageSize.map(_ => 0)).distinct
   private val dataArrPaged = dataArr.signal
     .combineWith(currentPage)
     .map:
-      case (arr, None) => arr
+      case (arr, None)       => arr
       case (arr, Some(page)) =>
         arr.slice(Math.min(arr.length, pageSize * page), Math.min(arr.length, pageSize * (page + 1)))
 
@@ -70,7 +70,7 @@ final class MiniGrid[R: ClassTag](
       data
         .combineWith(sortedBy)
         .map {
-          case (arr, None) => arr
+          case (arr, None)                   => arr
           case (arr, Some((col, direction))) =>
             overrideSortedBy match
               case Some((overrideCol, overrideDir)) =>
@@ -79,7 +79,7 @@ final class MiniGrid[R: ClassTag](
         }
         .combineWith(currentPage) --> ((data, pageOpt) =>
         Var.set(
-          dataArr -> data,
+          dataArr     -> data,
           currentPage -> pageOpt.map: page =>
             if (page * pageSize > data.length) data.length / pageSize else page
         )
@@ -131,7 +131,7 @@ final class MiniGrid[R: ClassTag](
         text <-- currentPage.signal
           .combineWith(dataArr)
           .map:
-            case (None, arr) => s"${Math.min(1, arr.length)} - ${arr.length} of ${arr.length}"
+            case (None, arr)       => s"${Math.min(1, arr.length)} - ${arr.length} of ${arr.length}"
             case (Some(page), arr) =>
               s"${Math.min(1, arr.length) + (page * pageSize)}  - ${Math.min(arr.length, pageSize * (page + 1))} of ${arr.length}"
       ),

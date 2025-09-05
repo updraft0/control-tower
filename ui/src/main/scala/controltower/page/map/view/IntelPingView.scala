@@ -119,8 +119,8 @@ private def addIntelPingView(
     actions: WriteBus[MapAction],
     closeMe: Observer[Unit]
 ) =
-  val noteVar   = Var("")
-  val targetVar = Var(IntelSystemPingTarget.User)
+  val noteVar      = Var("")
+  val targetVar    = Var(IntelSystemPingTarget.User)
   val targetSelect = OptionDropdown[IntelSystemPingTarget](
     ArraySeq.unsafeWrapArray(IntelSystemPingTarget.values),
     targetVar,

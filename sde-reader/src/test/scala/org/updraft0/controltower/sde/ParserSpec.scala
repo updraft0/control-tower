@@ -995,4 +995,4 @@ object ParserSpec extends ZIOSpecDefault:
           )
         )
       }
-    ).provideSomeShared(YAML.layer)
+    ).provideShared(YAML.layer)

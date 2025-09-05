@@ -37,7 +37,7 @@ trait ViewController:
 
 // common binds
 
-val onEnterPress = onKeyPress.filter(_.keyCode == dom.KeyCode.Enter)
+val onEnterPress                                         = onKeyPress.filter(_.keyCode == dom.KeyCode.Enter)
 inline def hideIfEmptyOpt[A](opt: Observable[Option[A]]) =
   display <-- opt.map:
     case Some(_) => ""
@@ -70,7 +70,7 @@ object PointerFilter:
     inline def |(other: PointerFilter): PointerFilter = (p: Long) | (other: Long)
 
     inline def and(other: PointerFilter): Boolean = (p & other) == other
-    inline def andButton(button: Int): Boolean =
+    inline def andButton(button: Int): Boolean    =
       (button == MouseButtons.Left && p.and(MouseButtonLeft)) ||
         (button == MouseButtons.Right && p.and(MouseButtonRight))
 

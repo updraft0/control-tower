@@ -30,7 +30,7 @@ object build {
   val commonSettings = Seq(
     organization := "org.updraft0",
     version      := "0.1.0-SNAPSHOT",
-    scalaVersion := "3.7.0",
+    scalaVersion := "3.7.2",
     manifestSetting,
     crossVersion := CrossVersion.binary,
     scalacOptions ++= Seq(
@@ -56,7 +56,6 @@ object build {
     Test / scalacOptions ++= Seq(
       "-Wunused:privates,locals,implicits"
     ),
-    resolvers ++= Resolver.sonatypeOssRepos("snapshots") // FIXME
   ) ++ targetSettings
 
 }

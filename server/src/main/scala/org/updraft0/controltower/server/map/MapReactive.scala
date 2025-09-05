@@ -427,14 +427,14 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
       mapRef          <- loadMapRef()
       // transient state - listen to location updates
       locationUpdates <- ZIO.serviceWithZIO[LocationTracker](_.updates)
-      _ <- locationUpdates.take
+      _               <- locationUpdates.take
         .flatMap(u => in.offer(Identified(None, MapRequest.UpdateLocations(u))))
         .forever
         .ignoreLogged
         .forkScoped
       // transient state - listen to map permission updates
       permissionUpdates <- ZIO.serviceWithZIO[MapPermissionTracker](_.subscribe(key))
-      _ <- permissionUpdates.take
+      _                 <- permissionUpdates.take
         .flatMap {
           case MapSessionMessage.MapCharacters(`key`, roleMap) =>
             in.offer(Identified(None, MapRequest.UpdateCharacters(roleMap)))
@@ -606,7 +606,7 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
   ) =
     for
       curr <- query.map.getMapSystem(mapId, add.systemId) // need to get system to not override existing params
-      _ <- query.map.upsertMapSystem(
+      _    <- query.map.upsertMapSystem(
         model.MapSystem(
           mapId = mapId,
           systemId = add.systemId,
@@ -704,7 +704,7 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
       _ <- query.map.upsertMapSystemSignature(
         newModelSignature(now, sessionId, (mapId, addSig.systemId), addSig.signature)
       )
-      sys <- loadSingleSystem(mapId, addSig.systemId)
+      sys     <- loadSingleSystem(mapId, addSig.systemId)
       connOpt <- addSig.signature.wormholeConnectionId.asOption
         .map(whcId => loadSingleConnection(mapId, whcId).map(Some(_)))
         .getOrElse(ZIO.none)
@@ -763,7 +763,7 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
   ) =
     // when replacing all and the signatures being removed have connection ids, those connections need to be removed
     // this is very similar to removeSystemSignatures()
-    val updateSigIds = uss.scanned.map(_.signatureId).toSet
+    val updateSigIds      = uss.scanned.map(_.signatureId).toSet
     val removedSignatures =
       Option
         .when(uss.replaceAll)(
@@ -810,8 +810,8 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
       sessionId: MapSessionId,
       systemIds: NonEmptyChunk[SystemId]
   ) =
-    val connections   = state.connectionsForSystems(systemIds.toChunk)
-    val connectionIds = connections.map(_.id).sorted.dedupe
+    val connections        = state.connectionsForSystems(systemIds.toChunk)
+    val connectionIds      = connections.map(_.id).sorted.dedupe
     val refreshedSystemIds = connections
       .flatMap(c => Chunk(c.toSystemId, c.fromSystemId).filterNot(sId => systemIds.contains(sId)))
       .sorted
@@ -905,7 +905,7 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
   // partially remove connections - state will be updated later with systems
   private def removeConnections(connectionsRemoved: List[MapWormholeConnection])(state: MapState) =
     val connectionIds = connectionsRemoved.map(_.id)
-    val nextState = state.copy(
+    val nextState     = state.copy(
       connections = state.connections.removedAll(connectionIds),
       connectionRanks = state.connectionRanks.removedAll(connectionIds)
     )
@@ -928,7 +928,7 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
       upd: LocationUpdate
   ): URIO[MapEnv, (MapState, Chunk[Identified[MapResponse]])] =
     val (nextState, changes) = processCharacterLocationChanges(state, upd)
-    val locationsUpdate =
+    val locationsUpdate      =
       if (state.locationsOnline != nextState.locationsOnline)
         broadcast(
           MapResponse.CharacterLocations(
@@ -1025,8 +1025,8 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
           case _                                   => false -> None
 
         var nextActions = Chunk.empty[LocationUpdateAction]
-        val nextLocs = s.locations.updatedWith(charId):
-          case None => None // we need the role to be able to proceed so wait until next update
+        val nextLocs    = s.locations.updatedWith(charId):
+          case None       => None // we need the role to be able to proceed so wait until next update
           case Some(prev) =>
             val prevLocation = prev.locationInfo
             nextActions = (prevLocation, nextLocation) match
@@ -1107,7 +1107,7 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
       // perform hard deletes (for which clients don't need to be updated)
       hardDeleteSignatures    <- MapQueries.getHardDeleteSignatures(mapId, config.hardDeletionInterval)
       hardDeleteConnectionIds <- MapQueries.getHardDeleteConnectionIds(mapId, config.hardDeletionInterval)
-      rSigCount <- query.map
+      rSigCount               <- query.map
         .hardDeleteMapWormholeSignatures(mapId, Chunk.fromIterable(hardDeleteSignatures))
         .when(hardDeleteSignatures.nonEmpty)
         .someOrElse(0L)
@@ -1140,7 +1140,7 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
         .deleteSignaturesWithConnectionIds(mapId, expiredConnectionIds, CharacterId.System)
         .when(expiredConnectionIds.nonEmpty)
         .someOrElse(0)
-      _ <- ZIO.logTrace(s"Removed expired $eConnCount connections, $eSigCount signatures")
+      _                  <- ZIO.logTrace(s"Removed expired $eConnCount connections, $eSigCount signatures")
       deletedConnections <- query.map
         .getWormholeConnections(mapId, expiredConnectionIds, isDeleted = true)
         .when(expiredConnectionIds.nonEmpty)
@@ -1217,7 +1217,7 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
 
   private def addIntelSystemNote(mapId: MapId, state: MapState, sId: MapSessionId, ain: MapRequest.AddIntelSystemNote) =
     for
-      now <- ZIO.clockWith(_.instant)
+      now    <- ZIO.clockWith(_.instant)
       dbNote <- query.map.insertIntelSystemNote(
         model.IntelSystemNote(
           id = IntelNoteId.Invalid,
@@ -1259,11 +1259,11 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
     for
       now  <- ZIO.clockWith(_.instant)
       prev <- query.map.getIntelSystemNote(mapId, uin.systemId, uin.id)
-      upd <- ZIO.when(prev.isDefined)(
+      upd  <- ZIO.when(prev.isDefined)(
         query.map.updateIntelSystemNote(prev.get.copy(note = uin.note, isPinned = uin.isPinned), sId.characterId, now)
       )
     yield upd match
-      case None => state -> Chunk.empty
+      case None          => state -> Chunk.empty
       case Some(updated) =>
         withState(
           state.updateSystemWith(
@@ -1355,7 +1355,7 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
   ) =
     for
       now <- ZIO.clockWith(_.instant)
-      _ <- query.map.upsertIntelGroupStance(
+      _   <- query.map.upsertIntelGroupStance(
         model.IntelGroupStance(
           mapId = mapId,
           corporationId = ugs.target match

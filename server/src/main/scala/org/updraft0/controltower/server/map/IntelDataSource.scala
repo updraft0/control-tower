@@ -31,7 +31,7 @@ object IntelDataSource:
   type Env = javax.sql.DataSource & EsiClient
 
   private lazy val GetCorporationFromDbSource = new DataSource.Batched[javax.sql.DataSource, GetCorporationById]:
-    override val identifier = "IntelGetCorporationFromDb"
+    override val identifier                                            = "IntelGetCorporationFromDb"
     override def run(requests: Chunk[GetCorporationById])(using Trace) =
       db.query.map
         .getCorporations(requests.map(_.id))
@@ -41,7 +41,7 @@ object IntelDataSource:
         )
 
   private lazy val GetAllianceFromDbSource = new DataSource.Batched[javax.sql.DataSource, GetAllianceById]:
-    override val identifier = "IntelGetAllianceFromDb"
+    override val identifier                                         = "IntelGetAllianceFromDb"
     override def run(requests: Chunk[GetAllianceById])(using Trace) =
       db.query.map
         .getAlliances(requests.map(_.id))
@@ -51,7 +51,7 @@ object IntelDataSource:
         )
 
   private lazy val GetCharactersFromDbSource = new DataSource.Batched[javax.sql.DataSource, GetCharacterById]:
-    override val identifier = "IntelGetCharacterFromDb"
+    override val identifier                                          = "IntelGetCharacterFromDb"
     override def run(requests: Chunk[GetCharacterById])(using Trace) =
       db.query.map
         .getIntelCharacters(requests.map(_.id))
@@ -64,8 +64,8 @@ object IntelDataSource:
       req: GetCorporationById
   ): URIO[EsiClient & javax.sql.DataSource, Option[model.Corporation]] =
     (for
-      esi <- ZIO.service[EsiClient]
-      now <- ZIO.clockWith(_.instant)
+      esi     <- ZIO.service[EsiClient]
+      now     <- ZIO.clockWith(_.instant)
       esiCorp <- esi
         .getCorporation(req.id)
         .tapError(e => ZIO.logWarning(s"ESI error on getting corporation: $e"))
@@ -85,8 +85,8 @@ object IntelDataSource:
       req: GetAllianceById
   ): URIO[EsiClient & javax.sql.DataSource, Option[model.Alliance]] =
     (for
-      esi <- ZIO.service[EsiClient]
-      now <- ZIO.clockWith(_.instant)
+      esi         <- ZIO.service[EsiClient]
+      now         <- ZIO.clockWith(_.instant)
       esiAlliance <- esi
         .getAlliance(req.id)
         .tapError(e => ZIO.logWarning(s"ESI error on getting alliance: $e"))
@@ -106,8 +106,8 @@ object IntelDataSource:
       req: GetCharacterById
   ): URIO[EsiClient & javax.sql.DataSource, Option[model.IntelCharacter]] =
     (for
-      esi <- ZIO.service[EsiClient]
-      now <- ZIO.clockWith(_.instant)
+      esi     <- ZIO.service[EsiClient]
+      now     <- ZIO.clockWith(_.instant)
       esiChar <- esi
         .getCharacter(req.id)
         .tapError(e => ZIO.logWarning(s"ESI error on getting character: $e"))

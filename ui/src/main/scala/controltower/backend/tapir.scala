@@ -32,7 +32,7 @@ class WebSocketToAirstream[R <: AirstreamStreams & WebSockets](using owner: Owne
   ): Any =
     (in: Observable[REQ]) =>
       @unused var isClosed = false
-      val sends = in
+      val sends            = in
         .foreach { v => // this starts the subscription, otherwise nothing gets run
           Future
             .fromTry(Try(o.requests.encode(v)))

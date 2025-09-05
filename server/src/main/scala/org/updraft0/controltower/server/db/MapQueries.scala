@@ -353,7 +353,7 @@ object MapQueries extends MapQueryCodecs:
       ) => Boolean = _ => true
   ) =
     (for
-      whc <- whcQ
+      whc     <- whcQ
       fromSig <- mapSystemSignature.leftJoin(mss =>
         mss.mapId == whc.mapId && mss.systemId == whc.fromSystemId && mss.wormholeConnectionId.contains(whc.id)
       )
@@ -500,7 +500,7 @@ object MapQueries extends MapQueryCodecs:
     )
 
   private inline def ranksForConnection(inline whc: model.MapWormholeConnection): MapWormholeConnectionRank =
-    val toRank = infix"rank() over (partition by ${whc.mapId}, ${whc.toSystemId} order by ${whc.id} asc)".pure.as[Int]
+    val toRank  = infix"rank() over (partition by ${whc.mapId}, ${whc.toSystemId} order by ${whc.id} asc)".pure.as[Int]
     val toCount = mapWormholeConnection
       .filter(mwc => mwc.mapId == whc.mapId && !mwc.isDeleted && mwc.toSystemId == whc.toSystemId)
       .map(_ => 1)

@@ -92,9 +92,9 @@ object jsoncodec:
   given JsonValueCodec[EsiError.Forbidden]           = JsonCodecMaker.make(config)
 
   // character
-  given JsonValueCodec[CharacterRoles]         = JsonCodecMaker.make(config)
-  given JsonValueCodec[Character]              = JsonCodecMaker.make(config)
-  given listOfLong: JsonValueCodec[List[Long]] = JsonCodecMaker.make
+  given JsonValueCodec[CharacterRoles]                       = JsonCodecMaker.make(config)
+  given JsonValueCodec[Character]                            = JsonCodecMaker.make(config)
+  given listOfLong: JsonValueCodec[List[Long]]               = JsonCodecMaker.make
   given listOfCharacterId: JsonValueCodec[List[CharacterId]] =
     listOfLong.asInstanceOf[JsonValueCodec[List[CharacterId]]]
   given JsonValueCodec[List[CharacterAffiliation]] = JsonCodecMaker.make(config)
@@ -109,7 +109,7 @@ object jsoncodec:
   given JsonValueCodec[Corporation] = JsonCodecMaker.make(config)
 
   // alliance
-  given JsonValueCodec[Alliance] = JsonCodecMaker.make(config)
+  given JsonValueCodec[Alliance]                           = JsonCodecMaker.make(config)
   given listOfAllianceId: JsonValueCodec[List[AllianceId]] =
     listOfLong.asInstanceOf[JsonValueCodec[List[AllianceId]]]
 

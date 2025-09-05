@@ -65,7 +65,7 @@ object Config:
   private given DeriveConfig[zio.Config.Secret]  = DeriveConfig[String].map(zio.Config.Secret.apply)
   private given DeriveConfig[java.nio.file.Path] = DeriveConfig[String].map(java.nio.file.Paths.get(_))
   private given DeriveConfig[Uri]                = DeriveConfig[String].mapAttempt(Uri.unsafeParse)
-  private given DeriveConfig[BytesSecret] = DeriveConfig[zio.Config.Secret].mapOrFail:
+  private given DeriveConfig[BytesSecret]        = DeriveConfig[zio.Config.Secret].mapOrFail:
     case s if s.value.length == 44 => Right(BytesSecret(s))
     case _                         => Left(zio.Config.Error.InvalidData(message = "Bytes secret length != 44"))
 

@@ -22,7 +22,7 @@ private[sdeloader] enum ImportState:
 def intoDb(sde: ZStream[Any, parser.Error, GroupedExport], meta: SdeLoadMeta): RIO[DataSource, (Int, Chunk[Long])] =
   for
     version <- query.sde.insertVersion(meta)
-    res <- sde
+    res     <- sde
       .mapError(e => ParserException(s"Parser failed: $e", e))
       .mapAccumZIO(ImportState.Initial(): ImportState) {
         case (i: ImportState.Initial, GroupedExport.Ungrouped(names: ExportedData.UniqueNames)) =>
@@ -56,7 +56,7 @@ private[sdeloader] def loadSingle(raw: ExportedData): RIO[DataSource, Long] = ra
   case ExportedData.GroupIds(groupIds)            => query.sde.insertItemGroups(groupIds.map(toItemGroup))
   case ExportedData.NpcCorporations(corporations) => query.sde.insertNpcCorporations(corporations.map(toNpcCorporation))
   case ExportedData.StationOperations(stationOperations) => loadStationOperations(stationOperations)
-  case ExportedData.StationServices(stationServices) =>
+  case ExportedData.StationServices(stationServices)     =>
     query.sde.insertStationServices(stationServices.map(toStationService))
   case ExportedData.TypeDogmas(dogmas) => loadTypeDogmas(dogmas)
   case ExportedData.TypeIds(ids)       => query.sde.insertItemTypes(ids.map(toItemType))
@@ -80,7 +80,7 @@ private[sdeloader] def loadSolarSystems(s: ImportState.ReadyForSolarSystems, rss
 
 private[sdeloader] def loadStationOperations(operations: Vector[sde.StationOperation]) =
   for
-    oc <- query.sde.insertStationOperations(operations.map(toStationOperation))
+    oc  <- query.sde.insertStationOperations(operations.map(toStationOperation))
     osc <- query.sde.insertStationOperationServices(
       operations.flatMap(so => so.services.map(sid => StationOperationService(so.id, sid)))
     )
@@ -94,7 +94,7 @@ private def insertSolarSystem(
 ) =
   for
     systemCount <- query.sde.insertSolarSystem(toSolarSystem(names, r, c, s))
-    starCount <- s.star
+    starCount   <- s.star
       .map(ss => query.sde.insertSolarSystemStar(SolarSystemStar(ss.id, ss.typeId)))
       .getOrElse(ZIO.succeed(0L))
     planetCount <- ZIO.when(s.planets.nonEmpty)(query.sde.insertSolarSystemPlanets(s.planets.map(p => toPlanet(s, p))))
@@ -239,7 +239,7 @@ private def toDogmaAttributeType(a: sde.DogmaAttribute) =
 private def toItemCategory(ci: sde.CategoryId): ItemCategory = ItemCategory(ci.id, ci.nameEn, ci.iconId)
 private def toItemGroup(gi: sde.GroupId): ItemGroup          = ItemGroup(gi.id, gi.categoryId, gi.nameEn, gi.iconId)
 private def toItemName(un: sde.UniqueName): ItemName         = ItemName(un.itemId, un.groupId, un.name)
-private def toItemType(ti: sde.TypeId): ItemType =
+private def toItemType(ti: sde.TypeId): ItemType             =
   ItemType(
     id = ti.id,
     name = ti.nameEn,
