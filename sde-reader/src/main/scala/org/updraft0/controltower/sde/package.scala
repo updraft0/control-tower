@@ -11,6 +11,7 @@ package object sde:
   def read(sdePath: Path, parallel: Int): ZStream[Any, parser.Error, ExportedData] =
     zip
       .readEntries(sdePath)
+      .filterNot(_.name.startsWith("universe/hidden"))
       .mapError(parser.Error.Zip(_))
       .mapZIOPar(parallel)(parser.parse)
       .collectSome
