@@ -6,7 +6,7 @@ import sttp.tapir.*
 import sttp.tapir.json.jsoniter.*
 import sttp.tapir.model.UsernamePassword
 
-import java.nio.charset.{Charset, StandardCharsets}
+import java.nio.charset.StandardCharsets
 import java.time.Instant
 
 case class JwtString(value: String)
@@ -49,9 +49,9 @@ enum SearchCategory derives CanEqual:
   case Agent, Alliance, Character, Constellation, Corporation, Faction, InventoryType, Region, SolarSystem, Station,
     Structure
 
-enum FleetError:
+enum FleetError derives CanEqual:
   case NotInFleet
-  case Other(code: StatusCode, message: String) extends FleetError
+  case Other(error: EsiError) extends FleetError
 
 enum EsiError derives CanEqual:
   case BadRequest(error: String)                        extends EsiError
@@ -65,12 +65,14 @@ enum EsiError derives CanEqual:
   case NotFound(error: String)                          extends EsiError
   case Other(code: StatusCode, message: String)         extends EsiError
 
+case class EsiRateLimitRemaining(value: Int)
+case class EsiRateLimitSecondsLeft(seconds: Int)
+
 object Endpoints:
   import jsoncodec.given
   import schema.given
 
-  // TODO: add error codes - e.g. not found, unauthorized, token expired etc.
-  private val jwtEndpoint = endpoint.securityIn(auth.bearer[String]().map(JwtString.apply)(_.value))
+  val EsiCompatibilityDate = "2025-08-26"
 
   private val esiErrorOut = oneOf[EsiError](
     oneOfVariant(StatusCode.BadRequest, jsonBody[EsiError.BadRequest]),
@@ -81,6 +83,11 @@ object Endpoints:
     oneOfVariant(StatusCode.ServiceUnavailable, jsonBody[EsiError.ServiceUnavailable]),
     oneOfVariantClassMatcher(StatusCode.BadGateway, emptyOutputAs(EsiError.BadGateway()), EsiError.BadGateway.getClass),
     oneOfVariant(StatusCode.GatewayTimeout, jsonBody[EsiError.Timeout]),
+    oneOfVariant(
+      StatusCode.NotFound,
+      stringBodyUtf8AnyFormat[String, CodecFormat.TextPlain](Codec.string)
+        .map[EsiError.NotFound](EsiError.NotFound(_))(_.error)
+    ),
     oneOfDefaultVariant(
       // TODO this still does not handle the case of getting either a string/json response back
       statusCode
@@ -88,6 +95,19 @@ object Endpoints:
         .mapTo[EsiError.Other]
     )
   )
+
+  private val esiEndpointNoHeaders =
+    endpoint
+      .in(header("X-Compatibility-Date", EsiCompatibilityDate))
+      .errorOut(esiErrorOut)
+
+  private val esiEndpoint = // public or private
+    esiEndpointNoHeaders
+      .out(header[Int]("x-esi-error-limit-remain").map(EsiRateLimitRemaining(_))(_.value))
+      .out(header[Int]("x-esi-error-limit-reset").map(EsiRateLimitSecondsLeft(_))(_.seconds))
+
+  private val jwtEndpoint = esiEndpoint
+    .securityIn(auth.bearer[String]().map(JwtString.apply)(_.value))
 
   // auth
   val postJwt = endpoint.post
@@ -98,10 +118,9 @@ object Endpoints:
     .errorOut(jsonBody[AuthErrorResponse])
 
   // status
-  val getStatus = endpoint.get
+  val getStatus = esiEndpointNoHeaders.get
     .in("v2" / "status")
     .out(jsonBody[ServerStatusResponse])
-    .errorOut(esiErrorOut)
     .description("Get server status")
 
   // character
@@ -113,33 +132,28 @@ object Endpoints:
   val getCharacterLocation = jwtEndpoint.get
     .in("v2" / "characters" / path[CharacterId] / "location")
     .out(jsonBody[CharacterLocationResponse])
-    .errorOut(esiErrorOut)
     .description("Get character location")
 
   val getCharacterFleet = jwtEndpoint.get
     .in("v1" / "characters" / path[CharacterId] / "fleet")
     .out(jsonBody[CharacterFleetResponse])
-    .errorOut(
-      oneOf[FleetError](
-        oneOfVariantSingletonMatcher(
-          StatusCode.NotFound,
-          emptyOutputAs(FleetError.NotInFleet)
-        )(FleetError.NotInFleet),
-        oneOfDefaultVariant(statusCode.and(stringBody(Charset.defaultCharset())).mapTo[FleetError.Other])
-      )
-    )
     .description("Get character fleet information")
+    .mapErrorOut {
+      case EsiError.NotFound(_) => FleetError.NotInFleet
+      case x                    => FleetError.Other(x)
+    } {
+      case FleetError.NotInFleet => EsiError.NotFound("not in fleet")
+      case FleetError.Other(x)   => x
+    }
 
   val getCharacterOnline = jwtEndpoint.get
     .in("v3" / "characters" / path[CharacterId] / "online")
     .out(jsonBody[CharacterOnlineResponse])
-    .errorOut(esiErrorOut)
     .description("Get character online status")
 
   val getCharacterShip = jwtEndpoint.get
     .in("v2" / "characters" / path[CharacterId] / "ship")
     .out(jsonBody[CharacterShipResponse])
-    .errorOut(esiErrorOut)
     .description("Get character's current piloted ship (if any)")
 
   // search (auth)
@@ -147,40 +161,34 @@ object Endpoints:
     .in("v3" / "characters" / path[CharacterId] / "search")
     .in(query[List[SearchCategory]]("categories") / query[String]("search") / query[Boolean]("strict"))
     .out(jsonBody[SearchResponse])
-    .errorOut(esiErrorOut)
     .description("Search for entities that match the given sub-string")
 
   // character no-auth
 
-  val getCharacter = endpoint.get
+  val getCharacter = esiEndpointNoHeaders.get
     .in("v5" / "characters" / path[CharacterId])
     .out(jsonBody[Character])
-    .errorOut(oneOf[EsiError](oneOfVariant(StatusCode.NotFound, jsonBody[EsiError.NotFound]), esiErrorOut.variants*))
     .description("Public information about a character")
 
-  val getCharacterAffiliations = endpoint.post
+  val getCharacterAffiliations = esiEndpointNoHeaders.post
     .in("v2" / "characters" / "affiliation")
     .in(jsonBody[List[CharacterId]])
     .out(jsonBody[List[CharacterAffiliation]])
-    .errorOut(esiErrorOut)
     .description("Bulk lookup of character IDs to corporation, alliance and faction")
 
   // corporation no-auth
-  val getCorporation = endpoint.get
+  val getCorporation = esiEndpointNoHeaders.get
     .in("v5" / "corporations" / path[CorporationId])
     .out(jsonBody[Corporation])
-    .errorOut(esiErrorOut)
     .description("Get public information about a corporation")
 
   // alliance no-auth
-  val getAlliance = endpoint.get
+  val getAlliance = esiEndpointNoHeaders.get
     .in("v4" / "alliances" / path[AllianceId])
     .out(jsonBody[Alliance])
-    .errorOut(esiErrorOut)
     .description("Get public information about an alliance")
 
-  val getAlliances = endpoint.get
+  val getAlliances = esiEndpointNoHeaders.get
     .in("v2" / "alliances")
     .out(jsonBody[List[AllianceId]])
-    .errorOut(esiErrorOut)
     .description("Get all active alliance ids")

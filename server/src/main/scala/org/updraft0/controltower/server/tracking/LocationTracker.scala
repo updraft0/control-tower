@@ -199,6 +199,15 @@ object LocationTracker:
               case _: EsiError.BadGateway => ZIO.succeed(st) // ignore bad gateway errors
               case t: EsiError.Timeout    =>
                 ZIO.logTrace(s"Timed out during ESI call: ${t.error}").as(st) // ignore gateway timeouts
+              case r: EsiError.RateLimited =>
+                // we should not really get this as we automatically circuit break when hitting rate limits in the client
+                ZIO
+                  .logWarning(s"Rate limited by ESI: ${r.error}")
+                  .as(st.copy(state = CharacterLocationState.ApiError, prevState = Some(prevState), updatedAt = now))
+              case u: EsiError.Unauthorized if u.error.contains("Invalid token") =>
+                ZIO
+                  .logWarning(s"Invalid token, remove character from auth")
+                  .as(st.copy(auth = None, state = CharacterLocationState.NoAuth, updatedAt = now))
               case e =>
                 ZIO
                   .logWarning(s"ESI error while refreshing character status, ignoring: ${e}")
