@@ -148,8 +148,8 @@ object LocationTracker:
     ZIO
       .serviceWithZIO[ServerStatusTracker](_.status)
       .flatMap:
-        case Left(err) => ZIO.logDebug(s"Not refreshing locations due to server status error: ${err}")
-        case Right(s) if !s.isOnlineEnough => ZIO.logDebug("Not refreshing locations due to not being online enough")
+        case Left(err) => ZIO.logWarning(s"Not refreshing locations due to server status error: ${err}")
+        case Right(s) if !s.isOnlineEnough => ZIO.logWarning("Not refreshing locations due to not being online enough")
         case Right(_)                      => refreshLocationsInner(esi, state, response, parallel)
 
   private def refreshLocationsInner(
@@ -159,11 +159,12 @@ object LocationTracker:
       parallel: Int
   ) =
     for
-      curr <- state.get
-      now  <- ZIO.clockWith(_.instant)
+      curr  <- state.get
+      now   <- ZIO.clockWith(_.instant)
+      authT <- ZIO.service[CharacterAuthTracker]
       withAuth = curr.charState.view.filter(_._2.auth.isDefined).values
       res <- ZIO.foreachExec(withAuth)(ExecutionStrategy.ParallelN(parallel))(cs =>
-        refreshLocation(esi, now, cs) @@ Log.CharacterId(cs.charId) @@ Log.BackgroundOperation("locationTracker")
+        refreshLocation(esi, authT, now, cs) @@ Log.CharacterId(cs.charId) @@ Log.BackgroundOperation("locationTracker")
       )
       next <- state.updateAndGet(ts => ts.copy(charState = res.foldLeft(ts.charState)((m, s) => updateOnRefresh(m, s))))
       _    <- traceLogNext(next)
@@ -175,9 +176,17 @@ object LocationTracker:
     m.updatedWith(s.charId):
       case None    => Some(s)
       case Some(p) =>
-        Some(s.copy(auth = p.auth)) // update auth in case it was refreshed during checking locations
+        s.state match {
+          case CharacterLocationState.NoAuth => Some(s) // do not update auth
+          case _ => Some(s.copy(auth = p.auth)) // update auth in case it was refreshed during checking locations
+        }
 
-  private def refreshLocation(esi: EsiClient, now: Instant, st: CharacterState): UIO[CharacterState] =
+  private def refreshLocation(
+      esi: EsiClient,
+      authT: CharacterAuthTracker,
+      now: Instant,
+      st: CharacterState
+  ): UIO[CharacterState] =
     st match
       case CharacterState(_, _, None, _, _) =>
         // no-op - with no auth there is nothing to update
@@ -205,9 +214,10 @@ object LocationTracker:
                   .logWarning(s"Rate limited by ESI: ${r.error}")
                   .as(st.copy(state = CharacterLocationState.ApiError, prevState = Some(prevState), updatedAt = now))
               case u: EsiError.Unauthorized if u.error.contains("Invalid token") =>
-                ZIO
-                  .logWarning(s"Invalid token, remove character from auth")
-                  .as(st.copy(auth = None, state = CharacterLocationState.NoAuth, updatedAt = now))
+                authT.tokenInvalid(charId) *>
+                  ZIO
+                    .logWarning(s"Invalid token, remove character from auth")
+                    .as(st.copy(auth = None, state = CharacterLocationState.NoAuth, updatedAt = now))
               case e =>
                 ZIO
                   .logWarning(s"ESI error while refreshing character status, ignoring: ${e}")

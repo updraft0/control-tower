@@ -11,6 +11,7 @@ import java.time.Instant
 trait CharacterAuthTracker:
   def newLogin(auth: CharacterAuth): UIO[Unit]
   def logout(characterId: CharacterId): UIO[Unit]
+  def tokenInvalid(characterId: CharacterId): UIO[Unit]
   def updates: URIO[Scope, Dequeue[Chunk[CharacterAuth]]]
 
 object CharacterAuthTracker:
@@ -71,6 +72,18 @@ object CharacterAuthTracker:
         state.update(_.updated(auth.characterId, CharacterState.Active(auth))) *> sendSnapshot(state, hub)
       override def logout(characterId: CharacterId): UIO[Unit] =
         state.update(_.removed(characterId)) *> sendSnapshot(state, hub)
+      override def tokenInvalid(characterId: CharacterId): UIO[Unit] =
+        ZIO
+          .clockWith(_.instant)
+          .flatMap: now =>
+            state.update(
+              _.updatedWith(characterId)(stOpt =>
+                stOpt.map:
+                  case a: CharacterState.Active =>
+                    CharacterState.RefreshFailure(a.token, 0, now) // model it as a refresh failure
+                  case x => x
+              )
+            )
       override def updates: URIO[Scope, Dequeue[Chunk[CharacterAuth]]] =
         hub.subscribe
 

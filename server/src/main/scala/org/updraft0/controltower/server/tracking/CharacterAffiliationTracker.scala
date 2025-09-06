@@ -16,13 +16,15 @@ object CharacterAffiliationTracker:
   // Limit how many characters to put in a batch
   private val EsiMaxCharacterPerBatch = 64
 
+  private val RefreshSchedule = Schedule.exponential(2.seconds) && Schedule.recurs(3)
+
   def layer: ZLayer[Env, Nothing, Unit] =
     ZLayer.scoped(apply())
 
   def apply(): ZIO[Scope & Env, Nothing, Unit] =
     val refresh = refreshAll
-      .tapError(ex => ZIO.logErrorCause("Failed to refresh character affiliations", Cause.fail(ex)))
-      .ignoreLogged @@ Log.BackgroundOperation("affiliationTracker")
+      .logError("Failed to refresh all character affiliations")
+      .ignore @@ Log.BackgroundOperation("affiliationTracker")
 
     refresh.delay(5.seconds).forkScoped *> refresh.repeat(Schedule.fixed(PollInterval)).forkScoped.unit
 
@@ -30,12 +32,12 @@ object CharacterAffiliationTracker:
     ZIO
       .serviceWithZIO[ServerStatusTracker](_.status)
       .flatMap:
-        case Left(_)                       => ZIO.logDebug("Not refreshing due to errored service status")
+        case Left(_) =>
+          ZIO.logWarning("Not refreshing due to errored service status")
         case Right(s) if !s.isOnlineEnough =>
           ZIO.logWarning("Not refreshing due to server not having enough players online or being VIP")
         case Right(_) =>
           Users.allCharacters
-            .mapError(esiToThrowable)
             .flatMap(allChars =>
               ZStream
                 .fromChunk(allChars)
@@ -43,18 +45,17 @@ object CharacterAffiliationTracker:
                 .mapZIO(getAndSaveAffiliations)
                 .runDrain
             )
-            .retry(Schedule.exponential(2.seconds) && Schedule.recurs(3))
+            .mapError(esiToThrowable)
+            .retry(RefreshSchedule)
 
   private def getAndSaveAffiliations(charIds: Chunk[CharacterId]) =
     ZIO
-      .serviceWithZIO[EsiClient](_.getCharacterAffiliations(charIds.toList))
-      .tapError(ex => ZIO.logWarning(s"Updating character affiliations for $charIds failed due to $ex"))
-      .orElseFail(new RuntimeException("Updating character affiliations failed due to ESI error"))
+      .serviceWithZIO[EsiClient](_.getCharacterAffiliations(charIds.toList).mapError(EsiError.ClientError.apply))
       .flatMap(xs =>
         Users
           .updateAffiliations(xs.map(ca => (ca.characterId, ca.corporationId, ca.allianceId)))
-          .mapError(esiToThrowable)
       )
+      .logError(s"Failed to get character affiliations for $charIds")
 
   private def esiToThrowable(e: Users.Error): Throwable =
     e match
