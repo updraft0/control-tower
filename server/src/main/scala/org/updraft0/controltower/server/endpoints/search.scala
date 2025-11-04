@@ -34,7 +34,7 @@ def searchEntity = Endpoints.searchEntity
 
 private def esiSearch(
     characterId: CharacterId,
-    jwt: client.JwtString,
+    jwt: client.JwtForCharacter,
     searchCriteria: List[client.SearchCategory],
     search: String
 ) =

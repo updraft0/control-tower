@@ -13,7 +13,7 @@ object schema:
   // auth
   given Schema[JwtAuthResponse]   = Schema.derived
   given Schema[AuthErrorResponse] = Schema.derived
-  given Schema[JwtString]         = Schema(SString().as[JwtString])
+  given Schema[JwtForCharacter]   = Schema(SString().as[JwtForCharacter])
 
   // character
   given Schema[CharacterRoles]            = Schema.derived
@@ -72,12 +72,13 @@ object jsoncodec:
     override def encodeValue(x: SystemId, out: JsonWriter): Unit          = out.writeVal(x.value)
     override def nullValue: SystemId                                      = SystemId(-1)
 
-  given JsonValueCodec[JwtString] = new JsonValueCodec[JwtString]:
-    override def decodeValue(in: JsonReader, default: JwtString): JwtString =
+  given JsonValueCodec[JwtForCharacter] = new JsonValueCodec[JwtForCharacter]:
+    override def decodeValue(in: JsonReader, default: JwtForCharacter): JwtForCharacter =
       val str = in.readString("")
-      JwtString(str)
-    override def encodeValue(x: JwtString, out: JsonWriter): Unit = out.writeNonEscapedAsciiVal(x.value)
-    override def nullValue: JwtString                             = null
+      JwtForCharacter(CharacterId.Invalid, str) // TODO - is this correct?
+
+    override def encodeValue(x: JwtForCharacter, out: JsonWriter): Unit = out.writeNonEscapedAsciiVal(x.value)
+    override def nullValue: JwtForCharacter                             = null
 
   given JsonValueCodec[JwtAuthResponse]   = JsonCodecMaker.make(config)
   given JsonValueCodec[AuthErrorResponse] = JsonCodecMaker.make(config)

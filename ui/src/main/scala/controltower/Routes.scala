@@ -53,7 +53,7 @@ object Routes:
   def navigateTo(page: Page): Binder[HtmlElement] = Binder: el =>
     val isLinkElement = el.ref.isInstanceOf[dom.html.Anchor]
 
-    if (isLinkElement)
+    if isLinkElement then
       Try(JsRouter.absoluteUrlForPage(page)) match
         case Success(url) => el.amend(href(url))
         case Failure(err) => dom.console.error(err)

@@ -32,7 +32,7 @@ lazy val `esi-client` = project
   .settings(
     commonSettings,
     Seq(
-      libraryDependencies ++= jsoniter ++ tapir ++ `tapir-client` ++ `tapir-jsoniter`,
+      libraryDependencies ++= jsoniter ++ jwt ++ tapir ++ `tapir-client` ++ `tapir-jsoniter`,
       libraryDependencies ++= zio ++ `zio-test`
     )
   )

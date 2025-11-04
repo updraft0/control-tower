@@ -1,6 +1,7 @@
 package org.updraft0.esi.client
 
 import com.github.plokhotnyuk.jsoniter_scala.core.*
+import org.updraft0.controltower.constant.CharacterId
 import sttp.tapir.DecodeResult
 import sttp.tapir.json.jsoniter.jsonBody
 import zio.test.*
@@ -23,7 +24,8 @@ object JsonEncodingSpec extends ZIOSpecDefault {
       assertTrue(
         readFromString[JwtAuthResponse](s) ==
           JwtAuthResponse(
-            accessToken = JwtString(
+            accessToken = JwtForCharacter(
+              CharacterId.Invalid,
               "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
             ),
             expiresIn = 1199,

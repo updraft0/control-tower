@@ -7,7 +7,7 @@ import org.updraft0.controltower.db.query.auth
 import org.updraft0.controltower.db.query
 import org.updraft0.controltower.server.Config
 import org.updraft0.controltower.server.db.AuthQueries
-import org.updraft0.esi.client.{EsiClient, JwtAuthResponse, JwtString}
+import org.updraft0.esi.client.{EsiClient, JwtAuthResponse, JwtForCharacter}
 import zio.*
 
 import java.security.SecureRandom
@@ -21,7 +21,7 @@ case class CharacterAuth(
     userId: UserId,
     characterId: CharacterId,
     characterName: String,
-    token: JwtString,
+    token: JwtForCharacter,
     refreshToken: Base64,
     expiry: Instant
 )
@@ -263,7 +263,12 @@ object Users:
       .logError(s"Failed to get character info for ${tokenMeta.characterId}")
       .mapError(EsiError.ClientError(_))
 
-  private def getUserCharacterFromEsiRaw(characterId: CharacterId, ownerHash: String, jwt: JwtString, now: Instant) =
+  private def getUserCharacterFromEsiRaw(
+      characterId: CharacterId,
+      ownerHash: String,
+      jwt: JwtForCharacter,
+      now: Instant
+  ) =
     (EsiClient.withZIO(_.getCharacter(characterId)) <&>
       EsiClient.withZIO(_.getCharacterAffiliations(List(characterId))) <&>
       EsiClient.withZIO(_.getCharacterOnline(jwt)(characterId)))
@@ -299,7 +304,14 @@ object Users:
 
   private[auth] def decryptAuthTokenTo(userId: UserId, name: String, token: model.CharacterAuthToken) =
     decryptAuthToken(token).map: (access, refresh) =>
-      CharacterAuth(userId, token.characterId, name, JwtString(access), refresh, token.expiresAt)
+      CharacterAuth(
+        userId,
+        token.characterId,
+        name,
+        JwtForCharacter(token.characterId, access),
+        refresh,
+        token.expiresAt
+      )
 
   private[auth] def decryptAuthToken(token: model.CharacterAuthToken) =
     val nonce = Base64.raw(token.nonce).toBytes

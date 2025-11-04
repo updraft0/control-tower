@@ -1,5 +1,6 @@
 package org.updraft0.controltower.constant
 
+import scala.annotation.targetName
 import scala.language.implicitConversions
 
 // TODO: move to typeclass encoding
@@ -46,15 +47,17 @@ opaque type CorporationId = Long
 object CorporationId:
   def apply(i: Long): CorporationId = i
 
-  given Conversion[CorporationId, Long]:
+  given Conversion[CorporationId, Long] with
     def apply(s: CorporationId): Long = s
 
-  given Ordering[CorporationId]:
+  given Ordering[CorporationId] with
     def compare(x: CorporationId, y: CorporationId): Int = x.compare(y)
 
   given CanEqual[CorporationId, CorporationId] = CanEqual.derived
 
-  extension (inline v: CorporationId) inline def value: Long = v
+  extension (inline v: CorporationId)
+    @targetName("corporationIdValue")
+    inline def value: Long = v
 
 // AllianceId
 opaque type AllianceId = Long

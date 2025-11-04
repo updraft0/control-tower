@@ -7,11 +7,12 @@ import sttp.tapir.Endpoint
 import sttp.tapir.client.sttp.{SttpClientInterpreter, WebSocketToPipe}
 import sttp.tapir.model.UsernamePassword
 import zio.*
+import zio.concurrent.ConcurrentMap
+
 import java.time.Instant
+import scala.annotation.nowarn
 
 type SearchParams = (CharacterId, List[SearchCategory], String, Boolean)
-
-case class ErrorBudget(remaining: Int, resetsAt: Instant)
 
 /** Thin HTTP client over the ESI endpoints
   */
@@ -19,10 +20,8 @@ final class EsiClient(
     config: EsiClient.Config,
     sttp: SttpClient,
     interp: SttpClientInterpreter,
-    errorBudget: Ref[ErrorBudget]
+    retryAfter: ConcurrentMap[(CharacterId, EsiRateLimitGroup), Instant]
 ):
-  private val InternalRateLimit = EsiError.RateLimited("Internal rate limit due to budget")
-
   // request/response bodies should not be logged for JWT flow, this is why we do not use the direct client flow methods
   private val postJwtBase =
     interp
@@ -38,29 +37,20 @@ final class EsiClient(
     val reqT = postJwtBase.compose[String](token => Map("grant_type" -> "refresh_token", "refresh_token" -> token))
     i => sttp.responseMonad.map(sttp.send(reqT(i)))(_.body)
 
-  val getCharacterRoles: JwtString => CharacterId => IO[EsiError, CharacterRoles] =
-    jwtCheckErrors(Endpoints.getCharacterRoles, InternalRateLimit).andThen(
-      _.andThen(_.orDie.absolve.flatMap(processEsiMeta))
-    )
+  val getCharacterRoles: JwtForCharacter => CharacterId => IO[EsiError, CharacterRoles] =
+    jwtRateLimit(Endpoints.getCharacterRoles)
 
-  val getCharacterLocation: JwtString => CharacterId => IO[EsiError, CharacterLocationResponse] =
-    jwtCheckErrors(Endpoints.getCharacterLocation, InternalRateLimit).andThen(
-      _.andThen(_.orDie.absolve.flatMap(processEsiMeta))
-    )
+  val getCharacterLocation: JwtForCharacter => CharacterId => IO[EsiError, CharacterLocationResponse] =
+    jwtRateLimit(Endpoints.getCharacterLocation)
 
-  val getCharacterFleet: JwtString => CharacterId => IO[FleetError, CharacterFleetResponse] =
-    jwtCheckErrors(Endpoints.getCharacterFleet, FleetError.Other(InternalRateLimit))
-      .andThen(_.andThen(_.orDie.absolve.flatMap(processEsiMeta)))
+  val getCharacterFleet: JwtForCharacter => CharacterId => IO[FleetError, CharacterFleetResponse] =
+    jwtRateLimit(Endpoints.getCharacterFleet)
 
-  val getCharacterOnline: JwtString => CharacterId => IO[EsiError, CharacterOnlineResponse] =
-    jwtCheckErrors(Endpoints.getCharacterOnline, InternalRateLimit).andThen(
-      _.andThen(_.orDie.absolve.flatMap(processEsiMeta))
-    )
+  val getCharacterOnline: JwtForCharacter => CharacterId => IO[EsiError, CharacterOnlineResponse] =
+    jwtRateLimit(Endpoints.getCharacterOnline)
 
-  val getCharacterShip: JwtString => CharacterId => IO[EsiError, CharacterShipResponse] =
-    jwtCheckErrors(Endpoints.getCharacterShip, InternalRateLimit).andThen(
-      _.andThen(_.orDie.absolve.flatMap(processEsiMeta))
-    )
+  val getCharacterShip: JwtForCharacter => CharacterId => IO[EsiError, CharacterShipResponse] =
+    jwtRateLimit(Endpoints.getCharacterShip)
 
   val getCharacter: CharacterId => IO[EsiError, Character] =
     noAuthClientDecodeErrors(Endpoints.getCharacter)
@@ -80,32 +70,45 @@ final class EsiClient(
   val getServerStatus: Unit => IO[EsiError, ServerStatusResponse] =
     noAuthClientDecodeErrors(Endpoints.getStatus)
 
-  val search: JwtString => SearchParams => IO[EsiError, SearchResponse] =
-    jwtCheckErrors(Endpoints.search, InternalRateLimit).andThen(_.andThen(_.orDie.absolve.flatMap(processEsiMeta)))
+  val search: JwtForCharacter => SearchParams => IO[EsiError, SearchResponse] =
+    jwtRateLimit(Endpoints.search)
 
   private def noAuthClientDecodeErrors[I, O](e: Endpoint[Unit, I, EsiError, O, Any]) =
     interp
       .toClientThrowDecodeFailures(e, Some(config.base), sttp)
       .andThen(_.orDie.absolve)
 
-  private def jwtCheckErrors[A, I, E, O](e: Endpoint[A, I, E, O, Any], budgetError: E) =
-    (a: A) =>
+  // FIXME - could not reproduce this minimally and no issues on the bug tracker
+  @nowarn("msg=pattern selector should be an instance of Matchable.*")
+  private def jwtRateLimit[I, EsiError, O](
+      e: Endpoint[JwtForCharacter, I, EsiError, (EsiRateLimitInfo, O), Any]
+  ): JwtForCharacter => I => IO[EsiError, O] =
+    (jwt: JwtForCharacter) =>
       (i: I) =>
+        val esiMethodGroupKey =
+          (jwt.characterId, e.attribute(Endpoints.RateLimitGroup).getOrElse(EsiRateLimitGroup("other")))
         for
           now           <- ZIO.clockWith(_.instant)
-          currentBudget <- errorBudget.get
-          _   <- ZIO.unless(currentBudget.remaining > 0 || now.isAfter(currentBudget.resetsAt))(ZIO.left(budgetError))
+          retryAfterOpt <- retryAfter.get(esiMethodGroupKey)
+          _             <- ZIO.when(retryAfterOpt.exists(i => now.isBefore(i)))(
+            ZIO.left(EsiError.RateLimited(Duration.fromInterval(now, retryAfterOpt.get)))
+          )
           res <- interp
-            .toSecureClientThrowDecodeFailures[Task, A, I, E, O, Any](e, Some(config.base), sttp)
-            .apply(a)
+            .toSecureClientThrowDecodeFailures[Task, JwtForCharacter, I, EsiError, (EsiRateLimitInfo, O), Any](
+              e,
+              Some(config.base),
+              sttp
+            )
+            .apply(jwt)
             .apply(i)
-        yield res
-
-  private def processEsiMeta[T](value: (EsiRateLimitRemaining, EsiRateLimitSecondsLeft, T)): UIO[T] =
-    for
-      now <- ZIO.clockWith(_.instant)
-      _   <- errorBudget.set(ErrorBudget(value._1.value, now.plusSeconds(value._2.seconds)))
-    yield value._3
+            .orDie
+          _ <- res match
+            case Left(EsiError.RateLimited(d)) => retryAfter.put(esiMethodGroupKey, now.plus(d))
+            case Left(_)                       => ZIO.unit
+            case Right((limitInfo, _))         =>
+              retryAfter.remove(esiMethodGroupKey) *> ZIO.logDebug(limitInfo.toString) // TODO remove debug
+          res2 <- ZIO.fromEither(res)
+        yield res2._2
 
 object EsiClient:
   case class Config(base: Uri, loginBase: Uri, clientId: String, clientSecret: zio.Config.Secret)
@@ -115,11 +118,11 @@ object EsiClient:
 
   def apply(sttp: SttpClient): RIO[Config, EsiClient] =
     for
-      config <- ZIO.service[Config]
-      budget <- Ref.make(ErrorBudget(999, Instant.MAX))
+      config     <- ZIO.service[Config]
+      retryAfter <- ConcurrentMap.empty
     // FIXME wait until improvements land in generic aliases in layers after ZIO 2.1.1
     //      sttp   <- ZIO.service[SttpClient]
-    yield new EsiClient(config, zioLoggingBackend(sttp), SttpClientInterpreter(), budget)
+    yield new EsiClient(config, zioLoggingBackend(sttp), SttpClientInterpreter(), retryAfter)
 
   inline def withZIO[R, E, A](inline f: EsiClient => ZIO[R, E, A]): ZIO[R & EsiClient, E, A] =
     ZIO.serviceWithZIO[EsiClient](f.apply)

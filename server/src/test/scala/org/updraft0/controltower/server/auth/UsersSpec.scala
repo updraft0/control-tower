@@ -1,7 +1,7 @@
 package org.updraft0.controltower.server.auth
 
 import org.updraft0.controltower.constant.CharacterId
-import org.updraft0.esi.client.{JwtAuthResponse, JwtString}
+import org.updraft0.esi.client.{JwtAuthResponse, JwtForCharacter}
 import zio.*
 import zio.test.*
 
@@ -22,7 +22,7 @@ object UsersSpec extends ZIOSpecDefault:
   def spec = suite("JWT auth token")(
     test("can be encrypted and decrypted"):
       val meta = EsiTokenMeta(CharacterId(1234), "Name1", "abcdef", Instant.EPOCH)
-      val jwt  = JwtAuthResponse(JwtString(SampleTokenValue), 1L, "?", SampleRefresh)
+      val jwt  = JwtAuthResponse(JwtForCharacter(CharacterId.Invalid, SampleTokenValue), 1L, "?", SampleRefresh)
 
       for
         enc <- Users.encryptJwtResponse(meta, jwt)

@@ -211,7 +211,7 @@ object LocationTracker:
               case r: EsiError.RateLimited =>
                 // we should not really get this as we automatically circuit break when hitting rate limits in the client
                 ZIO
-                  .logWarning(s"Rate limited by ESI: ${r.error}")
+                  .logWarning(s"Rate limited by ESI, retry after ${r.retryAfter}")
                   .as(st.copy(state = CharacterLocationState.ApiError, prevState = Some(prevState), updatedAt = now))
               case u: EsiError.Unauthorized if u.error.contains("Invalid token") =>
                 authT.tokenInvalid(charId) *>

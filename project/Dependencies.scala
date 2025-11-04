@@ -10,8 +10,8 @@ object Dependencies {
   object Versions {
     val brotli             = "1.20.0"
     val flyway             = "11.3.0" // fixed at this version for now - the jackson databind dependency is no longer optional in later versions
-    val jsoniter           = "2.37.8"
-    val jwt                = "11.0.2"
+    val jsoniter           = "2.38.3"
+    val jwt                = "11.0.3"
     val laminar            = "17.2.1"
     val `laminar-form-derivation` = "1.2.4"
     val laminext           = "0.17.0" // 0.17.1
@@ -24,7 +24,7 @@ object Dependencies {
     val sttp               = "3.11.0"
     val tapir              = "1.11.43"
     val waypoint           = "9.0.0"
-    val zio                = "2.1.21"
+    val zio                = "2.1.22"
     val `zio-config`       = "4.0.4"
     val `zio-logging`      = "2.5.1"
     val `zio-metrics`      = "2.5.0"

@@ -30,7 +30,7 @@ object build {
   val commonSettings = Seq(
     organization := "org.updraft0",
     version      := "0.1.0-SNAPSHOT",
-    scalaVersion := "3.7.2",
+    scalaVersion := "3.7.3",
     manifestSetting,
     crossVersion := CrossVersion.binary,
     scalacOptions ++= Seq(
@@ -41,11 +41,12 @@ object build {
       "-Werror",
       "-language:implicitConversions",
       "-language:strictEquality",
-      "-source:future",
+//      "-source:future", TODO reenable
       "-Xmax-inlines", "64",
 //      "-explain"
       "-explain-cyclic", // explain-psychic
       "-Ydebug-cyclic",
+//      "-rewrite", "-source", "3.0-migration", "-new-syntax"
     ),
     ThisBuild / usePipelining := true,
     Test / scalacOptions --= Seq(
