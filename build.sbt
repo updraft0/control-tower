@@ -116,7 +116,7 @@ lazy val server = project
         "CT_DB_PATH" -> "/app/db"
       ),
       dockerExposedVolumes := Seq("/app/db"),
-      dockerBaseImage      := "ghcr.io/graalvm/graalvm-community:24",
+      dockerBaseImage      := "ghcr.io/graalvm/graalvm-community:25",
       dockerExposedPorts   := Seq(8092),
       dockerRepository     := Some("ghcr.io"),
       dockerUsername       := Some("updraft0"),

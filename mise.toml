@@ -1,0 +1,2 @@
+[env]
+JAVA_HOME = { value = "{{ tools.java.path }}", tools = true }
