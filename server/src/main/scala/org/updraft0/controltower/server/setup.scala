@@ -11,15 +11,23 @@ import java.util.UUID
 
 given CanEqual[LogLevel, LogLevel] = CanEqual.derived
 
-private[server] def configProvider = TypesafeConfigProvider.fromResourcePath()
+// support both using application.conf with environment variables (the default) or a separately configured config path
+//  at BACKEND_CONFIG_SECRET that loads application.conf and provides the secret values directly
+private[server] def configProvider =
+  ZLayer.scoped(
+    ZIO
+      .systemWith(_.env("BACKEND_CONFIG_SECRET"))
+      .tap(o => o.fold(ZIO.unit)(f => ZIO.consoleWith(_.printLine(s"Using config file from '${f}'"))))
+      .flatMap(_.fold(TypesafeConfigProvider.fromResourcePathZIO())(TypesafeConfigProvider.fromHoconFilePathZIO(_)))
+      .flatMap(ZIO.withConfigProviderScoped(_))
+  )
 
 private def consoleOrJsonLogger = ZLayer
   .fromZIO(ZIO.configProviderWith(_.nested("logger").load(Config.string("type").withDefault(""))))
   .flatMap(e => if (e.get == "json") consoleJsonLogger() else consoleLogger())
 
-private[server] def desktopLogger = Runtime.removeDefaultLoggers >>> Runtime.setConfigProvider(
-  configProvider
-) >>> consoleOrJsonLogger >+> Slf4jBridge.init()
+private[server] def desktopLogger =
+  Runtime.removeDefaultLoggers >>> configProvider >>> consoleOrJsonLogger >+> Slf4jBridge.init()
 
 object Log:
 
