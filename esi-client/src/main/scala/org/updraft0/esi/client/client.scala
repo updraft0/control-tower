@@ -2,7 +2,7 @@ package org.updraft0.esi.client
 
 import org.updraft0.controltower.constant.*
 import sttp.client3.httpclient.zio.{HttpClientZioBackend, SttpClient}
-import sttp.model.Uri
+import sttp.model.{HeaderNames, Uri}
 import sttp.tapir.Endpoint
 import sttp.tapir.client.sttp.{SttpClientInterpreter, WebSocketToPipe}
 import sttp.tapir.model.UsernamePassword
@@ -22,11 +22,19 @@ final class EsiClient(
     interp: SttpClientInterpreter,
     retryAfter: ConcurrentMap[(CharacterId, EsiRateLimitGroup), Instant]
 ):
+
+  private val UserAgent = "control-tower/0.1 https://github.com/updraft0/control-tower"
+
   // request/response bodies should not be logged for JWT flow, this is why we do not use the direct client flow methods
   private val postJwtBase =
     interp
       .toSecureRequestThrowDecodeFailures(Endpoints.postJwt, Some(config.loginBase))
-      .andThen(_.andThen(_.logSettings(logRequestBody = Some(false), logResponseBody = Some(false))))
+      .andThen(
+        _.andThen(
+          _.header(HeaderNames.UserAgent, UserAgent)
+            .logSettings(logRequestBody = Some(false), logResponseBody = Some(false))
+        )
+      )
       .apply(UsernamePassword(config.clientId, Some(config.clientSecret.value.asString)))
 
   val postJwtAuthCode: String => Task[Either[AuthErrorResponse, JwtAuthResponse]] =
@@ -74,9 +82,15 @@ final class EsiClient(
     jwtRateLimit(Endpoints.search)
 
   private def noAuthClientDecodeErrors[I, O](e: Endpoint[Unit, I, EsiError, O, Any]) =
-    interp
-      .toClientThrowDecodeFailures(e, Some(config.base), sttp)
-      .andThen(_.orDie.absolve)
+    (i: I) =>
+      interp
+        .toRequestThrowDecodeFailures(e, Some(config.base))
+        .apply(i)
+        .header(HeaderNames.UserAgent, UserAgent)
+        .send(sttp)
+        .orDie
+        .map(_.body)
+        .absolve
 
   // FIXME - could not reproduce this minimally and no issues on the bug tracker
   @nowarn("msg=pattern selector should be an instance of Matchable.*")
@@ -93,16 +107,16 @@ final class EsiClient(
           _             <- ZIO.when(retryAfterOpt.exists(i => now.isBefore(i)))(
             ZIO.left(EsiError.RateLimited(Duration.fromInterval(now, retryAfterOpt.get)))
           )
-          res <- interp
-            .toSecureClientThrowDecodeFailures[Task, JwtForCharacter, I, EsiError, (EsiRateLimitInfo, O), Any](
+          req = interp
+            .toSecureRequestThrowDecodeFailures[JwtForCharacter, I, EsiError, (EsiRateLimitInfo, O), Any](
               e,
-              Some(config.base),
-              sttp
+              Some(config.base)
             )
             .apply(jwt)
             .apply(i)
-            .orDie
-          _ <- res match
+            .header(HeaderNames.UserAgent, UserAgent)
+          res <- sttp.send(req).orDie.map(_.body)
+          _   <- res match
             case Left(EsiError.RateLimited(d)) => retryAfter.put(esiMethodGroupKey, now.plus(d))
             case Left(_)                       => ZIO.unit
             case Right((limitInfo, _))         =>

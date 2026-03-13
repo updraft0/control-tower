@@ -205,8 +205,8 @@ object LocationTracker:
         doRefresh(esi, now, charId, prevState, auth)
           .foldZIO(
             {
-              case _: EsiError.BadGateway => ZIO.succeed(st) // ignore bad gateway errors
-              case t: EsiError.Timeout    =>
+              case _: EsiError.BadGateway  => ZIO.succeed(st) // ignore bad gateway errors
+              case t: EsiError.Timeout     =>
                 ZIO.logTrace(s"Timed out during ESI call: ${t.error}").as(st) // ignore gateway timeouts
               case r: EsiError.RateLimited =>
                 // we should not really get this as we automatically circuit break when hitting rate limits in the client
