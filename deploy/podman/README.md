@@ -21,7 +21,7 @@ derivative systems or if you prefer not to use docker).
   * This did not work for me and I needed to run:
     * (once) `sudo loginctl enable-linger $(id -u theuser)`
     * (once) `systemctl —user -M theuser@ enable —now podman.socket`
-    * `/usr/lib/systemd/system-generators/podman-system-generator —user ~theuser/.config/systemd/user/`
+    * `/usr/lib/systemd/system-generators/podman-system-generator --user ~theuser/.config/systemd/user/`
 * You can now start with `systemctl --user enable --now {frontend,backend}.service`
 
 [quadlets]: https://podman-desktop.io/blog/podman-quadlet
