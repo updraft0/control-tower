@@ -1,0 +1,24 @@
+# Docs: https://docs.podman.io/en/latest/markdown/podman-systemd.unit.5.html#container-units-container
+[Container]
+# edit this section
+Secret=controltower-prod
+Environment=BACKEND_CONFIG_SECRET=/run/secrets/controltower-prod
+Volume=%h/db:/app/db:Z
+# keep the below lines
+AutoUpdate=registry
+CgroupsMode=no-conmon
+ContainerName=controltower_backend
+Environment=JAVA_OPTS=-XX:+UseZGC
+HostName=backend
+Image=ghcr.io/updraft0/controltower:latest
+Memory=4g
+Network=controltower.network
+Pull=always
+UserNS=keep-id
+
+[Unit]
+Description=The control-tower backend
+Before=frontend.service
+
+[Install]
+WantedBy=default.target

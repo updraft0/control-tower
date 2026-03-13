@@ -1,0 +1,22 @@
+# Docs: https://docs.podman.io/en/latest/markdown/podman-systemd.unit.5.html#container-units-container
+[Container]
+# edit this section
+PublishPort=8080:8080
+Secret=controltower-ssl-private-key
+Secret=controltower-ssl-public-key
+Volume=%h/ui/nginx.conf:/etc/nginx/nginx.conf:ro,Z
+# keep the below lines
+AutoUpdate=registry
+CgroupsMode=no-conmon
+ContainerName=controltower_frontend
+HostName=frontend
+Image=ghcr.io/updraft0/controltower-fe:latest
+Network=controltower.network
+Pull=always
+UserNS=keep-id
+
+[Unit]
+Description=Frontend for control-tower
+
+[Install]
+WantedBy=default.target

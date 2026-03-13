@@ -25,7 +25,7 @@ To run using [docker-compose]:
 * Create a new [EVE Application][eve-online-developer-applications] and note the ESI client id and secret
 * Create the `secret.env` file by e.g. running [`./scripts/generate-secret-env.sh > secret.env`](./scripts/generate-secret-env.sh)
 * Update the `secret.env` with the values of your ESI client id and secret
-* Run `docker-compose up` (look in [`compose.yaml`](./compose.yaml) for things you might want to tweak)
+* Run `docker-compose up -f deploy/docker-compose/compose.yml` (look in [`compose.yaml`](./deploy/docker-compose/compose.yaml) for things you might want to tweak)
 * Wait for the SDE import to run and go to http://localhost:8080 to login + create a map
 
 Current minimum runtime requirements are 4GB RAM and 1 CPU, because the full [SDE][eve-online-sde] is imported and 
@@ -33,6 +33,8 @@ parsing hundreds of megabytes of YAML is memory consuming.
 
 For development, it may be useful to override the env variables `CT_DB_PATH` to something appropriate and set 
 `CT_HTTP_UI_PORT=8091` to match the vite frontend port.
+
+See more details about the various ways of [deployment here](./deploy/README.md).
 
 ## Features
 
