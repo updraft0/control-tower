@@ -5,6 +5,8 @@
 
 > **A new wormhole mapping tool for EVE Online**
 
+![human made](https://redstrate.com/humanmade.png)
+
 ### ⚠ Alpha quality software ⚠
 
 Control Tower is a new mapping tool for [EVE][eve-online] that is focused on mapping J-space and being familiar to 
