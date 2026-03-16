@@ -9,7 +9,7 @@ import org.updraft0.controltower.server.auth.*
 import org.updraft0.controltower.server.db.{AuthQueries, MapQueries}
 import org.updraft0.controltower.server.map.{MapPermissionTracker, MapSession}
 import sttp.tapir.ztapir.*
-import zio.{Config as _, *}
+import zio.*
 
 import java.nio.charset.StandardCharsets
 import java.time.Instant
@@ -125,7 +125,7 @@ def mapWebSocket: zio.http.Routes[EndpointEnv, zio.http.Response] =
     Method.GET / "api" / "map" / "ws" / trailing ->
       handler { (trailing: Path, req: Request) =>
         // FIXME zio-http does not handle spaces in paths well
-        if (trailing.segments.size == 2)
+        if trailing.segments.size == 2 then
           val mapName   = java.net.URLDecoder.decode(trailing.segments(0), StandardCharsets.UTF_8)
           val character = java.net.URLDecoder.decode(trailing.segments(1), StandardCharsets.UTF_8)
           ZIO.scoped:

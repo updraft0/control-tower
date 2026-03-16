@@ -86,7 +86,7 @@ class SystemView(
     extends ViewController:
 
   override def view =
-    if (!ctx.staticData.solarSystemMap.contains(systemId))
+    if !ctx.staticData.solarSystemMap.contains(systemId) then
       org.scalajs.dom.console.error(s"static solar system data does not contain id=$systemId")
       // TODO improve error view (or back out completely)
       div(
@@ -192,7 +192,7 @@ class SystemView(
               secondLine
             ),
             // do not display scan status for kspace
-            if (solarSystem.systemClass.exists(_.spaceType == SpaceType.Known))
+            if solarSystem.systemClass.exists(_.spaceType == SpaceType.Known) then
               mark(cls := "system-scan-status", nbsp)
             else systemScanStatus(system.map(_.signatures), settings, ctx.now)
           )
@@ -226,7 +226,7 @@ private inline def systemOnlineChars(
       cls       := "system-online-chars",
       cls       := "tooltip-target-adjacent",
       styleAttr := s"anchor-name: --online-${systemId}",
-      display <-- chars.map(arr => if (arr.isEmpty) "none" else ""),
+      display <-- chars.map(arr => if arr.isEmpty then "none" else ""),
       text <-- chars.map(_.length.toString)
     ),
     div(
@@ -273,7 +273,10 @@ private[map] inline def renderLocationRow(
     td(cls := "ship-points", child.text <-- sig.map(cl => pointsFromMass(shipTypes(cl.shipTypeId).mass).toString)),
     td(
       cls := "status",
-      i(cls := "ti", cls <-- sig.map(cl => if (cl.structureId.isDefined || cl.stationId.isDefined) "ti-home" else ""))
+      i(
+        cls := "ti",
+        cls <-- sig.map(cl => if cl.structureId.isDefined || cl.stationId.isDefined then "ti-home" else "")
+      )
     )
   )
 
@@ -379,7 +382,7 @@ private def systemRenameView(systemId: SystemId, name: String, actions: WriteBus
       autoFocus := true,
       onEnterPress --> { _ =>
         val newName = nameVar.now()
-        if (newName != name) {
+        if newName != name then {
           actions.onNext(MapAction.Rename(systemId, name = Option.when(!newName.isBlank)(newName.trim)))
         }
         closeMe.onNext(())

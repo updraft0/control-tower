@@ -3,7 +3,7 @@ package org.updraft0.controltower.protocol
 import org.updraft0.controltower.constant.{CharacterId, MapId}
 
 import sttp.model.StatusCode
-import sttp.tapir.{json as _, *}
+import sttp.tapir.*
 import sttp.tapir.json.jsoniter.*
 
 object Endpoints:

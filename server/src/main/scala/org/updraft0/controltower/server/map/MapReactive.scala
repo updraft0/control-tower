@@ -74,7 +74,7 @@ private[map] case class MapState(
   def hasConnection(fromSystem: SystemId, toSystem: SystemId): Boolean =
     val res       = hasConnectionInternal(fromSystem, toSystem)
     val otherSide = hasConnectionInternal(toSystem, fromSystem)
-    if (res != otherSide)
+    if res != otherSide then
       throw new IllegalStateException(
         s"Inconsistent state: ${fromSystem}-->${toSystem} @ $res but ${toSystem}-->${fromSystem} @ $otherSide"
       )
@@ -561,7 +561,7 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
               case Identified(Some(sid), uin: MapRequest.UpdateSystemIntelNote) =>
                 identified(sid, "updateIntelSystemNote", updateIntelSystemNote(mapId, state, sid, uin))
               case Identified(Some(sid), uis: MapRequest.UpdateSystemIntelStructure) =>
-                if (uis.structure.mapId != mapId)
+                if uis.structure.mapId != mapId then
                   ZIO.logWarning("wrong map id sent for structure update").as(state -> Chunk.empty)
                 else
                   identified(sid, "updateIntelSystemStructure", updateIntelSystemStructure(state, sid, uis.structure))
@@ -733,7 +733,8 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
     yield withState(state.updateOne(sys.sys.systemId, sys, Nil, Nil))(nextState =>
       nextState ->
         broadcast(
-          if (state.getSystem(sys.sys.systemId).flatMap(_.display).isEmpty) nextState.systemSnapshot(sys.sys.systemId)
+          if state.getSystem(sys.sys.systemId).flatMap(_.display).isEmpty then
+            nextState.systemSnapshot(sys.sys.systemId)
           else MapResponse.SystemDisplayUpdate(sys.sys.systemId, sys.sys.name, sys.display.get)
         )
     )
@@ -795,7 +796,7 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
       )(query.map.upsertMapSystemSignature)
       // if some connections were found, will reload multiple systems
       resp <-
-        if (systemIdsToRefresh.nonEmpty)
+        if systemIdsToRefresh.nonEmpty then
           combineMany(
             state,
             Chunk(removeConnections(deletedConnections)) ++
@@ -893,7 +894,7 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
         case Some(ids) => query.map.deleteMapSystemSignatures(mapId, rss.systemId, ids, sessionId.characterId)
       // if some connections were found, will reload multiple systems
       resp <-
-        if (systemIdsToRefresh.nonEmpty)
+        if systemIdsToRefresh.nonEmpty then
           combineMany(
             state,
             Chunk(removeConnections(deletedConnections)) ++
@@ -910,7 +911,7 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
       connectionRanks = state.connectionRanks.removedAll(connectionIds)
     )
     val resp =
-      if (connectionsRemoved.nonEmpty) broadcast(MapResponse.ConnectionsRemoved(connectionsRemoved)) else Chunk.empty
+      if connectionsRemoved.nonEmpty then broadcast(MapResponse.ConnectionsRemoved(connectionsRemoved)) else Chunk.empty
     ZIO.succeed((nextState, resp))
 
   private def reloadSystemSnapshot(mapId: MapId, systemId: SystemId)(state: MapState) =
@@ -929,7 +930,7 @@ object MapEntity extends ReactiveEntity[MapEnv, MapId, MapState, Identified[MapR
   ): URIO[MapEnv, (MapState, Chunk[Identified[MapResponse]])] =
     val (nextState, changes) = processCharacterLocationChanges(state, upd)
     val locationsUpdate      =
-      if (state.locationsOnline != nextState.locationsOnline)
+      if state.locationsOnline != nextState.locationsOnline then
         broadcast(
           MapResponse.CharacterLocations(
             nextState.locations.view.filter(_._2.locationInfo.isDefined).mapValues(_.locationInfo.get).toMap
@@ -1460,9 +1461,9 @@ private def mergeModelSignature(
     prev: model.MapSystemSignature,
     newSig: NewMapSystemSignature
 ): model.MapSystemSignature =
-  if (newSig.signatureGroup == model.SignatureGroup.Unknown)
+  if newSig.signatureGroup == model.SignatureGroup.Unknown then
     prev.copy(isDeleted = false, updatedAt = now, updatedByCharacterId = sessionId.characterId)
-  else if (prev.signatureGroup != newSig.signatureGroup)
+  else if prev.signatureGroup != newSig.signatureGroup then
     newModelSignature(now, sessionId, mapSystem, newSig).copy(
       createdAt = prev.createdAt,
       createdByCharacterId = prev.createdByCharacterId
@@ -1478,19 +1479,19 @@ private def mergeModelSignature(
       signatureTypeName = newSig.signatureTypeName.orElse(prev.signatureTypeName),
       wormholeIsEol = newSig.wormholeIsEol.orElse(prev.wormholeIsEol),
       wormholeTypeId =
-        if (k162Changed) newSig.wormholeTypeId
+        if k162Changed then newSig.wormholeTypeId
         else newSig.wormholeTypeId.orElse(prev.wormholeTypeId) /* TODO how to represent removing the type id? */,
       wormholeEolAt =
-        if (newSig.wormholeIsEol.isEmpty) prev.wormholeEolAt
+        if newSig.wormholeIsEol.isEmpty then prev.wormholeEolAt
         else newSig.wormholeIsEol.filter(_ == true).map(_ => now),
       wormholeMassSize =
-        if (newSig.wormholeMassSize == model.WormholeMassSize.Unknown) prev.wormholeMassSize
+        if newSig.wormholeMassSize == model.WormholeMassSize.Unknown then prev.wormholeMassSize
         else Option.when(newSig.signatureGroup == model.SignatureGroup.Wormhole)(newSig.wormholeMassSize),
       wormholeMassStatus =
-        if (newSig.wormholeMassStatus == model.WormholeMassStatus.Unknown) prev.wormholeMassStatus
+        if newSig.wormholeMassStatus == model.WormholeMassStatus.Unknown then prev.wormholeMassStatus
         else Option.when(newSig.signatureGroup == model.SignatureGroup.Wormhole)(newSig.wormholeMassStatus),
       wormholeK162Type =
-        if (k162Changed) newSig.wormholeK162Type
+        if k162Changed then newSig.wormholeK162Type
         else newSig.wormholeK162Type.orElse(prev.wormholeK162Type),
       wormholeConnectionId = UnknownOrUnset(prev.wormholeConnectionId).updateWith(newSig.wormholeConnectionId).asOption,
       updatedAt = now,

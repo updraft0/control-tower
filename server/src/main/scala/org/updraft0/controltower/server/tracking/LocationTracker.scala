@@ -258,7 +258,7 @@ object LocationTracker:
           case _                                   => None
 
         val newState =
-          if (!online.online) CharacterLocationState.Offline
+          if !online.online then CharacterLocationState.Offline
           else
             CharacterLocationState.InSystem(
               characterName = auth.characterName,

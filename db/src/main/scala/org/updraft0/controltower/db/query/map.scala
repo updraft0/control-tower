@@ -5,12 +5,10 @@ import org.updraft0.controltower.constant.*
 import org.updraft0.controltower.db.model.*
 import zio.Chunk
 
-import scala.annotation.nowarn
 import scala.collection.immutable.BitSet
 
 import java.time.Instant
 
-@nowarn("msg=unused import")
 object map:
   import auth.given
   import schema.*

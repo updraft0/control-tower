@@ -13,7 +13,7 @@ object DataCacheSpec extends ZIOSpecDefault:
   def stubDataSource(record: ConcurrentMap[Char, Int], exclude: Set[Char]): DataSource.Batched[Any, GetRequest] =
     new DataSource.Batched[Any, GetRequest]:
       override val identifier: String = "StubDataSource"
-      override def run(requests: Chunk[GetRequest])(implicit trace: Trace): ZIO[Any, Nothing, CompletedRequestMap] =
+      override def run(requests: Chunk[GetRequest])(using Trace): ZIO[Any, Nothing, CompletedRequestMap] =
         ZIO.foreach(requests)(r =>
           record.compute(
             r.c,

@@ -27,10 +27,10 @@ private object SignatureId:
     SigIdRegexFull.matches(s)
 
   inline def isValidSigIdOnInput(s: String): Boolean =
-    if (s.isEmpty) true
-    else if (s.length <= 3) SigIdNamePrefix.matches(s)
-    else if (s.length <= 4) SigIdNameDashPrefix.matches(s)
-    else if (s.length < 7) SigIdNameDashNumPrefix.matches(s)
+    if s.isEmpty then true
+    else if s.length <= 3 then SigIdNamePrefix.matches(s)
+    else if s.length <= 4 then SigIdNameDashPrefix.matches(s)
+    else if s.length < 7 then SigIdNameDashNumPrefix.matches(s)
     else SigIdRegexFull.matches(s)
 
 class AddEditSignatureView(
@@ -102,7 +102,7 @@ class AddEditSignatureView(
           cls := "signature-group",
           SignatureGroup.values
             .filterNot(sg => sg == SignatureGroup.Unknown && existing.isDefined) // cannot revert to Unknown presently
-            .map(sg => if (signatureGroup.now() == sg) sg.selectOption.amend(selected := true) else sg.selectOption)
+            .map(sg => if signatureGroup.now() == sg then sg.selectOption.amend(selected := true) else sg.selectOption)
             .toSeq,
           onInput.mapToValue.map(SignatureGroup.valueOf) --> signatureGroup
         )
@@ -143,7 +143,7 @@ class AddEditSignatureView(
                   cls := "wormhole-mass-status",
                   WormholeMassStatus.values
                     .map(ms =>
-                      if (wormholeMassStatus.now() == ms) ms.selectOption.amend(selected := true)
+                      if wormholeMassStatus.now() == ms then ms.selectOption.amend(selected := true)
                       else ms.selectOption
                     )
                     .toSeq,
@@ -153,7 +153,7 @@ class AddEditSignatureView(
                   cls := "wormhole-mass-size",
                   WormholeMassSize.values
                     .map(ms =>
-                      if (wormholeMassSize.now() == ms) ms.selectOption.amend(selected := true)
+                      if wormholeMassSize.now() == ms then ms.selectOption.amend(selected := true)
                       else ms.selectOption
                     )
                     .toSeq,

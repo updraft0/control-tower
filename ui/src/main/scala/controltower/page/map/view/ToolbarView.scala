@@ -70,7 +70,7 @@ class ToolbarView(
           actions.contramap[MapSystemSnapshot](s =>
             MapAction.IntelChange(
               s.system.systemId,
-              if (s.system.stance == IntelStance.Friendly) IntelStance.Unknown else IntelStance.Friendly
+              if s.system.stance == IntelStance.Friendly then IntelStance.Unknown else IntelStance.Friendly
             )
           )
       ),
@@ -82,7 +82,7 @@ class ToolbarView(
           actions.contramap[MapSystemSnapshot](s =>
             MapAction.IntelChange(
               s.system.systemId,
-              if (s.system.stance == IntelStance.Hostile) IntelStance.Unknown else IntelStance.Hostile
+              if s.system.stance == IntelStance.Hostile then IntelStance.Unknown else IntelStance.Hostile
             )
           )
       ),
@@ -130,8 +130,7 @@ private def systemAddView(
   def onSubmit(): Unit =
     val solarSystemName = systemVar.now()
     val mapName         = nameVar.now()
-    if (solarSystemName.isBlank)
-      error.set(Some(ErrorText.NoSolarSystem))
+    if solarSystemName.isBlank then error.set(Some(ErrorText.NoSolarSystem))
     else
       rds.searchSystemName(solarSystemName).onComplete {
         case Success(List(solarSystem)) =>

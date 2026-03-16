@@ -76,7 +76,7 @@ private inline def sigView(
 
   val connectionTargets = system.map: mss =>
     mss.connections.map: whc =>
-      val targetId   = if (whc.fromSystemId == mss.system.systemId) whc.toSystemId else whc.fromSystemId
+      val targetId   = if whc.fromSystemId == mss.system.systemId then whc.toSystemId else whc.fromSystemId
       val connection = mapCtx.connection(whc.id)
       ConnectionTarget.Wormhole(
         id = whc.id,
@@ -209,7 +209,7 @@ private inline def sigView(
                 val staleAt = now.minus(StaleSignatureInterval)
                 val stale   = signatures.filter(_.updatedAt.isBefore(staleAt))
 
-                if (stale.nonEmpty)
+                if stale.nonEmpty then
                   Modal.showConfirmation(
                     s"Remove ${stale.size} signatures?",
                     s"Confirm removal of signatures in ${solarSystem.name}?",
@@ -328,7 +328,7 @@ private def signatureRow(
       cls := "editable",
       dropdown.view,
       group.signal.changes --> Observer[SignatureGroup](sg =>
-        if (sg != s.signatureGroup) onSigChange.onNext(changeSignatureGroup(sg, s))
+        if sg != s.signatureGroup then onSigChange.onNext(changeSignatureGroup(sg, s))
       )
     )
 
@@ -352,7 +352,7 @@ private def signatureRow(
       dropdown.view,
       sigType.signal.changes --> Observer[SignatureClassified] { sc =>
         val newName = Option.when(sc.name != "Unknown" && !sc.name.isBlank)(sc.name)
-        if (newName != s.name) onSigChange.onNext(changeSignatureName(newName, s))
+        if newName != s.name then onSigChange.onNext(changeSignatureName(newName, s))
       }
     )
 
@@ -376,8 +376,7 @@ private def signatureRow(
       cls := "editable",
       dropdown.view,
       current.signal.changes --> Observer[ConnectionTarget]: ct =>
-        if (ct.idOpt != w.connectionId)
-          onSigChange.onNext(changeWormholeConnectionId(ct.idOpt, w))
+        if ct.idOpt != w.connectionId then onSigChange.onNext(changeWormholeConnectionId(ct.idOpt, w))
     )
 
   val signatureUpdatedTd = td(
@@ -418,7 +417,7 @@ private def signatureRow(
               groups,
               canEdit,
               Observer[WormholeSelectInfo]: wsi =>
-                if (wsi.connectionType != w.connectionType)
+                if wsi.connectionType != w.connectionType then
                   onSigChange.onNext(changeWormholeConnectionType(wsi.connectionType, w))
             )
     ,
@@ -590,7 +589,7 @@ given (static: SystemStaticData) => DropdownItem[WormholeSelectInfo]:
       wormholeTypeCell(wsi.connectionType, false, WormholeMassStatus.Unknown, WormholeMassSize.Unknown, None, static)
     )
 
-private def toDisplayValue(res: Boolean) = if (res) "" else "none"
+private def toDisplayValue(res: Boolean) = if res then "" else "none"
 
 private[view] def timeDiff(time: Observable[Instant], start: Instant) =
   child.text <-- time.map(now => timeDiffString(now, start))
@@ -599,21 +598,21 @@ private[view] def timeDiffString(now: Instant, start: Instant) =
   displayDuration(Duration.between(start, now))
 
 private inline def displayDuration(d: Duration) =
-  if (d.getSeconds < 60) s"${d.getSeconds.max(0)}s"
-  else if (d.getSeconds < 60 * 60) s"${d.getSeconds / 60}m ${d.getSeconds % 60}s"
+  if d.getSeconds < 60 then s"${d.getSeconds.max(0)}s"
+  else if d.getSeconds < 60 * 60 then s"${d.getSeconds / 60}m ${d.getSeconds % 60}s"
   else s"${d.getSeconds / 3_600}h ${d.getSeconds % 3_600 / 60}m"
 
 private def scanClass(sigs: List[MapSystemSignature]) =
-  if (sigs.forall(!sigIsScanned(_, fakeScan = true))) "unscanned"
-  else if (sigs.exists(!sigIsScanned(_, fakeScan = true))) "partially-scanned"
+  if sigs.forall(!sigIsScanned(_, fakeScan = true)) then "unscanned"
+  else if sigs.exists(!sigIsScanned(_, fakeScan = true)) then "partially-scanned"
   else "fully-scanned"
 
 private[map] def scanPercent(sigs: Iterable[MapSystemSignature], fullOnEmpty: Boolean): Double =
   val needsScanning = sigs.count(sigNeedsScanning)
   val scanned       = sigs.count(sigIsScanned(_))
 
-  if (scanned == 0 && fullOnEmpty) 100
-  else if (needsScanning == 0) 0
+  if scanned == 0 && fullOnEmpty then 100
+  else if needsScanning == 0 then 0
   else 100.0 * (scanned.toDouble / needsScanning)
 
 private inline def sigIsScanned(sig: MapSystemSignature, fakeScan: Boolean = false) =
@@ -774,7 +773,7 @@ private[view] def wormholeSelect(
   )
   val dropdown = OptionDropdown(possibleWormholeTypes, wormholeType, isDisabled = canEdit.map(!_))
 
-  if (useTd)
+  if useTd then
     td(
       cls := "signature-type",
       cls := "editable",
@@ -824,7 +823,7 @@ private inline def getFromBoth[A](
   (connection.fromSignature, connection.toSignature) match
     case (Some(from), Some(to)) =>
       val (fromA, toA) = (f(from), f(to))
-      if (fromA != toA)
+      if fromA != toA then
         throw new IllegalStateException(
           s"BUG: connection with sigs attribute did not equal on both signatures [$toA != $fromA]"
         )

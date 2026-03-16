@@ -72,7 +72,7 @@ object LandingPage:
       ESI.characterImage(char.characterId, char.name),
       div(
         cls := "character-name",
-        if (!char.authTokenFresh) buttonRefreshLogin else emptyNode,
+        if !char.authTokenFresh then buttonRefreshLogin else emptyNode,
         buttonLogout(char),
         mark(cls := "name", char.name)
       )

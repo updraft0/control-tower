@@ -47,10 +47,10 @@ opaque type CorporationId = Long
 object CorporationId:
   def apply(i: Long): CorporationId = i
 
-  given Conversion[CorporationId, Long] with
+  given Conversion[CorporationId, Long]:
     def apply(s: CorporationId): Long = s
 
-  given Ordering[CorporationId] with
+  given Ordering[CorporationId]:
     def compare(x: CorporationId, y: CorporationId): Int = x.compare(y)
 
   given CanEqual[CorporationId, CorporationId] = CanEqual.derived

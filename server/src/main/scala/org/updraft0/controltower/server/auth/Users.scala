@@ -105,7 +105,7 @@ object Users:
           case Some((user, _, _, chars)) if chars.exists(_.id == characterId) =>
             auth
               .removeCharacterFromUser(user.userId, characterId)
-              .map(count => if (count > 0) true else false)
+              .map(count => if count > 0 then true else false)
               .zipLeft(auth.deleteCharacterAuthToken(characterId))
           case _ => ZIO.succeed(false)
     )

@@ -44,7 +44,7 @@ final class IntelNoteView(systemId: Signal[Option[SystemId]], selected: Signal[A
         tpe = ColumnType.Number,
         select = _.isPinned,
         view = (sn, is) =>
-          val icon = if (is) "ti-pinned-filled" else "ti-pin"
+          val icon = if is then "ti-pinned-filled" else "ti-pin"
           button(
             i(cls := "ti", cls := icon, title := "Pin/Unpin"),
             onClick.mapToUnit.compose(
@@ -192,7 +192,7 @@ private def addEditIntelNoteView(
         )
           --> { action =>
             actions.onNext(action)
-            closeMe.onNext(None)
+            closeMe.onNext(())
           }
       )
     )

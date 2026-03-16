@@ -289,14 +289,13 @@ private def diffExistingWithScanned(
   val scannedMap: Map[SigId, NewSystemSignature]  = scanned.map(s => s.id -> s).toMap
 
   val (potentialDiffs, removed, added) =
-    if (isReplace)
+    if isReplace then
       (
         existingMap.keySet.intersect(scannedMap.keySet),
         existingMap.keySet.diff(scannedMap.keySet),
         scannedMap.keySet.diff(existingMap.keySet)
       )
-    else
-      (existingMap.keySet.intersect(scannedMap.keySet), Set.empty[SigId], scannedMap.keySet.diff(existingMap.keySet))
+    else (existingMap.keySet.intersect(scannedMap.keySet), Set.empty[SigId], scannedMap.keySet.diff(existingMap.keySet))
 
   (potentialDiffs.toList.map(sigId => compareSigs(existingMap(sigId), scannedMap.get(sigId))) :::
     removed.toList.map(sigId => SignatureUpdate.Removed(existingMap(sigId))) :::
@@ -374,7 +373,7 @@ private[view] def wormholeTypeCell(
     )
 
 private inline def massSizeNotUnknown(ms: WormholeMassSize) =
-  if (ms == WormholeMassSize.Unknown) "?" else ms.toString
+  if ms == WormholeMassSize.Unknown then "?" else ms.toString
 
 // NOTE: this is necessary to not have the wormhole attributes overridden while pasting signatures - might need
 //       reworking if paste signature view allows editing

@@ -57,7 +57,8 @@ class IdbReferenceDataStore(db: Database, maxSearchHits: Int = 10) extends Refer
   override def searchSystemName(value: String): Future[List[SolarSystem]] =
     for
       trx <- solarSystemTx
-      nextValue = if (value.nonEmpty) s"${value.dropRight(1)}${(value.charAt(value.length - 1) + 1).toChar}" else value
+      nextValue =
+        if value.nonEmpty then s"${value.dropRight(1)}${(value.charAt(value.length - 1) + 1).toChar}" else value
       values <- readCursor[SolarSystem, Index](
         trx,
         SolarSystem,
@@ -84,7 +85,7 @@ class IdbReferenceDataStore(db: Database, maxSearchHits: Int = 10) extends Refer
   inline private def solarSystemTx = Future.fromTry(Try(db.transaction(SolarSystem, TransactionMode.readonly)))
   inline private def referenceTx   = Future.fromTry(Try(db.transaction(ReferenceAll, TransactionMode.readonly)))
   inline private def optOr[A: NativeConverter](valueOr: Any): Option[A] =
-    if (js.isUndefined(valueOr)) None else Some(valueOr.asInstanceOf[js.Any].fromNative[A])
+    if js.isUndefined(valueOr) then None else Some(valueOr.asInstanceOf[js.Any].fromNative[A])
 
   inline private def readCursor[A: NativeConverter, S <: org.scalajs.dom.IDBStoreLike[S]](
       tx: Transaction,
@@ -101,7 +102,7 @@ class IdbReferenceDataStore(db: Database, maxSearchHits: Int = 10) extends Refer
     }
     req.onsuccess = { ev =>
       val cursor = ev.target.result
-      if (cursor == null || js.isUndefined(cursor.value) || limit.exists(_ <= state.length))
+      if cursor == null || js.isUndefined(cursor.value) || limit.exists(_ <= state.length) then
         res.complete(Success(state.toList))
       else {
         state.push(cursor.value.asInstanceOf[js.Any].fromNative[A])
@@ -140,13 +141,13 @@ object IdbReferenceDataStore:
       solarSystemKeys <- inTransaction(trx1, SolarSystem, _.getAllKeys())
       _               <- onFinished(trx1)
       _               <-
-        if (doForce || solarSystemKeys.length < NumSolarSystemsApprox) populateAllSolarSystems(db)
+        if doForce || solarSystemKeys.length < NumSolarSystemsApprox then populateAllSolarSystems(db)
         else Future.successful(())
       // second transaction - make sure reference table is populated
       trx2 = db.transaction(ReferenceAll, TransactionMode.readonly)
       referenceKeys <- inTransaction(trx2, ReferenceAll, _.getAllKeys())
       _             <- onFinished(trx2)
-      _             <- if (doForce || referenceKeys.length != 1) populateAllReference(db) else Future.successful(())
+      _             <- if doForce || referenceKeys.length != 1 then populateAllReference(db) else Future.successful(())
       // last transaction - update version
       _ <- populateCodeVersion(db, codeVersion)
     yield new IdbReferenceDataStore(db)
@@ -156,7 +157,7 @@ object IdbReferenceDataStore:
       all <- ct.getSolarSystemsAll()
       trx = db.transaction(SolarSystem, TransactionMode.readwrite)
       _ <- inTransaction(trx, SolarSystem, _.clear())
-      _ <- Future.sequence(all.solarSystems.map(ss => inTransaction(trx, SolarSystem, _.add(ss.toNative))))
+      _ <- Future.sequence(all.solarSystems.toSeq.map(ss => inTransaction(trx, SolarSystem, _.add(ss.toNative))))
       _ <- onFinished(trx)
     yield ()
 
@@ -179,7 +180,7 @@ object IdbReferenceDataStore:
   private def createTables(e: VersionChangeEvent): Unit =
     val db               = e.target.result
     val objectStoreNames = db.objectStoreNames
-    if (!objectStoreNames.contains(SolarSystem)) {
+    if !objectStoreNames.contains(SolarSystem) then {
       val os = db.createObjectStore(
         SolarSystem,
         new CreateObjectStoreOptions {
@@ -195,10 +196,10 @@ object IdbReferenceDataStore:
         }
       )
     }
-    if (!objectStoreNames.contains(ReferenceAll)) {
+    if !objectStoreNames.contains(ReferenceAll) then {
       val _ = db.createObjectStore(ReferenceAll)
     }
-    if (!objectStoreNames.contains(VersionInfo)) {
+    if !objectStoreNames.contains(VersionInfo) then {
       val _ = db.createObjectStore(VersionInfo)
     }
 
@@ -257,7 +258,7 @@ private def onFinished(trx: Transaction): Future[Unit] =
 
 // arguably the wrong place for this but
 private def refreshIfVersionMismatch(version: ReferenceVersion) =
-  if (version.code != BuildInfo.gitHash)
+  if version.code != BuildInfo.gitHash then
     org.scalajs.dom.console.log(s"Reloading due to server version ${version.code} != ${BuildInfo.gitHash}")
     org.scalajs.dom.window.location.reload()
     Future.never

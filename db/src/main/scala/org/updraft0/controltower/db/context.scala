@@ -4,6 +4,7 @@ import com.github.plokhotnyuk.jsoniter_scala.core.*
 import io.getquill.*
 import io.getquill.context.jdbc.{Decoders, Encoders, JdbcContextTypes, SqliteJdbcTypes}
 import io.getquill.context.qzio.{ZioJdbcContext, ZioJdbcUnderlyingContext}
+
 import scala.util.Try
 
 trait StringJsonExtensions extends Encoders with Decoders:
@@ -309,23 +310,17 @@ trait SqliteModifiedDialect extends SqliteDialect { self =>
   import io.getquill.context.sql.{SetOperationSqlQuery, SqlQuery}
   import io.getquill.idiom.StatementInterpolator.*
 
-  private def parentTokenizer(implicit
-      astTokenizer: Tokenizer[Ast],
-      strategy: NamingStrategy,
-      idiomContext: IdiomContext
-  ) =
-    super.sqlQueryTokenizer
-
   // NOTE: sqlite does not support encasing UNION operations with parens so don't do that
-  override implicit def sqlQueryTokenizer(implicit
+  override def sqlQueryTokenizer(using
       astTokenizer: Tokenizer[Ast],
       strategy: NamingStrategy,
       idiomContext: IdiomContext
   ): Tokenizer[SqlQuery] = Tokenizer[SqlQuery] {
     case SetOperationSqlQuery(a, op, b) =>
+      given Tokenizer[SqlQuery] = sqlQueryTokenizer
       stmt"${a.token} ${op.token} ${b.token}"
     case other =>
-      parentTokenizer.token(other)
+      super.sqlQueryTokenizer.token(other)
   }
 }
 

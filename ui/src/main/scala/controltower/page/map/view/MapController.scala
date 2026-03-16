@@ -263,7 +263,7 @@ final class MapController(val rds: ReferenceDataStore, val clock: Signal[Instant
           updateConnectionSignatureAttr(
             allConnections,
             connectionId,
-            mss => if (mss.eolAt.isEmpty) mss.copy(eolAt = Some(Instant.now())) else mss.copy(eolAt = None)
+            mss => if mss.eolAt.isEmpty then mss.copy(eolAt = Some(Instant.now())) else mss.copy(eolAt = None)
           )
         case (MapAction.ConnectionMassStatusChange(connectionId, massStatus), _, allConnections) =>
           updateConnectionSignatureAttr(
@@ -404,7 +404,7 @@ final class MapController(val rds: ReferenceDataStore, val clock: Signal[Instant
         // get the reference data from the system in cache (manually using future)
         val missingSystemIds = systems.keySet -- cacheSolarSystem.keys
 
-        if (missingSystemIds.nonEmpty)
+        if missingSystemIds.nonEmpty then
           Future
             .sequence(missingSystemIds.map(rds.systemForId))
             .map { resolvedSystems =>
@@ -447,7 +447,7 @@ final class MapController(val rds: ReferenceDataStore, val clock: Signal[Instant
             pos.systemDisplayData(systemId) -> ((_: Option[SystemDisplayData]) => system.display)
           )
 
-        if (!cacheSolarSystem.contains(systemId))
+        if !cacheSolarSystem.contains(systemId) then
           rds.systemForId(systemId).onComplete {
             case Success(Some(solarSystem)) =>
               cacheSolarSystem.update(systemId, solarSystem)

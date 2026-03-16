@@ -90,10 +90,10 @@ private[yaml] case class ObjectCursor[K <: KeyType](v: YamlObject[K], path: Vect
 
 @tailrec
 private def downObjectRaw[K <: KeyType](v: AnyRef, path: Vector[K]): AnyRef =
-  if (v == null || path.isEmpty) v
+  if v == null || path.isEmpty then v
   else {
     val map = v.asInstanceOf[YamlObject[K]]
-    if (!map.containsKey(path.head)) null
+    if !map.containsKey(path.head) then null
     else downObjectRaw(map.get(path.head), path.tail)
   }
 

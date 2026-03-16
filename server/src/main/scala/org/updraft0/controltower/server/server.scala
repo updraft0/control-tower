@@ -10,7 +10,6 @@ import org.updraft0.esi.client.{EsiClient, SdeClient}
 import org.updraft0.minireactive.MiniReactive
 import sttp.client3.UriContext
 import sttp.tapir.server.interceptor.cors.*
-import sttp.tapir.server.interceptor.log.DefaultServerLog
 import sttp.tapir.server.ziohttp.{ZioHttpInterpreter, ZioHttpServerOptions}
 import zio.http.{Response, Routes, Server as ZServer}
 import zio.metrics.connectors.prometheus.PrometheusPublisher

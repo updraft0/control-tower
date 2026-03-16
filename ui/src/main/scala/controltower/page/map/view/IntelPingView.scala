@@ -159,7 +159,7 @@ private def addIntelPingView(
         )
           --> { action =>
             actions.onNext(action)
-            closeMe.onNext(None)
+            closeMe.onNext(())
           }
       )
     )

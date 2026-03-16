@@ -16,7 +16,6 @@ object AuthQueries:
   import auth.given
   import auth.schema.*
 
-  @scala.annotation.unused // ??
   private inline val ThirtyDaysInSeconds = 30 * 24 * 60
 
   // note: this ignores session expiry

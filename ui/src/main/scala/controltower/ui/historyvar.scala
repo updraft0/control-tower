@@ -35,7 +35,8 @@ extension [K, V](h: HVar[Map[K, V]])(using CanEqual[V, V])
         prevKeys
           .intersect(nextKeys)
           .foreach(k =>
-            if (!isSame(k, prevMap(k), nextMap(k))) writeBus.onNext(CollectionCommand.Replace(prevMap(k), nextMap(k)))
+            if !isSame(k, prevMap(k), nextMap(k)) then
+              writeBus.onNext(CollectionCommand.Replace(prevMap(k), nextMap(k)))
           )
       case (None, nextMap) =>
         nextMap.foreach((_, v) => CollectionCommand.Append(v))

@@ -24,7 +24,7 @@ private[server] def configProvider =
 
 private def consoleOrJsonLogger = ZLayer
   .fromZIO(ZIO.configProviderWith(_.nested("logger").load(Config.string("type").withDefault(""))))
-  .flatMap(e => if (e.get == "json") consoleJsonLogger() else consoleLogger())
+  .flatMap(e => if e.get == "json" then consoleJsonLogger() else consoleLogger())
 
 private[server] def desktopLogger =
   Runtime.removeDefaultLoggers >>> configProvider >>> consoleOrJsonLogger >+> Slf4jBridge.init()

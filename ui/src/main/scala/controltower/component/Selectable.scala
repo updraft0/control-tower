@@ -9,7 +9,7 @@ enum SelectAction[K](val key: K):
 
 class Selectable[K](current: Var[Set[K]]):
   val writer: Observer[SelectAction[K]] = Observer[SelectAction[K]] {
-    case SelectAction.Toggle(key)   => current.update(s => if (s.contains(key)) s - key else s + key)
+    case SelectAction.Toggle(key)   => current.update(s => if s.contains(key) then s - key else s + key)
     case SelectAction.Select(key)   => current.update(s => s + key)
     case SelectAction.Unselect(key) => current.update(s => s - key)
   }

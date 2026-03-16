@@ -59,7 +59,7 @@ private final class MapView(
     msg match
       case WebSocketEvent.Received(msg) => controller.responseBus.writer.onNext(msg)
       case WebSocketEvent.Error(ex)     =>
-        if (io.laminext.websocket.WebSocketError.eq(ex)) () // no-op
+        if io.laminext.websocket.WebSocketError.eq(ex) then () // no-op
         else org.scalajs.dom.console.error(s"Unhandled error in MapControllerView: $ex")
       case _ => // no-op
   private def binderStarted(owner: Owner): Unit =
@@ -214,7 +214,7 @@ private final class MapView(
           val staleAt = now.minus(StaleSignatureInterval)
           val stale   = system.signatures.filter(_.updatedAt.isBefore(staleAt))
 
-          if (stale.nonEmpty)
+          if stale.nonEmpty then
             controller.actionsBus.onNext(MapAction.RemoveSignatures(system.system.systemId, stale.map(_.id).toSet))
 
           onClose.onNext(())
@@ -327,10 +327,10 @@ private final class MapView(
             // TODO: unsure about the checks against self.ref - should always be true?
 
             // note: this click handler cleans up any selection
-            if (prefs.map.clickResetsSelection && ev.currentTarget == self.ref)
+            if prefs.map.clickResetsSelection && ev.currentTarget == self.ref then
               Var.set(controller.selectedSystemId -> None, controller.selectedConnectionId -> None)
 
-            if (ev.currentTarget == self.ref)
+            if ev.currentTarget == self.ref then
               // always clean up the multiple system selection
               controller.bulkSelectedSystemIds.set(Array.empty)
           )

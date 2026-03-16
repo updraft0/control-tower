@@ -56,8 +56,7 @@ class OptionDropdown[E](
         .foldLeft((Option.empty[String], ArrayBuffer.empty[Element])) { case ((prevGroup, els), e) =>
           val id = s"${parentId}-item-${D.key(e)}"
 
-          if (prevGroup != D.group(e))
-            D.group(e).foreach(name => els.append(div(cls := "dropdown-group", name)))
+          if prevGroup != D.group(e) then D.group(e).foreach(name => els.append(div(cls := "dropdown-group", name)))
 
           val item =
             li(
@@ -72,12 +71,10 @@ class OptionDropdown[E](
               ),
               label(forId := id, D.view(e)),
               onClick --> { ev =>
-                if (ev.`type` == "click" && ev.clientX != 0 && ev.clientY != 0)
-                  expanded.set(false)
+                if ev.`type` == "click" && ev.clientX != 0 && ev.clientY != 0 then expanded.set(false)
               },
               onKeyUp --> { ev =>
-                if (ev.key == "Enter")
-                  expanded.set(false)
+                if ev.key == "Enter" then expanded.set(false)
               }
             )
           els.append(item)
@@ -90,7 +87,7 @@ class OptionDropdown[E](
     onMouseEnter.mapToUnit --> (_ => entered.set(true)),
     onMouseLeave.mapToUnit --> (_ => entered.set(false)),
     onMouseLeave.compose(_.mapToUnit.delay(mouseLeaveDelay.toMillis.toInt).withCurrentValueOf(entered)) --> (entered =>
-      if (!entered) expanded.set(false)
+      if !entered then expanded.set(false)
     ),
     mods
   )

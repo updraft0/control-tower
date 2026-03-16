@@ -269,16 +269,16 @@ object ReferenceQueries:
             case 365L /* POS */ =>
               protocol.StructureType.PlayerOwned(
                 size =
-                  if (item.name.endsWith("Small")) protocol.PlayerStructureSize.Small
-                  else if (item.name.endsWith("Medium")) protocol.PlayerStructureSize.Medium
+                  if item.name.endsWith("Small") then protocol.PlayerStructureSize.Small
+                  else if item.name.endsWith("Medium") then protocol.PlayerStructureSize.Medium
                   else protocol.PlayerStructureSize.Large,
                 typeName = item.name,
                 typeId = typeId
               )
             case _ =>
               val typeSimple =
-                if (item.name.contains("Fortizar")) "Fortizar"
-                else if (item.name.contains("Keepstar")) "Keepstar"
+                if item.name.contains("Fortizar") then "Fortizar"
+                else if item.name.contains("Keepstar") then "Keepstar"
                 else item.name
               protocol.StructureType.Upwell(
                 `type` = protocol.UpwellStructureType.valueOf(typeSimple),

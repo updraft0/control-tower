@@ -9,7 +9,7 @@ import org.updraft0.controltower.server.auth.*
 import org.updraft0.controltower.server.db.AuthQueries
 import org.updraft0.controltower.server.tracking.CharacterAuthTracker
 import sttp.tapir.ztapir.*
-import zio.{Config as _, *}
+import zio.*
 import com.github.plokhotnyuk.jsoniter_scala
 
 enum UserSessionError derives CanEqual:
@@ -59,7 +59,7 @@ def getUserInfo = Endpoints.getUserInfo
         (user, characters, withAuthTokens) = usersById
         res <- MapPolicy
           .getMapsForCharacters(characters.map(_.id))
-          .tapErrorCause(ZIO.logWarningCause("failed map policy lookup", _))
+          .tapErrorCause(ZIO.logWarningCause("failed to get maps for c", _))
           .orElseFail("Failure while trying to find map policies")
         prefs <- AuthQueries
           .getUserPreference(user.id)

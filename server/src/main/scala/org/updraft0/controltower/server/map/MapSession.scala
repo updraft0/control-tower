@@ -376,7 +376,7 @@ private def isAllowed(msg: protocol.MapRequest, role: model.MapRole): Boolean = 
 private def filterToProto(ctx: MapSession.Context)(
     msg: Identified[MapResponse]
 ): URIO[IntelDataSource, Option[protocol.MapMessage]] =
-  if (msg.sessionId.forall(_ == ctx.sessionId)) toProto(ctx, msg.value) else ZIO.none
+  if msg.sessionId.forall(_ == ctx.sessionId) then toProto(ctx, msg.value) else ZIO.none
 
 private def toProto(ctx: MapSession.Context, msg: MapResponse): URIO[IntelDataSource, Option[protocol.MapMessage]] =
   msg match
@@ -717,12 +717,9 @@ private def toProtoIntelPing(value: model.IntelSystemPing): protocol.IntelSystem
   )
 
 private def toProtoPingTarget(userOpt: Option[UserId], mapOpt: Option[Boolean]): protocol.IntelSystemPingTarget =
-  if (userOpt.isDefined)
-    protocol.IntelSystemPingTarget.User
-  else if (mapOpt.isDefined)
-    protocol.IntelSystemPingTarget.Map
-  else
-    throw new IllegalStateException("BUG: unreachable in toProtoPingTarget")
+  if userOpt.isDefined then protocol.IntelSystemPingTarget.User
+  else if mapOpt.isDefined then protocol.IntelSystemPingTarget.Map
+  else throw new IllegalStateException("BUG: unreachable in toProtoPingTarget")
 
 private def lookupProtoIntelStructure(
     value: model.IntelSystemStructure,

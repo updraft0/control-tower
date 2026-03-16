@@ -47,7 +47,7 @@ final class IntelStructureView(systemId: Signal[Option[SystemId]], selected: Sig
         tpe = ColumnType.Number,
         select = _.isOnline,
         view = (_, isOpt) =>
-          val icon = if (isOpt.contains(true)) "ti-bolt-filled" else "ti-bolt"
+          val icon = if isOpt.contains(true) then "ti-bolt-filled" else "ti-bolt"
           span(i(cls := "ti", cls := icon))
         ,
         sortable = None
@@ -200,11 +200,11 @@ private given DropdownItem[(TypeId, String)]:
   def key(ts: (TypeId, String)): String           = ts._1.toString
   def group(ts: (TypeId, String)): Option[String] = None
   def view(ts: (TypeId, String)): Element         =
-    if (ts._1 == TypeId.Invalid) span("Invalid")
+    if ts._1 == TypeId.Invalid then span("Invalid")
     else span(dataAttr("structure-type-id") := ts._1.toString, ESI.typeIcon(ts._1, Some(ts._2)), ts._2)
 
 private def searchCorporation(name: String)(using ct: ControlTowerBackend): EventStream[Option[Corporation]] =
-  if (name.length < 4) EventStream.fromValue(None)
+  if name.length < 4 then EventStream.fromValue(None)
   else
     EventStream.fromFuture:
       ct.searchEntity(SearchType.Corporation, name)
@@ -293,7 +293,7 @@ private def addEditStructureView(
     h2(cls := "dialog-header", s"${existing.map(_ => "Edit").getOrElse("Add")} structure"),
     p(
       cls := "form-error",
-      display <-- validationError.signal.map(_.isDefined).map(b => if (b) "" else "hidden")
+      display <-- validationError.signal.map(_.isDefined).map(b => if b then "" else "hidden")
     ),
     form(
       fieldSet(
@@ -418,15 +418,15 @@ private def addEditStructureView(
             )
         )
           --> { (tpe, name, isOnline, ownerCorp, lastCorp, planet, moon) =>
-            if (tpe._1 == TypeId.Invalid) validationError.set(Some("Invalid structure type"))
-            else if (!ownerCorp.isEmpty && !lastCorp.exists(c => c.name.startsWith(ownerCorp)))
+            if tpe._1 == TypeId.Invalid then validationError.set(Some("Invalid structure type"))
+            else if !ownerCorp.isEmpty && !lastCorp.exists(c => c.name.startsWith(ownerCorp)) then
               validationError.set(Some("Invalid corporation"))
             else
               val stype         = ctx.staticData.structureTypes(tpe._1)
               val nameOpt       = Option.when(!name.isEmpty)(name)
               val nearestPlanet = planet.toIntOption
               val nearestMoon   = moon.toIntOption
-              val owner         = if (ownerCorp.isEmpty) None else lastCorp
+              val owner         = if ownerCorp.isEmpty then None else lastCorp
 
               val update = existing
                 .map(prev =>
@@ -457,7 +457,7 @@ private def addEditStructureView(
                 )
 
               actions.onNext(update)
-              closeMe.onNext(None)
+              closeMe.onNext(())
           }
       )
     )

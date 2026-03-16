@@ -81,7 +81,7 @@ final class MiniGrid[R: ClassTag](
         Var.set(
           dataArr     -> data,
           currentPage -> pageOpt.map: page =>
-            if (page * pageSize > data.length) data.length / pageSize else page
+            if page * pageSize > data.length then data.length / pageSize else page
         )
       ),
       cls := "mini-grid",
@@ -94,7 +94,7 @@ final class MiniGrid[R: ClassTag](
     val ac  = col.select(a)
     val bc  = col.select(b)
     val res = col.sortable.get.compare(ac, bc)
-    if (direction == SortDirection.Asc) res < 0
+    if direction == SortDirection.Asc then res < 0
     else res >= 0
 
   private inline def orderWithOverrideCol(
@@ -108,8 +108,8 @@ final class MiniGrid[R: ClassTag](
     val aoc = overrideCol.select(a)
     val boc = overrideCol.select(b)
     val res = overrideCol.sortable.get.compare(aoc, boc)
-    if (res == 0) orderWithCol(col, direction, a, b)
-    else if (overrideDir == SortDirection.Asc) res < 0
+    if res == 0 then orderWithCol(col, direction, a, b)
+    else if overrideDir == SortDirection.Asc then res < 0
     else res >= 0
 
   private inline def header =
@@ -192,7 +192,7 @@ final class MiniGrid[R: ClassTag](
     )
 
   private inline def headerColumn(c: Column[R, ?]) =
-    if (c.sortable.isEmpty || config.overrideSort.exists(_._1 == c.name))
+    if c.sortable.isEmpty || config.overrideSort.exists(_._1 == c.name) then
       th(
         cls             := "no-sort",
         dataAttr("col") := c.name,

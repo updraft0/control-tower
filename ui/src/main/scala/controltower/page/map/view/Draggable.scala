@@ -31,7 +31,7 @@ private def inDraggable(
   val downMouse    = Var[Option[Coord]](None)
   val stateVar     = Var(initialState)
   div(
-    display <-- position.signal.map(c => if (c == Hidden) "none" else ""),
+    display <-- position.signal.map(c => if c == Hidden then "none" else ""),
     left <-- position.signal.map(c => s"${c.x}px"),
     top <-- position.signal.map(c => s"${c.y}px"),
     cls <-- canDrag.map {
@@ -57,7 +57,7 @@ private def inDraggable(
           Var.update(
             downMouse -> ((_: Option[Coord]) => None),
             stateVar  -> { (prev: DragState) =>
-              if (prev.initial != currentPos) updatePos(currentPos)
+              if prev.initial != currentPos then updatePos(currentPos)
               DragState(isDragging = false, initial = currentPos)
             }
           )
@@ -85,8 +85,7 @@ private def inDraggable(
           val nextTop  = Option.when(rawTop >= 0)(rawTop - (rawTop % gridSnap)).getOrElse(currentPos.y)
 
           val next = Coord(nextLeft, nextTop)
-          if (position.now() != next)
-            position.set(next)
+          if position.now() != next then position.set(next)
         }
       )
     ),

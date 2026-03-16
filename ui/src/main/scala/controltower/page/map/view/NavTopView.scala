@@ -83,7 +83,7 @@ private def connectionStatus(isConnected: Signal[Boolean]) =
     cls := "connection-status",
     cls := "right-block",
     cls := "ti",
-    cls <-- isConnected.map(c => if (c) "ti-link" else "ti-unlink")
+    cls <-- isConnected.map(c => if c then "ti-link" else "ti-unlink")
   )
 
 private def eveServerStatus(isConnected: Signal[Boolean], status: Signal[MapServerStatus]) =
@@ -106,7 +106,7 @@ private val SecondsInTenThousandYears = 146097L * SecondsInDay * 25L
 def asLocal(i: Instant): (LocalDate, LocalTime) =
   def tenThousandPartsAndRemainder: (Long, Long) =
     val seconds = i.getEpochSecond
-    if (seconds < -SecondsFromZeroToEpoch)
+    if seconds < -SecondsFromZeroToEpoch then
       val quot = seconds / SecondsInTenThousandYears
       val rem  = seconds % SecondsInTenThousandYears
       (quot, rem)

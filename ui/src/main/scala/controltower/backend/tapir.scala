@@ -66,7 +66,7 @@ class WebSocketToAirstream[R <: AirstreamStreams & WebSockets](using owner: Owne
       def concatOrDecode[A <: WebSocketFrame](acc: Option[WebSocketFrame], frame: A, last: Boolean)(
           f: (A, A) => A
       )(using TypeTest[WebSocketFrame, A]): Try[(Option[WebSocketFrame], Either[Unit, Option[RESP]])] =
-        if (last)
+        if last then
           (acc match
             case None       => decode(frame).map(Right(_))
             case Some(x: A) => decode(f(x, frame)).map(Right(_))
@@ -134,10 +134,10 @@ object FutureEventStreamSourceAccumM:
         def loop(s: S): Unit =
           f.onComplete(
             _.fold(
-              ex => if (!isClosed(ex)) fireError(ex),
+              ex => if !isClosed(ex) then fireError(ex),
               i =>
                 accum(s, i).onComplete(
-                  _.fold(ex => if (!isClosed(ex)) fireError(ex), (n, o) => { fireValue(o); loop(n) })
+                  _.fold(ex => if !isClosed(ex) then fireError(ex), (n, o) => { fireValue(o); loop(n) })
                 )
             )
           )

@@ -59,7 +59,7 @@ final class ConnectionView(
           val (startBox, startRank, endBox, endRank) =
             // TODO: we don't use the horizontal top/bottom lines of the box to attach connections to (unlike PF)
 
-            if (fromBox.x + systemViewSize.x > toBox.x)
+            if fromBox.x + systemViewSize.x > toBox.x then
               (
                 toBox,
                 conn.rank.toSystemIdx / (conn.rank.toSystemCount + 1).toDouble,

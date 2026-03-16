@@ -45,7 +45,7 @@ final class SelectionView(
 
           // the clientWidth does not contain the borders/scrollbars but the mouse position does, check so that we don't
           // start the selection box when the click is targeted to the scrollbar
-          if (mouseCoord.x < parentDims.x && mouseCoord.y < parentDims.y)
+          if mouseCoord.x < parentDims.x && mouseCoord.y < parentDims.y then
             state.set(SelectionState.Selecting(mouseCoord, mouseCoord, bbox))
         },
       onPointerMove.compose(
@@ -56,8 +56,7 @@ final class SelectionView(
           case SelectionState.Selecting(start, _, bbox) =>
             // set pointer capture to the selection rectangle div (unfortunately easier to find via DOM)
             val el = org.scalajs.dom.document.querySelector("div.selection-rectangle")
-            if (el != null && !el.hasPointerCapture(pev.pointerId))
-              el.setPointerCapture(pev.pointerId)
+            if el != null && !el.hasPointerCapture(pev.pointerId) then el.setPointerCapture(pev.pointerId)
 
             val mouseCoord = Coord(x = pev.clientX - bbox.x, y = pev.clientY - bbox.y)
             state.set(Selecting(start, mouseCoord, bbox))
@@ -76,8 +75,8 @@ final class SelectionView(
             opts.threshold = Threshold
 
             val parentBounds    = obsState.rootElement.getBoundingClientRect()
-            val (leftX, rightX) = if (start.x > finish.x) (finish.x, start.x) else (start.x, finish.x)
-            val (topY, bottomY) = if (start.y > finish.y) (finish.y, start.y) else (start.y, finish.y)
+            val (leftX, rightX) = if start.x > finish.x then (finish.x, start.x) else (start.x, finish.x)
+            val (topY, bottomY) = if start.y > finish.y then (finish.y, start.y) else (start.y, finish.y)
 
             val leftMargin   = s"${-leftX}px"
             val topMargin    = s"${-topY}px"
@@ -169,8 +168,8 @@ final class SelectionView(
             case SelectionState.Selecting(start, finish, pbbox) =>
               val bbox = self.ref.getBoundingClientRect()
 
-              val (leftX, rightX) = if (start.x > finish.x) (finish.x, start.x) else (start.x, finish.x)
-              val (topY, bottomY) = if (start.y > finish.y) (finish.y, start.y) else (start.y, finish.y)
+              val (leftX, rightX) = if start.x > finish.x then (finish.x, start.x) else (start.x, finish.x)
+              val (topY, bottomY) = if start.y > finish.y then (finish.y, start.y) else (start.y, finish.y)
 
               s"left: ${leftX - bbox.x + pbbox.x}px; top: ${topY - bbox.y + pbbox.y}px; width: ${rightX - leftX}px; height: ${bottomY - topY}px;"
             case _ => ""
