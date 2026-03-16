@@ -46,8 +46,7 @@ object build {
 //      "-explain"
       "-explain-cyclic", // explain-psychic
       "-Ydebug-cyclic",
-      "-rewrite", "-new-syntax"
-//      "-rewrite", "-source", "3.0-migration", "-new-syntax"
+      // "-rewrite", "-new-syntax"
     ),
     ThisBuild / usePipelining := true,
     Test / scalacOptions --= Seq(
