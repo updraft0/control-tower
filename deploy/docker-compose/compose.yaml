@@ -23,7 +23,6 @@ services:
     environment:
       - CT_HTTP_UI_PORT=8091
       - JAVA_OPTS=-Xmx2G -XX:+UseZGC
-      - SDE_PARALLEL=1
     # - CT_HTTP_PROTO=https
     # - CT_HTTP_HOST=your.fqdn.here
     # - CT_HTTP_UI_PORT=8443
