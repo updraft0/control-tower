@@ -11,7 +11,7 @@ ContainerName=controltower_backend
 Environment=JAVA_OPTS=-XX:+UseZGC
 HostName=backend
 Image=ghcr.io/updraft0/controltower:latest
-Memory=4g
+Memory=2g
 Network=controltower.network
 Pull=always
 UserNS=keep-id

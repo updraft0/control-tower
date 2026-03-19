@@ -30,8 +30,7 @@ To run using [docker-compose]:
 * Run `docker-compose up -f deploy/docker-compose/compose.yml` (look in [`compose.yaml`](./deploy/docker-compose/compose.yaml) for things you might want to tweak)
 * Wait for the SDE import to run and go to http://localhost:8080 to login + create a map
 
-Current minimum runtime requirements are 4GB RAM and 1 CPU, because the full [SDE][eve-online-sde] is imported and 
-parsing hundreds of megabytes of YAML is memory consuming.
+Current minimum runtime requirements are at least 1GB RAM, mostly required when loading the SDE extracts.
 
 For development, it may be useful to override the env variables `CT_DB_PATH` to something appropriate and set 
 `CT_HTTP_UI_PORT=8091` to match the vite frontend port.
@@ -54,8 +53,6 @@ Currently:
 
 In the future:
 
-* [ ] Right-click context menu for common actions (such as setting the size of a connection)
-* [ ] Intel information is editable (e.g. system owner) and notes
 * [ ] Route calculation
 * [ ] Notifications for when systems become connected
 * [ ] ZKill feed
