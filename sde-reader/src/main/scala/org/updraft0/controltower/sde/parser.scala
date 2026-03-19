@@ -1,407 +1,145 @@
 package org.updraft0.controltower.sde
 
-import org.updraft0.controltower.constant.{WormholeClass, WormholeEffect}
-import org.updraft0.controltower.sde.yaml.{Cursor, KeyType, YAML, YamlArray, YamlObject, YamlValue, given}
+import com.github.plokhotnyuk.jsoniter_scala.core.{
+  JsonReader,
+  JsonReaderException,
+  JsonValueCodec,
+  JsonWriter,
+  ReaderConfig,
+  scanJsonValuesFromStream
+}
+import com.github.plokhotnyuk.jsoniter_scala.macros.JsonCodecMaker
+import org.updraft0.controltower.constant.*
 import zio.*
+import zio.stream.*
 
-import org.snakeyaml.engine.v2.api.LoadSettings
+import java.util.zip.ZipInputStream
 
 /** Parser of SDE data export types
   */
 object parser:
 
-  private val RegionData        = """universe/\w+/([-\w]+)/region.yaml""".r
-  private val ConstellationData = """universe/\w+/([-\w]+)/([-\w]+)/constellation.yaml""".r
-  private val SolarSystemData   = """universe/\w+/([-\w]+)/([-\w]+)/([-\w]+)/solarsystem.yaml""".r
-
-  private type Parser[T] = IO[Error, T]
+  // limitation of how we're handling parsing of individual files
+  // TODO: figure out how to get rid of this
+  private val MaxEntitiesInFile: Int = 64_000
 
   enum Error:
-    case Yaml(message: String, id: String, cause: yaml.Error)
+    case Json(cause: JsonReaderException)
     case Zip(error: zip.Error)
     case Unknown(cause: Throwable)
 
-  def parse(entry: zip.ZipEntry): ZIO[LoadSettings, Error, Option[ExportedData]] = {
-    val bytes = entry.bytes
-    ZIO.logTrace(s"parsing entry ${entry.name}") *> (entry.name match {
-      case "bsd/invUniqueNames.yaml" =>
-        parseYamlArray(bytes).flatMap(parseUniqueNames).asSome
-      case "fsd/categories.yaml" =>
-        parseYaml[Integer](bytes).flatMap(parseCategoryIds).asSome
-      case "fsd/dogmaAttributeCategories.yaml" =>
-        parseYaml[Integer](bytes).flatMap(parseDogmaAttributeCategories).asSome
-      case "fsd/dogmaAttributes.yaml" =>
-        parseYaml[Integer](bytes).flatMap(parseDogmaAttributes).asSome
-      case "fsd/factions.yaml" =>
-        parseYaml[Integer](bytes).flatMap(parseFactions).asSome
-      case "fsd/npcCorporations.yaml" =>
-        parseYaml[Integer](bytes).flatMap(parseNpcCorporations).asSome
-      case "fsd/groups.yaml" =>
-        parseYaml[Integer](bytes).flatMap(parseGroupIds).asSome
-      case "fsd/stationOperations.yaml" =>
-        parseYaml[Integer](bytes).flatMap(parseStationOperations).asSome
-      case "fsd/stationServices.yaml" =>
-        parseYaml[Integer](bytes).flatMap(parseStationServices).asSome
-      case "fsd/typeDogma.yaml" =>
-        parseYaml[Integer](bytes).flatMap(parseTypeDogmas).asSome
-      case "fsd/types.yaml" =>
-        parseYaml[Integer](bytes).flatMap(parseTypeIds).asSome
-      case RegionData(regionName) =>
-        parseYaml[String](bytes).flatMap(parseRegion(regionName, _)).asSome
-      case ConstellationData(region, constellation) =>
-        parseYaml[String](bytes).flatMap(parseConstellation(region, constellation, _)).asSome
-      case SolarSystemData(region, constellation, name) =>
-        parseYaml[String](bytes).flatMap(parseSolarSystem(region, constellation, name, _)).asSome
-      case _ => ZIO.logWarning(s"Ignoring unmapped SDE entry ${entry.name}") *> ZIO.succeed(None)
-    })
-  }
+  // constant
+  private given JsonValueCodec[WormholeClass] = new JsonValueCodec[WormholeClass]:
+    override def decodeValue(in: JsonReader, default: WormholeClass): WormholeClass = WormholeClasses.ById(in.readInt())
+    override def encodeValue(x: WormholeClass, out: JsonWriter): Unit               = out.writeVal(x.value)
+    override def nullValue: WormholeClass                                           = null
+  private given JsonValueCodec[WormholeEffect] = new JsonValueCodec[WormholeEffect]:
+    override def decodeValue(in: JsonReader, default: WormholeEffect): WormholeEffect =
+      WormholeEffects.ById(in.readInt())
+    override def encodeValue(x: WormholeEffect, out: JsonWriter): Unit = out.writeVal(x.typeId.value)
+    override def nullValue: WormholeEffect                             = null
 
-  private[sde] def parseDogmaAttributeCategories(
-      yaml: YamlObject[Integer]
-  ): Parser[ExportedData.DogmaAttributeCategories] =
-    YAML
-      .cursor[Integer](yaml)
-      .flatMap(parseIntKeyedMap(_, parseDogmaAttributeCategory))
-      .mapBoth(
-        Error.Yaml("Failed to parse DogmaAttributeCategories", "", _),
-        ExportedData.DogmaAttributeCategories.apply
-      )
+  // codecs
+  private given JsonValueCodec[CategoryId]               = JsonCodecMaker.make
+  private given JsonValueCodec[DogmaAttributeCategory]   = JsonCodecMaker.make
+  private given JsonValueCodec[DogmaAttribute]           = JsonCodecMaker.make
+  private given JsonValueCodec[Faction]                  = JsonCodecMaker.make
+  private given JsonValueCodec[GroupId]                  = JsonCodecMaker.make
+  private given JsonValueCodec[Constellation]            = JsonCodecMaker.make
+  private given JsonValueCodec[NpcCorporation]           = JsonCodecMaker.make
+  private given JsonValueCodec[NpcStation]               = JsonCodecMaker.make
+  private given JsonValueCodec[ExportedData.Planet]      = JsonCodecMaker.make
+  private given JsonValueCodec[Region]                   = JsonCodecMaker.make
+  private given JsonValueCodec[ExportedData.SolarSystem] = JsonCodecMaker.make
+  private given JsonValueCodec[ExportedData.Stargate]    = JsonCodecMaker.make
+  private given JsonValueCodec[ExportedData.Star]        = JsonCodecMaker.make
+  private given JsonValueCodec[StationOperation]         = JsonCodecMaker.make
+  private given JsonValueCodec[StationService]           = JsonCodecMaker.make
+  private given JsonValueCodec[TypeDogma]                = JsonCodecMaker.make
+  private given JsonValueCodec[ExportedData.TypeId]      = JsonCodecMaker.make
+  private given JsonValueCodec[SecondarySun]             = JsonCodecMaker.make
 
-  private def parseDogmaAttributeCategory(id: Int, c: Cursor[String]): YamlValue[DogmaAttributeCategory] =
-    for
-      name        <- c.downField("name").as[String]
-      description <- c.downField("description").as[Option[String]]
-    yield DogmaAttributeCategory(id, name, description)
+  def parse(entry: zip.ZipEntry): ZStream[Any, Error, ExportedData] =
+    parseRaw(entry).mapError:
+      case e: JsonReaderException => Error.Json(e)
+      case x                      => Error.Unknown(x)
 
-  private[sde] def parseDogmaAttributes(yaml: YamlObject[Integer]): Parser[ExportedData.DogmaAttributes] =
-    YAML
-      .cursor[Integer](yaml)
-      .flatMap(parseIntKeyedMap(_, parseDogmaAttribute))
-      .mapBoth(
-        Error.Yaml("Failed to parse DogmaAttributes", "", _),
-        ExportedData.DogmaAttributes.apply
-      )
+  private[sde] def parseRaw(entry: zip.ZipEntry) =
+    entry.name match
+      case "_sde.jsonl" => ZStream.empty // ignore
+      // combined feeds
+      case "categories.jsonl" =>
+        combineAll(parseJsonLines[CategoryId](entry.stream), ExportedData.CategoryIds(_))
+      case "dogmaAttributeCategories.jsonl" =>
+        combineAll(parseJsonLines[DogmaAttributeCategory](entry.stream), ExportedData.DogmaAttributeCategories(_))
+      case "dogmaAttributes.jsonl" =>
+        combineAll(parseJsonLines[DogmaAttribute](entry.stream), ExportedData.DogmaAttributes(_))
+      case "factions.jsonl" =>
+        combineAll(parseJsonLines[Faction](entry.stream), ExportedData.Factions(_))
+      case "groups.jsonl" =>
+        combineAll(parseJsonLines[GroupId](entry.stream), ExportedData.GroupIds(_))
+      case "mapConstellations.jsonl" =>
+        combineAll(parseJsonLines[Constellation](entry.stream), ExportedData.Constellations(_))
+      case "mapRegions.jsonl" =>
+        combineAll(parseJsonLines[Region](entry.stream), ExportedData.Regions(_))
+      case "mapSecondarySuns.jsonl" =>
+        combineAll(parseJsonLines[SecondarySun](entry.stream), ExportedData.SecondarySuns(_))
+      case "npcCorporations.jsonl" =>
+        combineAll(parseJsonLines[NpcCorporation](entry.stream), ExportedData.NpcCorporations(_))
+      case "npcStations.jsonl" =>
+        combineAll(parseJsonLines[NpcStation](entry.stream), ExportedData.NpcStations(_))
+      case "stationOperations.jsonl" =>
+        combineAll(parseJsonLines[StationOperation](entry.stream), ExportedData.StationOperations(_))
+      case "stationServices.jsonl" =>
+        combineAll(parseJsonLines[StationService](entry.stream), ExportedData.StationServices(_))
+      case "typeDogma.jsonl" =>
+        combineAll(parseJsonLines[TypeDogma](entry.stream), ExportedData.TypeDogmas(_))
+      // individual feeds
+      case "mapPlanets.jsonl" =>
+        parseJsonLines[ExportedData.Planet](entry.stream)
+      case "mapSolarSystems.jsonl" =>
+        parseJsonLines[ExportedData.SolarSystem](entry.stream)
+      case "mapStargates.jsonl" =>
+        parseJsonLines[ExportedData.Stargate](entry.stream)
+      case "mapStars.jsonl" =>
+        parseJsonLines[ExportedData.Star](entry.stream)
+      case "types.jsonl" =>
+        parseJsonLines[ExportedData.TypeId](entry.stream)
+      // unmapped
+      case other =>
+        ZStream.logWarning(s"Ignoring unmapped SDE entry $other") &> ZStream.empty
 
-  private def parseDogmaAttribute(id: Int, c: Cursor[String]): YamlValue[DogmaAttribute] =
-    for
-      categoryId   <- c.downField("categoryID").as[Option[Long]]
-      dataType     <- c.downField("dataType").as[Int]
-      name         <- c.downField("name").as[String]
-      description  <- c.downField("description").as[Option[String]]
-      defaultValue <- c.downField("defaultValue").as[Double]
-      unitId       <- c.downField("unitID").as[Option[Int]]
-      iconId       <- c.downField("iconID").as[Option[Long]]
-    yield DogmaAttribute(id.toLong, categoryId, dataType, name, description, defaultValue, unitId, iconId)
+  private[sde] def parseJsonLines[A: JsonValueCodec](
+      in: ZipInputStream,
+      chunkSize: Int = 128
+  ): ZStream[Any, Throwable, A] =
+    ZStream
+      .asyncZIO[Any, Throwable, A](cb => ZIO.attempt(scanJsonValuesStreamZIO(in, chunkSize, cb)), MaxEntitiesInFile)
 
-  private[sde] def parseCategoryIds(yaml: YamlObject[Integer]): Parser[ExportedData.CategoryIds] =
-    YAML
-      .cursor[Integer](yaml)
-      .flatMap(parseIntKeyedMap(_, parseCategoryId))
-      .mapBoth(Error.Yaml("Failed to parse CategoryIds", "", _), ExportedData.CategoryIds.apply)
+  private[sde] def scanJsonValuesStreamZIO[R, E, A: JsonValueCodec](
+      zis: ZipInputStream,
+      chunkSize: Int,
+      cb: ZStream.Emit[R, E, A, Unit],
+      config: ReaderConfig = ReaderConfig
+  ): Unit =
+    val chunker = ChunkBuilder.make[A](chunkSize)
+    var count   = 0
+    scanJsonValuesFromStream[A](zis, config): a =>
+      chunker.addOne(a)
+      count += 1
+      val isEnd = zis.available() == 0
+      if isEnd || count >= chunkSize then
+        cb(ZIO.succeed(chunker.result()))
+        chunker.clear()
+        count = 0
+      !isEnd
+    if count > 0 then
+      cb(ZIO.succeed(chunker.result()))
+      chunker.clear()
+    cb(ZIO.fail(Option.empty[E]))
 
-  private def parseCategoryId(id: Int, c: Cursor[String]): YamlValue[CategoryId] =
-    for
-      nameEn <- c.downField("name").downField("en").as[String]
-      iconId <- c.downField("iconID").as[Option[Long]]
-    yield CategoryId(id, nameEn, iconId)
-
-  private[sde] def parseFactions(yaml: YamlObject[Integer]): Parser[ExportedData.Factions] =
-    YAML
-      .cursor[Integer](yaml)
-      .flatMap(parseIntKeyedMap(_, parseFaction))
-      .mapBoth(Error.Yaml("Failed to parse Factions", "", _), ExportedData.Factions.apply)
-
-  private def parseFaction(id: Int, c: Cursor[String]): YamlValue[Faction] =
-    for
-      nameEn               <- c.downField("nameID").downField("en").as[String]
-      corporationId        <- c.downField("corporationID").as[Option[Long]]
-      descriptionEn        <- c.downField("descriptionID").downField("en").as[String]
-      shortDescriptionEn   <- c.downField("shortDescriptionID").downField("en").as[Option[String]]
-      iconId               <- c.downField("iconID").as[Long]
-      militiaCorporationId <- c.downField("militiaCorporationID").as[Option[Long]]
-      memberRaces          <- c.downField("memberRaces").as[Vector[Int]]
-      sizeFactor           <- c.downField("sizeFactor").as[Double]
-      solarSystemId        <- c.downField("solarSystemID").as[Long]
-      uniqueName           <- c.downField("uniqueName").as[Boolean]
-    yield Faction(
-      id = id.toLong,
-      nameEn = nameEn,
-      corporationId = corporationId,
-      descriptionEn = descriptionEn,
-      shortDescriptionEn = shortDescriptionEn,
-      iconId = iconId,
-      militiaCorporationId = militiaCorporationId,
-      memberRaces = memberRaces,
-      sizeFactor = sizeFactor,
-      solarSystemId = solarSystemId,
-      uniqueName = uniqueName
-    )
-
-  private[sde] def parseGroupIds(yaml: YamlObject[Integer]): Parser[ExportedData.GroupIds] =
-    YAML
-      .cursor[Integer](yaml)
-      .flatMap(parseIntKeyedMap(_, parseGroupId))
-      .mapBoth(Error.Yaml("Failed to parse GroupIds", "", _), ExportedData.GroupIds.apply)
-
-  private def parseGroupId(id: Int, c: Cursor[String]): YamlValue[GroupId] =
-    for
-      categoryId <- c.downField("categoryID").as[Long]
-      nameEn     <- c.downField("name").downField("en").as[String]
-      iconId     <- c.downField("iconID").as[Option[Long]]
-    yield GroupId(id, categoryId, nameEn, iconId)
-
-  private[sde] def parseNpcCorporations(yaml: YamlObject[Integer]): Parser[ExportedData.NpcCorporations] =
-    YAML
-      .cursor[Integer](yaml)
-      .flatMap(parseIntKeyedMap(_, parseNpcCorporation))
-      .mapBoth(Error.Yaml("Failed to parse NpcCorporations", "", _), ExportedData.NpcCorporations.apply)
-
-  private def parseNpcCorporation(id: Int, c: Cursor[String]): YamlValue[NpcCorporation] =
-    for
-      nameEn        <- c.downField("nameID").downField("en").as[String]
-      allowedRaces  <- c.downField("allowedMemberRaces").as[Option[Vector[Long]]]
-      ceoId         <- c.downField("ceoID").as[Option[Long]]
-      raceId        <- c.downField("raceID").as[Option[Int]]
-      descriptionEn <- c.downField("descriptionID").downField("en").as[Option[String]]
-      factionId     <- c.downField("factionID").as[Option[Long]]
-      iconId        <- c.downField("iconID").as[Option[Long]]
-      solarSystemId <- c.downField("solarSystemID").as[Option[Long]]
-      stationId     <- c.downField("stationID").as[Option[Long]]
-      ticker        <- c.downField("tickerName").as[String]
-      uniqueName    <- c.downField("uniqueName").as[Boolean]
-    yield NpcCorporation(
-      id = id.toLong,
-      nameEn = nameEn,
-      allowedRaces = allowedRaces,
-      ceoId = ceoId,
-      raceId = raceId,
-      descriptionEn = descriptionEn,
-      factionId = factionId,
-      iconId = iconId,
-      solarSystemId = solarSystemId,
-      stationId = stationId,
-      ticker = ticker,
-      uniqueName = uniqueName
-    )
-
-  private[sde] def parseUniqueNames(yaml: YamlArray): Parser[ExportedData.UniqueNames] =
-    YAML
-      .mapArrayCursor(yaml, parseUniqueName)
-      .mapBoth(Error.Yaml("Failed to parse InvUniqueNames", "", _), ExportedData.UniqueNames.apply)
-
-  private def parseUniqueName(c: Cursor[String]): YamlValue[UniqueName] =
-    for
-      id      <- c.downField("itemID").as[Long]
-      groupId <- c.downField("groupID").as[Int]
-      name    <- c.downField("itemName").as[String]
-    yield UniqueName(id, groupId, name)
-
-  private[sde] def parseStationOperations(yaml: YamlObject[Integer]): Parser[ExportedData] =
-    YAML
-      .cursor[Integer](yaml)
-      .flatMap(parseIntKeyedMap(_, parseStationOperation))
-      .mapBoth(Error.Yaml("Failed to parse StationOperations", "", _), ExportedData.StationOperations.apply)
-
-  private def parseStationOperation(id: Int, c: Cursor[String]): YamlValue[StationOperation] =
-    for
-      activityId    <- c.downField("activityID").as[Int]
-      nameEn        <- c.downField("operationNameID").downField("en").as[String]
-      descriptionEn <- c.downField("descriptionID").downField("en").as[Option[String]]
-      services      <- c.downField("services").as[Vector[Int]]
-      stationTypes  <- c.downField("stationTypes").as[Map[Int, Int]]
-    yield StationOperation(
-      id = id.toLong,
-      activityId = activityId,
-      nameEn = nameEn,
-      descriptionEn = descriptionEn,
-      services = services,
-      stationTypes = stationTypes
-    )
-
-  private[sde] def parseStationServices(yaml: YamlObject[Integer]): Parser[ExportedData] =
-    YAML
-      .cursor[Integer](yaml)
-      .flatMap(parseIntKeyedMap(_, parseStationService))
-      .mapBoth(Error.Yaml("Failed to parse StationServices", "", _), ExportedData.StationServices.apply)
-
-  private def parseStationService(id: Int, c: Cursor[String]): YamlValue[StationService] =
-    for nameEn <- c.downField("serviceNameID").downField("en").as[String]
-    yield StationService(id, nameEn)
-
-  private[sde] def parseTypeDogmas(yaml: YamlObject[Integer]): Parser[ExportedData] =
-    YAML
-      .cursor[Integer](yaml)
-      .flatMap(parseIntKeyedMap(_, parseTypeDogma))
-      .mapBoth(Error.Yaml("Failed to parse TypeDogmas", "", _), ExportedData.TypeDogmas.apply)
-
-  private def parseTypeDogma(id: Int, c: Cursor[String]): YamlValue[TypeDogma] =
-    for
-      attributes <- c.downField("dogmaAttributes").mapArray(parseDogmaAttribute).map(_.toMap)
-      effects    <- c.downField("dogmaEffects").mapArray(parseDogmaEffect).map(_.toMap)
-    yield TypeDogma(id, attributes, effects)
-
-  private def parseDogmaAttribute(c: Cursor[String]): YamlValue[(Long, Double)] =
-    for
-      attributeId <- c.downField("attributeID").as[Long]
-      value       <- c.downField("value").as[Double]
-    yield attributeId -> value
-
-  private def parseDogmaEffect(c: Cursor[String]): YamlValue[(Long, Boolean)] =
-    for
-      effectId  <- c.downField("effectID").as[Long]
-      isDefault <- c.downField("isDefault").as[Boolean]
-    yield effectId -> isDefault
-
-  private[sde] def parseTypeIds(yaml: YamlObject[Integer]): Parser[ExportedData] =
-    YAML
-      .cursor[Integer](yaml)
-      .flatMap(parseIntKeyedMap(_, parseTypeId))
-      .mapBoth(Error.Yaml("Failed to parse TypeIds", "", _), ExportedData.TypeIds.apply)
-
-  private def parseTypeId(id: Int, c: Cursor[String]): YamlValue[TypeId] =
-    for
-      descriptionEn <- c.downField("description").downField("en").as[Option[String]]
-      nameEn        <- c.downField("name").downField("en").as[String]
-      groupId       <- c.downField("groupID").as[Long]
-      mass          <- c.downField("mass").as[Option[Double]]
-      volume        <- c.downField("volume").as[Option[Double]]
-    yield TypeId(id.toLong, nameEn, groupId, descriptionEn, mass, volume)
-
-  private[sde] def parseRegion(tag: String, yaml: YamlObject[String]): Parser[ExportedData] =
-    (for
-      c         <- YAML.cursor(yaml)
-      id        <- c.downField("regionID").as[Long]
-      nameId    <- c.downField("nameID").as[Long]
-      whClass   <- c.downField("wormholeClassID").as[Option[Int]].map(_.map(whClassFromId))
-      factionId <- c.downField("factionID").as[Option[Long]]
-    yield ExportedData.Region(id, nameId, tag, whClass, factionId))
-      .mapError(Error.Yaml("Failed to parse Region", tag, _))
-
-  private[sde] def parseConstellation(
-      regionTag: String,
-      tag: String,
-      yaml: YamlObject[String]
-  ): Parser[ExportedData] =
-    (for
-      c      <- YAML.cursor(yaml)
-      id     <- c.downField("constellationID").as[Long]
-      nameId <- c.downField("nameID").as[Long]
-    yield ExportedData.Constellation(id, nameId, tag, regionTag))
-      .mapError(Error.Yaml("Failed to parse Constellation", tag, _))
-
-  private[sde] def parseSolarSystem(
-      regionTag: String,
-      constellationTag: String,
-      tag: String,
-      yaml: YamlObject[String]
-  ): Parser[ExportedData] =
-    (for
-      c              <- YAML.cursor(yaml)
-      id             <- c.downField("solarSystemID").as[Long]
-      nameId         <- c.downField("solarSystemNameID").as[Long]
-      star           <- c.downField("star").mapOptional(parseStar)
-      wormholeEffect <- c.downField("secondarySun").downField("typeID").as[Option[Long]].map(toWhEffect)
-      wormholeClass  <- c.downField("wormholeClassID").as[Option[Int]].map(_.map(whClassFromId))
-      planets        <- parsePlanets(c.downField("planets"))
-      stargates      <- parseStargates(c.downField("stargates"))
-      securityClass  <- c.downField("securityClass").as[Option[String]]
-      security       <- c.downField("security").as[Option[Double]]
-      border         <- c.downField("border").as[Boolean]
-      corridor       <- c.downField("corridor").as[Boolean]
-      fringe         <- c.downField("fringe").as[Boolean]
-      hub            <- c.downField("hub").as[Boolean]
-      international  <- c.downField("international").as[Boolean]
-      regional       <- c.downField("regional").as[Boolean]
-    yield ExportedData.SolarSystem(
-      tag = tag,
-      constellationTag = constellationTag,
-      regionTag = regionTag,
-      id = id,
-      nameId = nameId,
-      star = star,
-      secondaryEffect = wormholeEffect,
-      wormholeClass = wormholeClass,
-      planets = planets,
-      stargates = stargates,
-      securityClass = securityClass,
-      security = security,
-      border = border,
-      corridor = corridor,
-      fringe = fringe,
-      hub = hub,
-      international = international,
-      regional = regional
-    )).mapError(Error.Yaml("Failed to parse SolarSystem", tag, _))
-
-  private def parseStar(c: Cursor[String]): YamlValue[Star] =
-    for
-      id     <- c.downField("id").as[Long]
-      typeId <- c.downField("typeID").as[Long]
-    yield Star(id, typeId)
-
-  private def parseStargates(c: Cursor[String]): YamlValue[Vector[Stargate]] =
-    parseIntKeyedMap(c, parseStargate).map(_.toVector)
-
-  private def parseStargate(id: Int, c: Cursor[String]): YamlValue[Stargate] =
-    for destinationId <- c.downField("destination").as[Long]
-    yield Stargate(id.toLong, destinationId)
-
-  private def parsePlanets(c: Cursor[String]): YamlValue[Vector[Planet]] =
-    parseIntKeyedMap(c, parsePlanet).map(_.sortBy(_.index))
-
-  private def parsePlanet(id: Int, c: Cursor[String]): YamlValue[Planet] =
-    for
-      index         <- c.downField("celestialIndex").as[Int]
-      typeId        <- c.downField("typeID").as[Long]
-      moons         <- parseMoons(c.downField("moons"))
-      asteroidBelts <- parseAsteroidBelts(c.downField("asteroidBelts"))
-      stations      <- parseNpcStations(c.downField("npcStations"))
-    yield Planet(id.toLong, index, typeId, moons, asteroidBelts, stations)
-
-  private def parseMoons(c: Cursor[String]): YamlValue[Vector[PlanetMoon]] =
-    parseIntKeyedMap(c, parseMoon)
-
-  private def parseMoon(id: Int, c: Cursor[String]): YamlValue[PlanetMoon] =
-    for stations <- parseNpcStations(c.downField("npcStations"))
-    yield PlanetMoon(id.toLong, stations)
-
-  private def parseNpcStations(c: Cursor[String]): YamlValue[Vector[NpcStation]] =
-    parseIntKeyedMap(c, parseNpcStation)
-
-  private def parseNpcStation(id: Int, c: Cursor[String]): YamlValue[NpcStation] =
-    for
-      ownerId     <- c.downField("ownerID").as[Long]
-      typeId      <- c.downField("typeID").as[Long]
-      operationId <- c.downField("operationID").as[Long]
-    yield NpcStation(id.toLong, ownerId, typeId, operationId)
-
-  private def parseAsteroidBelts(c: Cursor[String]): YamlValue[Vector[PlanetAsteroidBelt]] =
-    parseIntKeyedMap(c, (id, _) => ZIO.succeed(PlanetAsteroidBelt(id.toLong)))
-
-  private def whClassFromId(id: Int): WormholeClass =
-    WormholeClass.values.find(_.value == id).getOrElse(throw new IllegalArgumentException(s"${id} not a wh class"))
-
-  private def toWhEffect(idOpt: Option[Long]): Option[WormholeEffect] =
-    idOpt.map(id =>
-      WormholeEffect.values
-        .find(_.typeId == id)
-        .getOrElse(throw new IllegalArgumentException(s"${id} is not a wh effect"))
-    )
-
-  private def parseIntKeyedMap[T](
-      c: Cursor[? <: KeyType],
-      f: (Int, Cursor[String]) => YamlValue[T]
-  ): YamlValue[Vector[T]] =
-    c.mapObject[Integer, String, T]((id, mc) => f(id, mc)).map(_.map(_._2).toVector)
-
-  private[sde] def parseYaml[K <: KeyType](bytes: Array[Byte]): ZIO[LoadSettings, Error, YamlObject[K]] =
-    YAML.parse(bytes).mapError(Error.Yaml("Invalid YAML", "?", _))
-
-  private[sde] def parseYaml[K <: KeyType](s: String): ZIO[LoadSettings, Error, YamlObject[K]] =
-    YAML.parse(s).mapError(Error.Yaml("Invalid YAML", "?", _))
-
-  private[sde] def parseYamlArray(bytes: Array[Byte]): ZIO[LoadSettings, Error, YamlArray] =
-    YAML.parseArray(bytes).mapError(Error.Yaml("Invalid YAML Array", "?", _))
-
-  private[sde] def parseYamlArray(s: String): ZIO[LoadSettings, Error, YamlArray] =
-    YAML.parseArray(s).mapError(Error.Yaml("Invalid YAML Array", "?", _))
+  private[sde] def combineAll[A, B <: ExportedData](
+      in: ZStream[Any, Throwable, A],
+      f: Chunk[A] => B
+  ): ZStream[Any, Throwable, B] =
+    ZStream.fromZIO(in.runCollect.map(f))

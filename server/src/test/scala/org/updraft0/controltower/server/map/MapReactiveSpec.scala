@@ -658,35 +658,25 @@ object MapReactiveSpec extends ZIOSpecDefault:
   private def insertSolarSystems(solarSystems: Map[SystemId, MapSolarSystem]) =
     for
       countR <- ZIO.foreach(solarSystems.view.values.map(mss => (mss.regionId, mss.whClass.value)).toSet):
-        (rId, classId) =>
-          query.sde.upsertItemName(ItemName(rId, 3, s"region-${rId}")) *>
-            query.sde.upsertRegion(Region(rId, s"region-${rId}", Some(classId), None))
+        (rId, classId) => query.sde.upsertRegion(Region(rId, s"region-${rId}", Some(classId), None))
       countC <- ZIO.foreach(solarSystems.view.values.map(mss => (mss.regionId, mss.constellationId)).toSet)(
-        (rId, cId) =>
-          query.sde.upsertItemName(ItemName(rId, 4, s"constellation-${rId}")) *>
-            query.sde.insertConstellation(Constellation(cId, s"constellation-${cId}", rId, s"region-${rId}"))
+        (rId, cId) => query.sde.insertConstellation(Constellation(cId, s"constellation-${cId}", rId, s"region-${rId}"))
       )
       countS <- ZIO.foreach(solarSystems.values): mss =>
-        query.sde.insertSolarSystem(
-          SolarSystem(
-            id = mss.systemId,
-            starId = None,
-            starTypeId = None,
-            name = mss.name,
-            regionName = "region",
-            regionId = mss.regionId,
-            constellationName = "constellation",
-            constellationId = mss.constellationId,
-            effectTypeId = None,
-            whClassId = None,
-            securityClass = None,
-            security = None,
-            border = false,
-            corridor = false,
-            fringe = false,
-            hub = false,
-            international = false,
-            regional = false
+        query.sde.insertSolarSystems(
+          Chunk(
+            SolarSystem(
+              id = mss.systemId,
+              starId = None,
+              name = mss.name,
+              regionName = "region",
+              regionId = mss.regionId,
+              constellationName = "constellation",
+              constellationId = mss.constellationId,
+              effectTypeId = None,
+              whClassId = None,
+              security = None
+            )
           )
         )
       _ <- ZIO.logDebug(s"Inserted ${countC.sum} constellations, ${countR.sum} regions, ${countS.sum} solar systems")

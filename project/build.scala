@@ -34,7 +34,6 @@ object build {
     manifestSetting,
     crossVersion := CrossVersion.binary,
     scalacOptions ++= Seq(
-      "-preview",
       "-Wunused:all",
       "-feature",
       "-deprecation",

@@ -42,13 +42,13 @@ enum WormholeClass(val tag: String, val value: Int, val spaceType: SpaceType) de
 object WormholeClasses:
   lazy val ById = WormholeClass.values.map(c => c.value -> c).toMap
 
-enum WormholeEffect(val typeId: Long) derives CanEqual:
-  case Magnetar    extends WormholeEffect(30574)
-  case BlackHole   extends WormholeEffect(30575)
-  case RedGiant    extends WormholeEffect(30576)
-  case Pulsar      extends WormholeEffect(30577)
-  case Cataclysmic extends WormholeEffect(30670)
-  case WolfRayet   extends WormholeEffect(30669)
+enum WormholeEffect(val typeId: TypeId) derives CanEqual:
+  case Magnetar    extends WormholeEffect(TypeId(30574))
+  case BlackHole   extends WormholeEffect(TypeId(30575))
+  case RedGiant    extends WormholeEffect(TypeId(30576))
+  case Pulsar      extends WormholeEffect(TypeId(30577))
+  case Cataclysmic extends WormholeEffect(TypeId(30670))
+  case WolfRayet   extends WormholeEffect(TypeId(30669))
 
 object WormholeEffects:
-  lazy val ById = WormholeEffect.values.map(e => e.typeId -> e).toMap
+  lazy val ById = WormholeEffect.values.map(e => e.typeId.value -> e).toMap

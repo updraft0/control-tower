@@ -1,7 +1,7 @@
 package org.updraft0.controltower.sdeloader
 
 import io.getquill.JsonValue
-import org.updraft0.controltower.constant.{SystemId, WormholeClass, WormholeClasses}
+import org.updraft0.controltower.constant.{TypeId, SystemId, WormholeClass, WormholeClasses}
 import org.updraft0.controltower.db.model.{SignatureGroup, SignatureInGroup, SystemStaticWormhole, Wormhole}
 import org.updraft0.controltower.db.query.map
 import zio.*
@@ -9,6 +9,8 @@ import zio.stream.{ZPipeline, ZStream}
 
 import java.io.IOException
 import javax.sql.DataSource
+
+private[sdeloader] object SdeLoaderResources
 
 /** Load data derived from the SDE export (including static mappings not found elsewhere such as wormhole statics)
   */
@@ -44,10 +46,13 @@ private inline def wormholeTypeNamesNonUnique =
   // we need to load the lowest id here too
   map.getWormholeTypeNames
     .map(
-      _.map((k, v) => k.stripPrefix("Wormhole ") -> v).groupBy(_._1).map((k, xs) => k -> xs.map(_._2).sorted.head).toMap
+      _.map((k, v) => k.stripPrefix("Wormhole ") -> v).groupBy(_._1).map((k, xs) => k -> xs.map(_._2).min).toMap
     )
 
-private def toWormhole(id: Long, name: String, attributes: JsonValue[Map[String, Double]]): Wormhole =
+private def toWormhole(id: TypeId, name: String, attributes: JsonValue[Map[String, Double]]): Wormhole =
+  val targetClass =
+    if name == "Wormhole C729" then WormholeClass.Pochven // recent change in SDE export as it is a reverse static
+    else WormholeClasses.ById(attributes.value("wormholeTargetSystemClass").toInt)
   Wormhole(
     typeId = id,
     name = name.stripPrefix("Wormhole "),
@@ -55,17 +60,19 @@ private def toWormhole(id: Long, name: String, attributes: JsonValue[Map[String,
     maxJumpMass = attributes.value("wormholeMaxJumpMass").toLong,
     maxStableMass = attributes.value("wormholeMaxStableMass").toLong,
     maxStableTime = attributes.value("wormholeMaxStableTime").toLong,
-    targetClass = WormholeClasses.ById(attributes.value("wormholeTargetSystemClass").toInt)
+    targetClass = targetClass
   )
 
 private def readSystemStatics(
     systemsByName: Map[String, SystemId],
-    wormholeTypes: Map[String, Long]
+    wormholeTypes: Map[String, TypeId]
 ): ZStream[Any, Throwable, SystemStaticWormhole] =
   ZStream
     .fromInputStreamZIO(
       ZIO
-        .attemptBlockingIO(ImportState.getClass.getResourceAsStream("/map/reference/ref_system_static_wormhole.csv"))
+        .attemptBlockingIO(
+          SdeLoaderResources.getClass.getResourceAsStream("/map/reference/ref_system_static_wormhole.csv")
+        )
         .filterOrFail(_ != null)(new IOException("BUG: Could not read the static csv file"))
     )
     .via(ZPipeline.utf8Decode)
@@ -76,11 +83,11 @@ private def readSystemStatics(
       case _ => throw new IllegalStateException("BUG: Malformed static csv file, expected line to be jname,staticname")
     })
 
-private def readSignaturesInGroup(wormholeTypes: Map[String, Long]): ZStream[Any, Throwable, SignatureInGroup] =
+private def readSignaturesInGroup(wormholeTypes: Map[String, TypeId]): ZStream[Any, Throwable, SignatureInGroup] =
   ZStream
     .fromInputStreamZIO(
       ZIO
-        .attemptBlockingIO(ImportState.getClass.getResourceAsStream("/map/reference/ref_signature_in_group.csv"))
+        .attemptBlockingIO(SdeLoaderResources.getClass.getResourceAsStream("/map/reference/ref_signature_in_group.csv"))
         .filterOrFail(_ != null)(new IOException("BUG: Could not read the signature group csv file"))
     )
     .via(ZPipeline.utf8Decode)

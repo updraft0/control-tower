@@ -98,7 +98,7 @@ object map:
     inline def signatureInGroup     = quote(querySchema[SignatureInGroup]("map.ref_signature_in_group"))
 
   // queries
-  def getWormholesUsingTypeDogma: DbOperation[List[(Long, String, JsonValue[Map[String, Double]])]] =
+  def getWormholesUsingTypeDogma: DbOperation[List[(TypeId, String, JsonValue[Map[String, Double]])]] =
     ctx.run(quote {
       (for
         it  <- sde.schema.itemType.filter(_.groupId == lift(WormholeGroupId))
@@ -133,7 +133,7 @@ object map:
       .run(quote(sde.schema.solarSystem.map(ss => ss.name -> ss.id)))
       .map(_.filter((n, _) => n.startsWith("J") || n == "Thera" || n == "Turnur").toMap)
 
-  def getWormholeTypeNames: DbOperation[List[(String, Long)]] =
+  def getWormholeTypeNames: DbOperation[List[(String, TypeId)]] =
     ctx.run(quote { sde.schema.itemType.filter(_.groupId == lift(WormholeGroupId)).map(it => it.name -> it.id) })
 
   def getMapSystem(mapId: MapId, systemId: SystemId): DbOperation[Option[MapSystem]] =

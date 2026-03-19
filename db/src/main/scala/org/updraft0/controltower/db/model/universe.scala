@@ -1,6 +1,6 @@
 package org.updraft0.controltower.db.model
 
-import org.updraft0.controltower.constant.{SystemId, WormholeClass}
+import org.updraft0.controltower.constant.{TypeId, SystemId, WormholeClass}
 
 import java.time.Instant
 
@@ -13,49 +13,41 @@ case class NpcStation(
     ownerId: Long,
     typeId: Long,
     operationId: Long,
-    planetId: Long,
-    moonId: Option[Long],
+    orbitId: Long,
+    orbitIndex: Option[Int],
+    celestialIndex: Option[Int],
     systemId: SystemId
 )
-case class SolarSystemAsteroidBelt(id: Long, planetId: Long, systemId: SystemId)
-case class SolarSystemPlanet(id: Long, systemId: SystemId, idx: Long, typeId: Long)
-case class SolarSystemMoon(id: Long, planetId: Long, systemId: SystemId, idx: Long)
-case class SolarSystemStar(id: Long, type_id: Long)
+case class SolarSystemEffect(id: Long, systemId: SystemId, typeId: TypeId)
+case class SolarSystemPlanet(id: Long, systemId: SystemId, idx: Long, typeId: TypeId, moonCount: Int)
+case class SolarSystemStar(id: Long, systemId: SystemId, typeId: TypeId)
 case class SolarSystem(
     id: SystemId,
     starId: Option[Long],
-    starTypeId: Option[Long],
     name: String,
     regionName: String,
     regionId: Long,
     constellationName: String,
     constellationId: Long,
-    effectTypeId: Option[Long],
+    effectTypeId: Option[Int],
     whClassId: Option[Int],
-    securityClass: Option[String],
-    security: Option[Double],
-    border: Boolean,
-    corridor: Boolean,
-    fringe: Boolean,
-    hub: Boolean,
-    international: Boolean,
-    regional: Boolean
+    security: Option[Double]
 )
 
-case class Stargate(id: Long, systemId: SystemId, toStargateId: Long)
+case class Stargate(id: Long, systemId: SystemId, toStargateId: Long, toSystemId: SystemId)
 
 // from map
 
 case class SystemStaticWormhole(
     systemId: SystemId,
-    staticTypeId: Long,
+    staticTypeId: TypeId,
     validFrom: Option[Instant] = None,
     validUntil: Option[Instant] = None,
     updatedAt: Option[Instant] = None
 )
 
 case class Wormhole(
-    typeId: Long,
+    typeId: TypeId,
     name: String,
     massRegeneration: Long,
     maxJumpMass: Long,

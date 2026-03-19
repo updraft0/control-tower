@@ -1,179 +1,250 @@
 package org.updraft0.controltower.sde
 
-import org.updraft0.controltower.constant.*
+import com.github.plokhotnyuk.jsoniter_scala.macros.named
+import org.updraft0.controltower.constant
+import zio.Chunk
+
+case class LanguageCode(value: String) extends AnyVal
 
 /** Top-level objects that can be extracted from the SDE export directly (with no further processing)
   */
 enum ExportedData:
-  /** @note
-    *   from `fsd/universe/<region>/region.staticdata`
-    */
-  case Region(id: Long, nameId: Long, tag: String, wormholeClass: Option[WormholeClass], factionId: Option[Long])
 
   /** @note
-    *   from `fsd/universe/<region>/<constellation>/constellation.staticdata`
+    *   from `mapConstellations.jsonl`
     */
-  case Constellation(id: Long, nameId: Long, tag: String, regionTag: String)
+  case Constellations(value: Chunk[Constellation])
 
   /** @note
-    *   from `fsd/universe/<region>/<constellation>/<solarsystem>/solarsystem.staticdata`
+    *   from `mapSolarSystems.jsonl`
     */
   case SolarSystem(
-      // identifiers
-      tag: String,
-      constellationTag: String,
-      regionTag: String,
-      // key parameters
-      id: Long,
-      nameId: Long,
-      star: Option[Star],
-      secondaryEffect: Option[WormholeEffect],
-      wormholeClass: Option[WormholeClass],
-      // planets + stargates
-      planets: Vector[Planet],
-      stargates: Vector[Stargate],
-      // security
-      securityClass: Option[String],
-      security: Option[Double],
-      // flags
-      border: Boolean,
-      corridor: Boolean,
-      fringe: Boolean,
-      hub: Boolean,
-      international: Boolean,
-      regional: Boolean
+      @named("_key") id: constant.SystemId,
+      @named("constellationID") constellationId: Long,
+      @named("regionID") regionId: Long,
+      @named("name") nameMap: Map[String, String],
+      @named("planetIDs") planets: Vector[Long],
+      radius: Double,
+      securityStatus: Option[Double],
+      @named("starID") starId: Option[Long]
   )
 
   /** @note
-    *   from `fsd/categoryIDs.yaml`
+    *   from `categories.jsonl`
     */
-  case CategoryIds(value: Vector[CategoryId])
+  case CategoryIds(value: Chunk[CategoryId])
 
   /** @note
-    *   from `fsd/dogmaAttributeCategories.yaml`
+    *   from `dogmaAttributeCategories.jsonl`
     */
-  case DogmaAttributeCategories(value: Vector[DogmaAttributeCategory])
+  case DogmaAttributeCategories(value: Chunk[DogmaAttributeCategory])
 
   /** @note
-    *   from `fsd/dogmaAttributes.yaml`
+    *   from `dogmaAttributes.jsonl`
     */
-  case DogmaAttributes(value: Vector[DogmaAttribute])
+  case DogmaAttributes(value: Chunk[DogmaAttribute])
 
   /** @note
-    *   from `fsd/factions.yaml`
+    *   from `factions.jsonl`
     */
-  case Factions(value: Vector[Faction])
+  case Factions(value: Chunk[Faction])
 
   /** @note
-    *   from `fsd/groupIDs.yaml`
+    *   from `groups.jsonl`
     */
-  case GroupIds(value: Vector[GroupId])
+  case GroupIds(value: Chunk[GroupId])
 
   /** @note
-    *   from `fsd/npcCorporations.yaml`
+    *   from `npcCorporations.jsonl`
     */
-  case NpcCorporations(value: Vector[NpcCorporation])
+  case NpcCorporations(value: Chunk[NpcCorporation])
 
   /** @note
-    *   from `fsd/stationOperations.yaml`
+    *   from `npcStations.jsonl`
     */
-  case StationOperations(value: Vector[StationOperation])
+  case NpcStations(value: Chunk[NpcStation])
 
   /** @note
-    *   from `fsd/stationServices.yaml`
+    *   from `mapPlanets.jsonl`
     */
-  case StationServices(value: Vector[StationService])
+  case Planet(
+      @named("_key") id: Long,
+      celestialIndex: Int,
+      @named("moonIDs") moonIds: Option[Vector[Long]],
+      radius: Double,
+      @named("solarSystemID") solarSystemId: constant.SystemId,
+      @named("typeID") typeId: constant.TypeId
+  )
 
   /** @note
-    *   from `fsd/typeDogma.yaml`
+    *   from `mapRegions.jsonl`
     */
-  case TypeDogmas(value: Vector[TypeDogma])
+  case Regions(value: Chunk[Region])
 
   /** @note
-    *   from `fsd/typeIDs.yaml`
+    *   from `mapSecondarySuns.jsonl`
     */
-  case TypeIds(value: Vector[TypeId])
+  case SecondarySuns(value: Chunk[SecondarySun])
 
   /** @note
-    *   from `bsd/invUniqueNames.yaml`
+    *   from `mapStargates.jsonl`
     */
-  case UniqueNames(value: Vector[UniqueName])
+  case Stargate(
+      @named("_key") id: Long,
+      destination: StargateDestination,
+      @named("solarSystemID") solarSystemId: constant.SystemId,
+      @named("typeID") typeId: constant.TypeId
+  )
+
+  /** @note
+    *   from `mapStars.jsonl`
+    */
+  case Star(
+      @named("_key") id: Long,
+      radius: Double,
+      @named("solarSystemID") solarSystemId: constant.SystemId,
+      @named("typeID") typeId: constant.TypeId
+  )
+
+  /** @note
+    *   from `stationOperations.jsonl`
+    */
+  case StationOperations(value: Chunk[StationOperation])
+
+  /** @note
+    *   from `stationServices.jsonl`
+    */
+  case StationServices(value: Chunk[StationService])
+
+  /** @note
+    *   from `typeDogmas.jsonl`
+    */
+  case TypeDogmas(value: Chunk[TypeDogma])
+
+  /** @note
+    *   from `types.jsonl`
+    */
+  case TypeId(
+      @named("_key") id: constant.TypeId,
+      @named("name") nameMap: Map[String, String],
+      @named("groupID") groupId: Long,
+      volume: Option[Double],
+      mass: Option[Double]
+  )
 
 // -- array/map-of-object types
 
-case class CategoryId(id: Long, nameEn: String, iconId: Option[Long])
-case class DogmaAttributeCategory(id: Long, name: String, description: Option[String])
+case class CategoryId(
+    @named("_key") id: Long,
+    @named("name") nameMap: Map[String, String],
+    @named("iconID") iconId: Option[Long]
+)
+
+case class Constellation(
+    @named("_key") id: Long,
+    @named("name") nameMap: Map[String, String],
+    @named("factionID") factionId: Option[Long],
+    @named("regionID") regionId: Long,
+    @named("solarSystemIDs") solarSystemIds: Vector[constant.SystemId],
+    @named("wormholeClassID") wormholeClassId: Option[constant.WormholeClass]
+)
+
+case class DogmaAttributeCategory(@named("_key") id: Long, name: String, description: Option[String])
 case class DogmaAttribute(
-    id: Long,
-    categoryId: Option[Long],
+    @named("_key") id: Long,
+    @named("attributeCategoryID") categoryId: Option[Long],
     dataType: Int,
     name: String,
     description: Option[String],
     defaultValue: Double,
-    unitId: Option[Int],
-    iconId: Option[Long]
+    @named("unitID") unitId: Option[Int],
+    @named("iconID") iconId: Option[Long]
 )
 case class Faction(
-    id: Long,
-    nameEn: String,
-    corporationId: Option[Long],
-    descriptionEn: String,
-    shortDescriptionEn: Option[String],
-    iconId: Long,
-    militiaCorporationId: Option[Long],
+    @named("_key") id: Long,
+    @named("name") nameMap: Map[String, String],
+    @named("corporationID") corporationId: Option[constant.CorporationId],
+    @named("iconID") iconId: Long,
+    @named("militiaCorporationID") militiaCorporationId: Option[constant.CorporationId],
     memberRaces: Vector[Int],
     sizeFactor: Double,
-    solarSystemId: Long,
+    @named("solarSystemID") solarSystemId: constant.SystemId,
     uniqueName: Boolean
 )
-case class GroupId(id: Long, categoryId: Long, nameEn: String, iconId: Option[Long])
+case class GroupId(
+    @named("_key") id: Long,
+    @named("name") nameMap: Map[String, String],
+    @named("categoryID") categoryId: Long,
+    @named("iconID") iconId: Option[Long]
+)
+
 case class NpcCorporation(
-    id: Long,
-    nameEn: String,
-    allowedRaces: Option[Vector[Long]],
-    ceoId: Option[Long],
-    raceId: Option[Int],
-    descriptionEn: Option[String],
-    factionId: Option[Long],
-    iconId: Option[Long],
-    solarSystemId: Option[Long],
-    stationId: Option[Long],
-    ticker: String,
+    @named("_key") id: constant.CorporationId,
+    @named("name") nameMap: Map[String, String],
+    @named("allowedMemberRaces") allowedRaces: Option[Vector[Long]],
+    @named("ceoID") ceoId: Option[Long],
+    @named("raceID") raceId: Option[Int],
+    @named("factionID") factionId: Option[Long],
+    @named("iconID") iconId: Option[Long],
+    @named("solarSystemID") solarSystemId: Option[constant.SystemId],
+    @named("stationID") stationId: Option[Long],
+    @named("tickerName") ticker: String,
     uniqueName: Boolean
 )
-case class TypeId(
-    id: Long,
-    nameEn: String,
-    groupId: Long,
-    descriptionEn: Option[String],
-    mass: Option[Double],
-    volume: Option[Double]
+
+/** @note
+  *   from `mapRegions.jsonl`
+  */
+case class Region(
+    @named("_key") id: Long,
+    @named("name") nameMap: Map[String, String],
+    @named("constellationIDs") constellationIds: Vector[Long],
+    @named("wormholeClassID") wormholeClassId: Option[constant.WormholeClass],
+    @named("factionID") factionId: Option[Long]
 )
-case class TypeDogma(id: Long, attributes: Map[Long, Double], effects: Map[Long, Boolean])
+
+case class TypeDogma(
+    @named("_key") id: constant.TypeId,
+    @named("dogmaAttributes") attributes: Vector[DogmaAttributePair],
+    @named("dogmaEffects") effects: Vector[DogmaEffectPair]
+)
+
+case class DogmaAttributePair(@named("attributeID") id: Int, value: Double)
+case class DogmaEffectPair(@named("effectID") id: Int, isDefault: Boolean)
+
 case class StationOperation(
-    id: Long,
-    activityId: Int,
-    nameEn: String,
-    descriptionEn: Option[String],
+    @named("_key") id: Long,
+    @named("operationName") nameMap: Map[String, String],
+    @named("activityID") activityId: Int,
     services: Vector[Int],
-    stationTypes: Map[Int, Int]
+    stationTypes: Vector[KeyValuePair[Int, Int]]
 )
-case class StationService(id: Long, nameEn: String)
-case class UniqueName(itemId: Long, groupId: Int, name: String)
+case class StationService(@named("_key") id: Long, @named("serviceName") nameMap: Map[String, String])
 
 // -- solar system
 
-case class NpcStation(id: Long, ownerId: Long, typeId: Long, operationId: Long)
-case class PlanetMoon(id: Long, npcStations: Vector[NpcStation])
-case class PlanetAsteroidBelt(id: Long)
-
-case class Planet(
-    id: Long,
-    index: Int,
-    typeId: Long,
-    moons: Vector[PlanetMoon],
-    asteroidBelts: Vector[PlanetAsteroidBelt],
-    stations: Vector[NpcStation]
+case class NpcStation(
+    @named("_key") id: Long,
+    @named("solarSystemID") systemId: constant.SystemId,
+    @named("typeID") typeId: constant.TypeId,
+    @named("ownerID") ownerId: Long,
+    @named("operationID") operationId: Int,
+    celestialIndex: Option[Int],
+    @named("orbitID") orbitId: Long,
+    orbitIndex: Option[Int]
 )
-case class Star(id: Long, typeId: Long)
-case class Stargate(id: Long, destinationId: Long)
+
+// wormhole effects
+case class SecondarySun(
+    @named("_key") id: Long,
+    @named("effectBeaconTypeID") beaconId: Long,
+    @named("solarSystemID") solarSystemId: constant.SystemId,
+    @named("typeID") effectId: constant.WormholeEffect
+)
+
+case class StargateDestination(
+    @named("solarSystemID") solarSystemId: constant.SystemId,
+    @named("stargateID") stargateId: Long
+)
+
+case class KeyValuePair[K, V](@named("_key") key: K, @named("_value") value: V)

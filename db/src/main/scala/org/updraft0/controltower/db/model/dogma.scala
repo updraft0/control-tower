@@ -1,5 +1,7 @@
 package org.updraft0.controltower.db.model
 
+import org.updraft0.controltower.constant.TypeId
+
 case class DogmaAttributeCategory(id: Long, name: String, description: Option[String])
 case class DogmaAttributeType(
     id: Long,
@@ -11,4 +13,4 @@ case class DogmaAttributeType(
     unitId: Option[Int],
     iconId: Option[Long]
 )
-case class ItemDogmaAttribute(itemId: Long, attributeId: Long, value: Double)
+case class ItemDogmaAttribute(itemId: TypeId, attributeId: Int, value: Double)

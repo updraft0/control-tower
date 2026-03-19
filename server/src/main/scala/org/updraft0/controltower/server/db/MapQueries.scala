@@ -9,8 +9,6 @@ import org.updraft0.controltower.db.query.*
 import org.updraft0.controltower.protocol.OpaqueCodecs
 import zio.*
 
-import scala.annotation.nowarn
-
 import java.time.Instant
 
 case class MapWormholeConnectionRank(
@@ -97,7 +95,6 @@ private[db] trait MapQueryCodecs extends OpaqueCodecs:
 
 /** Queries for map information
   */
-@nowarn("msg=unused import")
 object MapQueries extends MapQueryCodecs:
   import ctx.{*, given}
   import auth.given

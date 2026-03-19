@@ -35,6 +35,9 @@ object auth:
   given MappedEncoding[Long, SystemId] = MappedEncoding(SystemId.apply)
   given MappedEncoding[SystemId, Long] = MappedEncoding(identity)
 
+  given MappedEncoding[Int, TypeId] = MappedEncoding(TypeId.apply)
+  given MappedEncoding[TypeId, Int] = MappedEncoding(identity)
+
   given MappedEncoding[String, SigId] = MappedEncoding(SigId.apply)
   given MappedEncoding[SigId, String] = MappedEncoding(identity)
 

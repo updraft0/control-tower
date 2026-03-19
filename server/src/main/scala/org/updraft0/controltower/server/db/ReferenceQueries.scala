@@ -8,8 +8,6 @@ import org.updraft0.controltower.protocol
 import org.updraft0.controltower.protocol.jsoncodec.{config, given}
 import zio.*
 
-import scala.annotation.nowarn
-
 case class StargateBothSides(
     inGateId: Long,
     outGateId: Long,
@@ -20,7 +18,6 @@ case class SolarSystemWithGates(sys: model.SolarSystem, gates: Array[StargateBot
 
 /** Queries for "reference" data (not map-dependent)
   */
-@nowarn("msg=unused import")
 object ReferenceQueries:
   import ctx.{*, given}
   import auth.given
@@ -102,12 +99,11 @@ object ReferenceQueries:
             infix"(${lift(id).forall(_ == s.id)})".asCondition
         )
         reg <- region.join(_.id == sys.regionId)
+        sss <- solarSystemStar.leftJoin(_.systemId == sys.id)
         ptj <- (solarSystemPlanet
           .join(itemType)
           .on(_.typeId == _.id)
-          .leftJoin(itemName)
-          .on(_._1.id == _.id))
-          .leftJoin(_._1._1.systemId == sys.id)
+          .leftJoin(_._1.systemId == sys.id))
         stj <- (npcStation
           .join(npcCorporation)
           .on(_.ownerId == _.id)
@@ -121,23 +117,24 @@ object ReferenceQueries:
           .on(_.staticTypeId == _.typeId))
           .leftJoin(_._1.systemId == sys.id)
         sgj <- stargate.leftJoin(_.systemId == sys.id)
-      yield (sys, reg, ptj, stj, whj, sgj))
-        .groupByMap((sys, reg, _, _, _, _) => (sys, reg))((sys, reg, ptj, stj, whj, sgj) =>
+      yield (sys, reg, sss, ptj, stj, whj, sgj))
+        .groupByMap((sys, reg, sss, _, _, _, _) => (sys, reg, sss))((sys, reg, sss, ptj, stj, whj, sgj) =>
           (
             sys,
             reg,
+            sss,
             jsonGroupArrayFilterNullDistinct[protocol.Planet](
               jsonObject4(
                 "idx",
-                ptj.map(_._1._1.idx),
-                "name",
-                ptj.map(_._2.map(_.name)),
+                ptj.map(_._1.idx),
                 "type_name",
-                ptj.map(_._1._2.name),
+                ptj.map(_._2.name),
                 "type_id",
-                ptj.map(_._1._1.typeId)
+                ptj.map(_._1.typeId),
+                "moon_count",
+                ptj.map(_._1.moonCount)
               ),
-              ptj.map(_._1._1.idx)
+              ptj.map(_._1.idx)
             ),
             jsonGroupArrayFilterNullDistinct[protocol.Station](
               jsonObject8(
@@ -183,7 +180,7 @@ object ReferenceQueries:
           )
         )
     }).map(
-      _.map((sys, reg, planets, stations, wormholeStatics, stargates) =>
+      _.map((sys, reg, sss, planets, stations, wormholeStatics, stargates) =>
         protocol.SolarSystem(
           id = sys.id,
           name = sys.name,
@@ -198,7 +195,7 @@ object ReferenceQueries:
           wormholeStatics = wormholeStatics.value,
           gates = stargates.value,
           security = sys.security,
-          starTypeId = sys.starTypeId.map(id => TypeId(id.toInt) /* FIXME */ )
+          starTypeId = sss.map(_.typeId)
         )
       )
     )

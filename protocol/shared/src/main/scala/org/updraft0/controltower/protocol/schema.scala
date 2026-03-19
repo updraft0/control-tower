@@ -215,8 +215,8 @@ object jsoncodec extends OpaqueCodecs:
 
   given JsonValueCodec[WormholeEffect] = new JsonValueCodec[WormholeEffect]:
     override def decodeValue(in: JsonReader, default: WormholeEffect): WormholeEffect =
-      WormholeEffects.ById(in.readLong())
-    override def encodeValue(x: WormholeEffect, out: JsonWriter): Unit = out.writeVal(x.typeId)
+      WormholeEffects.ById(in.readInt())
+    override def encodeValue(x: WormholeEffect, out: JsonWriter): Unit = out.writeVal(x.typeId.value)
     override def nullValue: WormholeEffect                             = null
 
   // reference

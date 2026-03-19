@@ -20,9 +20,9 @@ object Dependencies {
     val `scala-java-time`  = "2.6.0"
     val `sjs-dom`          = "2.8.1"
     val snakeyaml          = "3.0.1"
-    val sqlite             = "3.51.2.0"
+    val sqlite             = "3.51.3.0"
     val sttp               = "3.11.0"
-    val tapir              = "1.13.11"
+    val tapir              = "1.13.12"
     val waypoint           = "9.0.0"
     val zio                = "2.1.24"
     val `zio-config`       = "4.0.6"
@@ -46,10 +46,6 @@ object Dependencies {
 
   val quill = Seq(
     "io.getquill" %% "quill-jdbc-zio" % Versions.quill
-  )
-
-  val snakeyaml = Seq(
-    "org.snakeyaml" % "snakeyaml-engine" % Versions.snakeyaml
   )
 
   val sqlite = Seq(

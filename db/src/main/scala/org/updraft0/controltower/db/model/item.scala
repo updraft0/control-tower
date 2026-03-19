@@ -1,13 +1,12 @@
 package org.updraft0.controltower.db.model
 
+import org.updraft0.controltower.constant.TypeId
 import java.time.Instant
 
 case class Faction(
     id: Long,
     name: String,
     corporationId: Option[Long],
-    description: String,
-    shortDescription: Option[String],
     iconId: Long,
     militiaCorporationId: Option[Long],
     sizeFactor: Double,
@@ -16,12 +15,10 @@ case class Faction(
 )
 case class ItemCategory(id: Long, name: String, iconId: Option[Long])
 case class ItemGroup(id: Long, categoryId: Long, name: String, iconId: Option[Long])
-case class ItemName(id: Long, groupId: Long, name: String)
 case class ItemType(
-    id: Long,
+    id: TypeId,
     name: String,
     groupId: Long,
-    description: Option[String],
     mass: Option[Double],
     volume: Option[Double]
 )
@@ -29,7 +26,6 @@ case class NpcCorporation(
     id: Long,
     name: String,
     ceoId: Option[Long],
-    description: Option[String],
     raceId: Option[Int],
     factionId: Option[Long],
     iconId: Option[Long],
@@ -39,7 +35,7 @@ case class NpcCorporation(
     uniqueName: Boolean
 )
 
-case class StationOperation(id: Long, activityId: Int, name: String, description: Option[String])
+case class StationOperation(id: Long, activityId: Int, name: String)
 case class StationOperationService(operationId: Long, serviceId: Long)
 case class StationService(id: Long, name: String)
 
@@ -47,4 +43,4 @@ case class SdeLoadMeta(sizeBytes: Long, checksum: String)
 
 /** Metadata about refreshing the SDE import
   */
-case class Version(id: Int, createdAt: Instant, meta: SdeLoadMeta)
+case class Version(id: Int, createdAt: Instant, releasedAt: Instant, buildNumber: Long, meta: SdeLoadMeta)

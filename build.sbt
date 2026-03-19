@@ -127,7 +127,10 @@ lazy val server = project
 
 lazy val `sde-reader` = project
   .in(file("sde-reader"))
-  .settings(commonSettings, Seq(libraryDependencies ++= snakeyaml ++ zio ++ `zio-test`))
+  .settings(commonSettings)
+  .settings(Seq(
+    libraryDependencies ++= jsoniter ++ zio ++ `zio-test`
+  ))
   .dependsOn(constant.jvm)
 
 lazy val `test-deps` =

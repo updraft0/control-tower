@@ -4,9 +4,9 @@ import org.updraft0.controltower.constant.*
 
 case class Planet(
     idx: Int,
-    name: Option[String],
     typeName: String,
-    typeId: TypeId
+    typeId: TypeId,
+    moonCount: Int
 )
 
 case class Station(

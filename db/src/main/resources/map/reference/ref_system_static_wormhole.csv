@@ -1,6 +1,6 @@
 # Properties file of pairs (J-num,static name)
 # SDE export does not contain this information, so it's been sourced from tripwire
-# via jq -r '. | to_entries | map(.key as $jsig | .value[] | [$jsig, .]) | @csv' | sed -e 's/"//g' | sort
+# via jq -r '. | to_entries | map(.key as $jsig | .value[] | [$jsig, .]) | .[] | @csv' | sed -e 's/"//g' | sort
 J000102,Q003
 J000102,Z006
 J000186,C008
@@ -26,7 +26,6 @@ J000452,Q003
 J000452,Z006
 J000461,Q003
 J000461,Z006
-J000487,C008
 J000487,Q003
 J000487,Z006
 J000522,L005
@@ -191,6 +190,7 @@ J011321,Y683
 J011339,D845
 J011339,U210
 J011355,C247
+J011355,K346
 J011355,X877
 J011376,H900
 J011376,U210

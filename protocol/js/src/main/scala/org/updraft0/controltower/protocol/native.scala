@@ -23,9 +23,10 @@ object native:
     extension (we: WormholeEffect) def toNative: js.Any = we.typeId.toDouble
     def fromNative(ps: ParseState): WormholeEffect      =
       val idx = ps.json.asInstanceOf[Matchable] match
-        case i: Int    => i.toLong
-        case s: String => s.toLongOption.getOrElse(ps.fail("Long"))
-        case _         => ps.fail("Long")
+        case i: Int    => i
+        case i: Long   => i.toInt
+        case s: String => s.toIntOption.getOrElse(ps.fail("Int"))
+        case _         => ps.fail("Int")
       WormholeEffects.ById.getOrElse(idx, ps.fail("WormholeEffect.Id"))
 
   // opaque
