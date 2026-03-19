@@ -230,9 +230,15 @@ object sde:
         update sde.solar_system
         set region_name        = (select r.name from sde.region r where r.id = solar_system.region_id),
             constellation_name = (select c.name from sde.constellation c where c.id = solar_system.constellation_id),
-            effect_type_id     = (select e.type_id from sde.solar_system_effect e where e.system_id = solar_system.id),
-            wh_class_id        = (select r.wh_class_id from sde.region r where r.id = solar_system.region_id)
+            effect_type_id     = (select e.type_id from sde.solar_system_effect e where e.system_id = solar_system.id)
            """.as[Action[Int]]))
+
+  def updateSolarSystemWhClassFromRegion: DbOperation[Long] =
+    ctx.run(quote(infix"""
+        update sde.solar_system
+        set wh_class_id = (select r.wh_class_id from sde.region r where r.id = solar_system.region_id)
+        where wh_class_id is null;
+             """.as[Action[Int]]))
 
   def updateConstellationRegionName: DbOperation[Long] =
     ctx.run(

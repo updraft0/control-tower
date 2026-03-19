@@ -26,7 +26,8 @@ enum ExportedData:
       @named("planetIDs") planets: Vector[Long],
       radius: Double,
       securityStatus: Option[Double],
-      @named("starID") starId: Option[Long]
+      @named("starID") starId: Option[Long],
+      @named("wormholeClassID") whClassId: Option[Int]
   )
 
   /** @note

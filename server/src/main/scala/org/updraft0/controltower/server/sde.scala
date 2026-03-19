@@ -2,14 +2,13 @@ package org.updraft0.controltower.server
 
 import org.updraft0.controltower.db.model.SdeLoadMeta
 import org.updraft0.controltower.db.query
-import zio.*
-import org.updraft0.esi.client.{SdeClient, SdeVersion}
-import org.updraft0.controltower.{db, sde, sdeloader}
 import org.updraft0.controltower.sde.read as readSdeZip
+import org.updraft0.controltower.{db, sdeloader}
+import org.updraft0.esi.client.{SdeClient, SdeVersion}
+import zio.*
 import zio.stream.ZSink
 
-import java.time.Instant
-import java.nio.file.{Files, Path}
+import java.nio.file.Files
 import javax.sql.DataSource
 
 def updateReferenceData =
@@ -60,27 +59,3 @@ private[server] def deleteAllSde(): RIO[DataSource, Long] =
     deleteStationOperation <*> deleteStationOperationService <*> deleteStationService)
     .map(xs => (xs.productIterator.asInstanceOf[Iterator[Long]]))
     .map(_.sum)
-
-object SdeLoaderTest extends ZIOAppDefault:
-
-  def special =
-    for
-      _ <- query.transaction(deleteAllSde()).tap(c => ZIO.log(s"deleted ${c} records"))
-      _ <- query.sde.vacuumSde
-      sdeEntries = sde.read(
-        Path.of("/Users/user/proj/evedev/control-tower/temp/eve-online-static-data-3253748-jsonl.zip")
-      )
-      meta = SdeLoadMeta(0, "")
-      loaded <- query.transaction(sdeloader.intoDb(sdeEntries, Instant.EPOCH, 0, meta))
-      _      <- ZIO.log("special SDE load complete")
-    yield loaded
-
-  override val bootstrap =
-    Runtime.disableFlags(RuntimeFlag.FiberRoots) >>> Runtime.enableRuntimeMetrics >>> desktopLogger
-
-  override def run =
-    special
-      .provide(
-        ZLayer.succeed(db.Config(Path.of("/Users/user/proj/evedev/control-tower/sde-temp"))),
-        db.postMigrationLayer
-      )

@@ -98,10 +98,9 @@ private[sdeloader] def loadChunkSameData(data: Chunk[ExportedData]): RIO[DataSou
       query.sde.insertItemTypes(data.map(_.asInstanceOf[ExportedData.TypeId]).map(toItemType)).map(Chunk(_))
 
 private def backfillEntries =
-  backfillSolarSystemFields
-
-private def backfillSolarSystemFields =
-  query.sde.updateSolarSystemColumns <*> query.sde.updateConstellationRegionName
+  query.sde.updateSolarSystemColumns
+    <*> query.sde.updateSolarSystemWhClassFromRegion
+    <*> query.sde.updateConstellationRegionName
     <*> query.sde.updateNpcStationName
 
 private[sdeloader] def loadTypeDogmas(attrs: Chunk[sde.TypeDogma]) =
@@ -129,7 +128,7 @@ private[sdeloader] def toSolarSystem(ss: ExportedData.SolarSystem) =
     constellationName = "",
     constellationId = ss.constellationId,
     effectTypeId = None,
-    whClassId = None,
+    whClassId = ss.whClassId,
     security = ss.securityStatus
   )
 
