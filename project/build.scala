@@ -30,7 +30,7 @@ object build {
   val commonSettings = Seq(
     organization := "org.updraft0",
     version      := "0.1.0-SNAPSHOT",
-    scalaVersion := "3.8.2",
+    scalaVersion := "3.8.4", // blocked by https://github.com/zio/zio-protoquill/pull/772 for scala 3.9
     manifestSetting,
     crossVersion := CrossVersion.binary,
     scalacOptions ++= Seq(

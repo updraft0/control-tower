@@ -32,7 +32,7 @@ final class ArrayRenderedVar[A] private (render: RenderT[A])(using CanEqual[A, A
   def itemsNow: Seq[A] = internalVar.now().toSeq.map(_._2).map(_.now())
 
   def append(item: A): Unit =
-    val k  = Random.nextLong
+    val k  = Random.nextLong()
     val v  = Var(item)
     val el = render(v.signal, removeOrUpdateFor(k))
     outBus.emit(CollectionCommand.Append(el))

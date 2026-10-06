@@ -94,7 +94,7 @@ class IdbReferenceDataStore(db: Database, maxSearchHits: Int = 10) extends Refer
       limit: Option[Int]
   ): Future[List[A]] =
     // 🤯 when you call cursor.continue() it re-fires the callback given
-    val res   = Promise[List[A]]
+    val res   = Promise[List[A]]()
     val state = js.Array[A]()
     val req   = getCursor(tx.objectStore(storeName))
     req.onerror = { e =>
@@ -214,7 +214,7 @@ private def openIndexedDb(
     version: Int,
     onUpgrade: VersionChangeEvent => Unit
 ): Future[Database] =
-  val res = Promise[Database]
+  val res = Promise[Database]()
   val req = factory.open(name, version.toDouble)
   req.onblocked = { e =>
     res.complete(Failure(IndexedDbError(s"IDB blocked", e)))
@@ -233,7 +233,7 @@ private def inTransaction[A](
     name: String,
     f: ObjectStore => Request[org.scalajs.dom.IDBStoreLike[?], A]
 ): Future[A] =
-  val res = Promise[A]
+  val res = Promise[A]()
   val req = f(trx.objectStore(name))
   req.onerror = { e =>
     res.complete(Failure(IndexedDbError("failed in transaction", e)))
@@ -244,7 +244,7 @@ private def inTransaction[A](
   res.future
 
 private def onFinished(trx: Transaction): Future[Unit] =
-  val res = Promise[Unit]
+  val res = Promise[Unit]()
   trx.oncomplete = { _ =>
     res.complete(Success(()))
   }
